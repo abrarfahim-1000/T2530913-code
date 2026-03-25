@@ -1,114 +1,35 @@
-aiohappyeyeballs==2.6.1
-aiohttp==3.13.3
-aiosignal==1.4.0
-annotated-types==0.7.0
-anyio==4.12.1
-attrs==26.1.0
-certifi==2026.2.25
-charset-normalizer==3.4.6
-click==8.3.1
-colorama==0.4.6
-dataclasses-json==0.6.7
-deepdiff==8.6.2
-dpcpp-cpp-rt==2025.3.1
-filelock==3.20.0
-frozenlist==1.8.0
-fsspec==2025.12.0
-geojson==3.2.0
-gitdb==4.0.12
-GitPython==3.1.46
-greenlet==3.3.2
-grid2op==1.12.3
-h11==0.16.0
-httpcore==1.0.9
-httpx==0.28.1
-httpx-sse==0.4.3
-idna==3.11
-intel-cmplr-lib-rt==2025.3.1
-intel-cmplr-lib-ur==2025.3.1
-intel-cmplr-lic-rt==2025.3.1
-intel-opencl-rt==2025.3.1
-intel-openmp==2025.3.1
-intel-pti==0.15.0
-intel-sycl-rt==2025.3.1
-Jinja2==3.1.6
-jsonpatch==1.33
-jsonpointer==3.0.0
-langchain==1.2.13
-langchain-classic==1.0.3
-langchain-community==0.4.1
-langchain-core==1.2.20
-langchain-text-splitters==1.1.1
-langgraph==1.1.3
-langgraph-checkpoint==4.0.1
-langgraph-prebuilt==1.0.8
-langgraph-sdk==0.3.12
-langsmith==0.7.22
-LightSim2Grid==0.12.2
-MarkupSafe==3.0.2
-marshmallow==3.26.2
-mkl==2025.3.0
-mpmath==1.3.0
-multidict==6.7.1
-mypy_extensions==1.1.0
-networkx==3.6.1
-numpy==2.3.5
-ollama==0.6.1
-onemkl-license==2025.3.0
-onemkl-sycl-blas==2025.3.0
-onemkl-sycl-dft==2025.3.0
-onemkl-sycl-lapack==2025.3.0
-onemkl-sycl-rng==2025.3.0
-onemkl-sycl-sparse==2025.3.0
-orderly-set==5.5.0
-orjson==3.11.7
-ormsgpack==1.12.2
-packaging==25.0
-pandapower==3.4.0
-pandas==2.3.3
-pandera==0.26.1
-pillow==12.0.0
-platformdirs==4.9.4
-propcache==0.4.1
-protobuf==6.33.6
-psutil==7.2.2
-pybind11==3.0.2
-pydantic==2.12.5
-pydantic-settings==2.13.1
-pydantic_core==2.41.5
-pyelftools==0.32
-pyparsing==3.3.2
-python-dateutil==2.9.0.post0
-python-dotenv==1.2.2
-pytz==2026.1.post1
-PyYAML==6.0.3
-requests==2.32.5
-requests-toolbelt==1.0.0
-scipy==1.16.3
-sentry-sdk==2.55.0
-setuptools==82.0.1
-six==1.17.0
-smmap==5.0.3
-SQLAlchemy==2.0.48
-sympy==1.14.0
-tbb==2022.3.0
-tcmlib==1.4.1
-tenacity==9.1.4
-torch==2.10.0+xpu
-torch-geometric==2.7.0
-torchaudio==2.10.0+xpu
-torchvision==0.25.0+xpu
-tqdm==4.67.3
-triton-xpu==3.6.0
-typeguard==4.5.1
-typing-inspect==0.9.0
-typing-inspection==0.4.2
-typing_extensions==4.15.0
-tzdata==2025.3
-umf==1.0.2
-urllib3==2.6.3
-uuid_utils==0.14.1
-wandb==0.25.1
-xxhash==3.6.0
-yarl==1.23.0
-zstandard==0.25.0
+# ============================================================
+# Neuro-Symbolic Grid — Research PC (RTX 4080 Super, CUDA 12.8)
+# ============================================================
+#
+# Install order:
+#
+#   1. pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cu128
+#   2. pip install torch_geometric
+#   3. pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.8.0+cu128.html
+#   4. pip install -r requirements.txt
+#
+# ============================================================
+
+# --- Grid Simulation ---
+grid2op
+lightsim2grid
+
+# --- LLM Pipeline ---
+langchain
+langchain-community
+ollama
+
+# --- Knowledge Graph ---
+networkx
+
+# --- Data / Validation ---
+pydantic
+numpy
+scikit-learn
+
+# --- Experiment Tracking ---
+wandb
+
+# --- Utilities ---
+tqdm
