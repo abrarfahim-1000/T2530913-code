@@ -1,0 +1,77 @@
+{
+  "results": [
+    {
+      "static": {
+        "env_name": "l2rpn_neurips_2020_track1_small",
+        "n_sub": 36,
+        "n_line": 59,
+        "n_gen": 22,
+        "n_load": 37,
+        "n_storage": 0
+      },
+      "probe": {
+        "total_steps": 2304,
+        "steps_per_sec": 181.62678348005488,
+        "overload_rate": 0.0,
+        "line_down_rate": 0.4422743055555556,
+        "maintenance_rate": 0.0,
+        "non_normal_rate": 0.4422743055555556,
+        "class_diversity": 0.3333333333333333,
+        "screening_counts": {
+          "normal": 1285,
+          "line_down": 1019
+        }
+      },
+      "scores": {
+        "scope_fit_score": 1.0,
+        "efficiency_score": 1.0,
+        "event_richness_score": 0.55,
+        "graph_simplicity_score": 1.0,
+        "final_thesis_score": 0.91
+      }
+    },
+    {
+      "static": {
+        "env_name": "l2rpn_wcci_2022",
+        "n_sub": 118,
+        "n_line": 186,
+        "n_gen": 62,
+        "n_load": 91,
+        "n_storage": 7
+      },
+      "probe": {
+        "total_steps": 1075,
+        "steps_per_sec": 125.17357724293846,
+        "overload_rate": 0.04930232558139535,
+        "line_down_rate": 0.09209302325581395,
+        "maintenance_rate": 0.0,
+        "non_normal_rate": 0.11813953488372093,
+        "class_diversity": 0.6666666666666666,
+        "screening_counts": {
+          "normal": 948,
+          "overload": 53,
+          "line_down": 74
+        }
+      },
+      "scores": {
+        "scope_fit_score": 0.45,
+        "efficiency_score": 0.6892,
+        "event_richness_score": 0.9,
+        "graph_simplicity_score": 0.3125,
+        "final_thesis_score": 0.5792
+      }
+    }
+  ],
+  "recommendation": {
+    "recommended_env": "l2rpn_neurips_2020_track1_small",
+    "runner_up": "l2rpn_wcci_2022",
+    "score_gap": 0.3308,
+    "confidence": "clear",
+    "reason_summary": {
+      "best_scope_fit": 1.0,
+      "best_efficiency": 1.0,
+      "best_event_richness": 0.55,
+      "best_graph_simplicity": 1.0
+    }
+  }
+}
