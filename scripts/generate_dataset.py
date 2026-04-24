@@ -261,7 +261,7 @@ def main():
 
                 obs, reward, done, _info = env.step(action)
                 fault_label, fault_loc   = derive_label(
-                    obs, prev_line_status, fault_label, fault_loc
+                    obs, prev_line_status, fault_label, fault_loc, env
                 )
                 prev_line_status = obs.line_status.copy()
 
