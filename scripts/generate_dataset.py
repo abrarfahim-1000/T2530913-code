@@ -34,10 +34,14 @@ ENV_TAG  = "neurips2020"
 ENV_DESC = "NeurIPS 2020 L2RPN — 36 subs, 59 lines [PRIMARY]"
 
 # ── FIXED CONFIG ──────────────────────────────────────────────────────────────
-FAULT_PROB      = 0.02   # ← was 0.08; lower = longer episodes, more records
-RECONNECT_PROB  = 0.6    # probability of reconnecting a tripped line each step
+FAULT_PROB      = 0.05   # ← was 0.08; lower = longer episodes, more records
+RECONNECT_PROB  = 0.4    # probability of reconnecting a tripped line each step
 SEED            = 42
 RHO_CLIP        = 2.0        # clip rho before saving; must match GridDataset normalisation
+
+# Undersampling: only log a normal step with this probability
+# Fault/overload/cascade steps are ALWAYS logged
+NORMAL_KEEP_PROB = 0.3   # discard 70% of normal steps → ~70% fault in final set
 
 # Smoke-test overrides (--smoke flag)
 SMOKE_MAX_CHRONICS = 3
@@ -102,22 +106,28 @@ def extract_features(obs):
     return feats
 
 
-def derive_label(obs, prev_line_status, injected_label, injected_loc):
-    # Priority: maintenance > overload > cascade > injected
+def derive_label(obs, prev_line_status, injected_label, injected_loc, env):
     if hasattr(obs, "time_next_maintenance") and hasattr(obs, "duration_next_maintenance"):
         under_maint = (obs.time_next_maintenance == 0) & (obs.duration_next_maintenance > 0)
         if under_maint.any():
-            return "maintenance", int(np.where(under_maint)[0][0])
+            line_id = int(np.where(under_maint)[0][0])
+            return "maintenance", int(env.line_or_to_subid[line_id])  # ← substation
 
     if obs.rho.max() > 1.0:
-        return "overload", int(obs.rho.argmax())
+        line_id = int(obs.rho.argmax())
+        return "overload", int(env.line_or_to_subid[line_id])         # ← substation
 
     new_trips = (~obs.line_status) & prev_line_status
     if new_trips.any() and injected_label == "normal":
-        return "cascade", int(np.where(new_trips)[0][0])
+        line_id = int(np.where(new_trips)[0][0])
+        return "cascade", int(env.line_or_to_subid[line_id])          # ← substation
+
+    # For line_trip: injected_loc is already set as line_id in the step loop
+    # Convert it to substation here
+    if injected_label == "line_trip" and injected_loc is not None:
+        return "line_trip", int(env.line_or_to_subid[injected_loc])   # ← substation
 
     return injected_label, injected_loc
-
 
 def validate_record(record):
     """Raise immediately if any numeric field contains NaN/inf."""
@@ -137,6 +147,12 @@ def build_meta(env, label_counts, total_records, total_time, smoke):
         "n_line":        int(env.n_line),
         "n_load":        int(env.n_load),
         "n_gen":         int(env.n_gen),
+        "topology": {
+            "line_or_bus": env.line_or_to_subid.tolist(),
+            "line_ex_bus": env.line_ex_to_subid.tolist(),
+            "load_to_sub": env.load_to_subid.tolist(),
+            "gen_to_sub":  env.gen_to_subid.tolist(),
+        },
         "n_classes":     len(present_labels),           # dynamic — use this in GNN
         "label_map":     {k: LABEL_MAP[k] for k in present_labels},
         "rho_clip":      RHO_CLIP,
@@ -253,20 +269,24 @@ def main():
                 newly_tripped = set(np.where(~obs.line_status)[0])
                 tripped_lines.update(newly_tripped)
 
-                record = {
-                    **extract_features(obs),
-                    "label":      fault_label,
-                    "label_int":  LABEL_MAP[fault_label],
-                    "fault_loc":  fault_loc,
-                    "timestep":   t,
-                    "chronic_id": chronic_id,
-                    "reward":     float(reward),
-                }
+                is_normal = (fault_label == "normal")
+                if is_normal and np.random.rand() > NORMAL_KEEP_PROB:
+                    pass  # skip — discard 70% of normal steps
+                else:
+                    record = {
+                        **extract_features(obs),
+                        "label":      fault_label,
+                        "label_int":  LABEL_MAP[fault_label],
+                        "fault_loc":  fault_loc,
+                        "timestep":   t,
+                        "chronic_id": chronic_id,
+                        "reward":     float(reward),
+                    }
 
-                validate_record(record)
-                out_f.write(json.dumps(record) + "\n")
-                label_counts[fault_label] += 1
-                total_written += 1
+                    validate_record(record)
+                    out_f.write(json.dumps(record) + "\n")
+                    label_counts[fault_label] += 1
+                    total_written += 1
 
                 if done:
                     tripped_lines.clear()  # reset for next chronic

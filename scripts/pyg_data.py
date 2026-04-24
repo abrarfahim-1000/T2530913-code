@@ -9,22 +9,35 @@ import linecache
 ENV_NAME = "l2rpn_neurips_2020_track1_small"
 
 class GridEnvMetadata:
-    def __init__(self):
-        self.env_name = ENV_NAME
-        
-        # Grid2Op takes time to initialize; we'll cache the results
-        env = grid2op.make(self.env_name)
-        self.n_sub = env.n_sub
-        self.n_line = env.n_line
-        self.n_load = env.n_load
-        self.n_gen = env.n_gen
-        
-        self.line_or_bus = env.line_or_to_subid.copy()
-        self.line_ex_bus = env.line_ex_to_subid.copy()
-        self.load_to_sub = env.load_to_subid.copy()
-        self.gen_to_sub = env.gen_to_subid.copy()
-        
-        env.close()
+    def __init__(self, meta_dict=None):
+        if meta_dict:
+            # Load from cached dict (no Grid2Op needed)
+            self.env_name = meta_dict["env_name"]
+            self.n_sub    = meta_dict["n_sub"]
+            self.n_line   = meta_dict["n_line"]
+            self.n_load   = meta_dict["n_load"]
+            self.n_gen    = meta_dict["n_gen"]
+            
+            topo = meta_dict["topology"]
+            self.line_or_bus = np.array(topo["line_or_bus"])
+            self.line_ex_bus = np.array(topo["line_ex_bus"])
+            self.load_to_sub = np.array(topo["load_to_sub"])
+            self.gen_to_sub  = np.array(topo["gen_to_sub"])
+        else:
+            # Fallback to Grid2Op initialization
+            self.env_name = ENV_NAME
+            print(f"[meta] Initializing Grid2Op env: {self.env_name}...")
+            env = grid2op.make(self.env_name)
+            self.n_sub = env.n_sub
+            self.n_line = env.n_line
+            self.n_load = env.n_load
+            self.n_gen = env.n_gen
+            
+            self.line_or_bus = env.line_or_to_subid.copy()
+            self.line_ex_bus = env.line_ex_to_subid.copy()
+            self.load_to_sub = env.load_to_subid.copy()
+            self.gen_to_sub = env.gen_to_subid.copy()
+            env.close()
 
 LABEL_MAP = {"normal": 0, "overload": 1, "line_trip": 2, "cascade": 3, "maintenance": 4}
 RHO_CLIP  = 2.0
@@ -85,16 +98,16 @@ class GridDataset(Dataset):
     def __init__(self, file_path, indices, meta: GridEnvMetadata):
         super().__init__()
         self.file_path = os.path.abspath(file_path)
-        self.indices = indices
+        self.idx = indices
         self.meta = meta
         self.n_classes = len(LABEL_MAP)
 
     def len(self):
-        return len(self.indices)
+        return len(self.idx)
 
     def get(self, idx):
         # linecache line numbers are 1-based
-        line_num = self.indices[idx] + 1
+        line_num = self.idx[idx] + 1
         line = linecache.getline(self.file_path, line_num)
         if not line:
             raise IndexError(f"Line {line_num} not found in {self.file_path}")

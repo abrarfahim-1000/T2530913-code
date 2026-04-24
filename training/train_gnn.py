@@ -4,6 +4,7 @@ import os
 # Ensure we can import from root (for scripts.* and training.*)
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+import json
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -67,6 +68,7 @@ def build_loc_targets(batch):
         if fl >= 0:
             # Clamp fault_loc to node range to avoid index errors
             # fl is substation index, which matches our node index
+            # node_idx = fl % n_nodes
             targets[node_offset + fl] = 1.0
         node_offset += n_nodes
     return targets
@@ -88,8 +90,17 @@ def train():
     print(f"Using device: {DEVICE}")
     print("Environment: NeurIPS 2020 Track 1 Small")
 
-    # Load metadata and determine data file
-    meta = GridEnvMetadata()
+    # Load metadata from the dataset's meta file to bypass Grid2Op initialization
+    meta_path = DATA_FILE.replace(".jsonl", "_meta.json")
+    if os.path.exists(meta_path):
+        print(f"Loading cached metadata from {meta_path}...")
+        with open(meta_path, 'r') as f:
+            meta_dict = json.load(f)
+        meta = GridEnvMetadata(meta_dict)
+    else:
+        print(f"Warning: Metadata file {meta_path} not found. Falling back to Grid2Op (slow).")
+        meta = GridEnvMetadata()
+
     data_file = DATA_FILE
 
     if not os.path.exists(data_file):
