@@ -12,6 +12,7 @@ from torch_geometric.loader import DataLoader
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.amp import autocast, GradScaler
+from collections import Counter
 import numpy as np
 import argparse
 from tqdm import tqdm
@@ -44,7 +45,9 @@ class GridGNN(nn.Module):
 
     def forward(self, x, edge_index, edge_attr, batch):
         x = F.elu(self.conv1(x, edge_index, edge_attr))
+        x = F.dropout(x, p=0.1, training=self.training)
         x = F.elu(self.conv2(x, edge_index, edge_attr))
+        x = F.dropout(x, p=0.1, training=self.training) 
         x = self.conv3(x, edge_index, edge_attr)
         loc_logits   = self.localizer(x).squeeze(-1)
         graph_emb    = global_mean_pool(x, batch)
@@ -91,7 +94,6 @@ def make_dataloader(dataset, batch_size, shuffle):
     """
     num_workers=0 on Windows (PyG + multiprocessing is broken there).
     """
-    is_accelerator = str(DEVICE).startswith("cuda") or str(DEVICE).startswith("xpu")
     is_win         = sys.platform == "win32"
 
     num_workers = 0 if is_win else 4
@@ -101,7 +103,7 @@ def make_dataloader(dataset, batch_size, shuffle):
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
-        pin_memory=is_accelerator,
+        pin_memory=False,
         persistent_workers=(num_workers > 0),
         prefetch_factor=2 if num_workers > 0 else None,
     )
@@ -140,6 +142,9 @@ def train():
         with open(meta_path, 'r') as f:
             meta_dict = json.load(f)
         meta = GridEnvMetadata(meta_dict)
+        # Use only present classes from the actual dataset
+        LABEL_MAP_ACTIVE = meta_dict["label_map"]  # already stored in meta.json
+        n_classes = meta_dict["n_classes"]         # = 4 for your current dataset
     else:
         print("Warning: meta JSON not found — falling back to Grid2Op init (slow).")
         meta = GridEnvMetadata()
@@ -173,9 +178,10 @@ def train():
     from scripts.split import load_labels
     all_labels   = load_labels(DATA_FILE)
     train_labels = [all_labels[i] for i in train_idx]
-    weights      = compute_class_weights(train_labels, LABEL_MAP)
+    weights      = compute_class_weights(train_labels, LABEL_MAP_ACTIVE)  # use active map
+    print("Label counts:", Counter(train_labels))
+    print("Class weights:", dict(zip(LABEL_MAP_ACTIVE.keys(), weights)))
     class_weights = torch.tensor(weights, dtype=torch.float, device=DEVICE)
-    print(f"Class weights: {class_weights}")
 
     # ── DataLoaders ───────────────────────────────────────────────────────────
     train_loader = make_dataloader(train_ds, batch_size, shuffle=True)
@@ -185,7 +191,7 @@ def train():
     model = GridGNN(
         node_features=NODE_FEATURES,
         edge_features=EDGE_FEATURES,
-        n_classes=len(LABEL_MAP),
+        n_classes=n_classes,
         hidden_channels=TRAIN_CONFIG["hidden_channels"],
         heads=TRAIN_CONFIG["heads"],
         dropout=TRAIN_CONFIG["dropout"],
@@ -229,6 +235,8 @@ def train():
             scaler.scale(loss).backward()
             
             # 3. Step the optimizer and update the scaler
+            scaler.unscale_(optimizer)        
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             scaler.step(optimizer)
             scaler.update()
             

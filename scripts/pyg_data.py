@@ -72,6 +72,7 @@ def build_node_features(r, meta: GridEnvMetadata):
     np.maximum.at(node_rho, meta.line_ex_bus, rho)
 
     node_v = np.divide(node_v, v_count, out=np.zeros_like(node_v), where=v_count > 0)
+    node_v = node_v / 150.0
 
     return np.stack([node_load, node_gen, node_v, node_rho], axis=1)
 
@@ -137,11 +138,11 @@ class PreloadedGridDataset(InMemoryDataset):
     def __init__(self, pt_file_path, device=None):
         super().__init__(root=None) 
         
-        self.data, self.slices = torch.load(pt_file_path, weights_only=False)
+        self._data, self.slices = torch.load(pt_file_path, weights_only=False)
         
         # Move the entire monolithic tensor to the GPU
         if device is not None:
-            self.data = self.data.to(device)
+            self._data = self.data.to(device)
 
 if __name__ == "__main__":
     meta = GridEnvMetadata()

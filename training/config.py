@@ -28,12 +28,12 @@ if DEVICE.type == "cuda":
     TRAIN_CONFIG = {
         "epochs": 100,
         "batch_size": 256,
-        "lr": 1e-3,
+        "lr": 3e-4,
         "weight_decay": 1e-4,
-        "dropout": 0.2,
-        "hidden_channels": [128, 256, 512],
-        "heads": [8, 8, 1],
-        "loc_loss_weight": 0.5
+        "dropout": 0.1,
+        "hidden_channels": [64, 128, 256],
+        "heads": [4, 4, 1],
+        "loc_loss_weight": 0.3
     }
 else:
     # Personal PC — smoke test only
