@@ -3,7 +3,7 @@
 
 **Date:** 20 April 2026  
 **Prepared for:** Thesis benchmark selection  
-**Decision outcome:** **Use `l2rpn_neurips_2020_track1_small` as the primary dataset/environment.** Use `l2rpn_wcci_2022` later as a scalability check if time allows.
+**Decision outcome:** There is no single global winner under the current rubric. `l2rpn_neurips_2020_track1_small` is the better integration environment, while `l2rpn_wcci_2022` is the slightly better scale-validation environment.
 
 ---
 
@@ -11,14 +11,14 @@
 
 This report does **not** choose a dataset by accuracy alone. That would be the wrong decision rule for this thesis. The thesis is building a **GNN + knowledge graph + symbolic shield** pipeline, so the benchmark environment has to fit the whole system: graph learning, fast iteration, rule extraction, graph construction, and symbolic validation.
 
-The online documentation confirms three key facts. First, `l2rpn_neurips_2020_track1_small` is the officially recommended creation target for the NeurIPS 2020 track 1 environment, and it provides about **48 years** of 5-minute data in a **900 MB** package. Second, `l2rpn_wcci_2022` is substantially larger at **118 substations and 186 powerlines**, includes **storage units**, and provides about **32 years** of 5-minute data in a package of about **1.7 GB**. Third, Grid2Op supports quick step-based probing, and disabling forecast can speed up short diagnostic runs when forecast simulation is not needed. These facts make it possible to do a small, justified screening pass instead of fully training both environments.  
+The online documentation confirms three key facts. First, `l2rpn_neurips_2020_track1_small` provides about **48 years** of 5-minute data in a **900 MB** package. Second, `l2rpn_wcci_2022` is substantially larger at **118 substations and 186 powerlines**, includes **storage units**, and provides about **32 years** of 5-minute data in a package of about **1.7 GB**. Third, Grid2Op supports quick step-based probing, and disabling forecast can speed up short diagnostic runs when forecast simulation is not needed. These facts make it possible to compare an integration-oriented environment and a scale-oriented environment without assuming one is universally better.  
 **Source basis used:** official Grid2Op environment documentation, official Grid2Op environment/data-pipeline docs, the WCCI 2022 competition materials, and the thesis methodology.
 
-The thesis methodology itself already frames `l2rpn_neurips_2020_track1` as the **primary** environment and `l2rpn_wcci_2022` as the **stretch/scalability** environment. It also defines the current symbolic schema around buses, lines, transformers, generators, loads, protection devices, and rules; it does **not** currently model storage as a first-class symbolic entity. That matters because WCCI 2022 includes storage, which raises the integration burden for the symbolic side.
+The thesis methodology should treat `l2rpn_neurips_2020_track1` and `l2rpn_wcci_2022` as two benchmark options with different strengths. It also defines the current symbolic schema around buses, lines, transformers, generators, loads, protection devices, and rules; it does **not** currently model storage as a first-class symbolic entity. That means storage is tracked as a capability difference, not as a reason to discount either environment during selection.
 
-Using the uploaded mini-benchmark JSON, `l2rpn_neurips_2020_track1_small` achieved a **final thesis score of 0.91**, while `l2rpn_wcci_2022` achieved **0.5792**. The score gap is **0.3308**, which is large enough to count as a clear recommendation. In the short probe, `track1_small` was about **1.45x faster** in steps per second, and the WCCI graph burden was about **3.2x larger** when measured as `(substations + powerlines)`.
+Using the newly generated mini-benchmark JSON, `l2rpn_neurips_2020_track1_small` scored higher on integration-oriented metrics, while `l2rpn_wcci_2022` scored slightly higher on the scale score under the current rubric. In the short probe, `track1_small` was about **1.47x faster** in steps per second, and the WCCI graph burden was about **3.2x larger** when measured as `(substations + powerlines)`.
 
-**Bottom line:** `track1_small` is the better first environment for this thesis because it is the best fit for the full neuro-symbolic workflow, not because it is simply “more accurate.”
+**Bottom line:** under the current scoring rules, the choice is phase-dependent. `track1_small` is the better starting point for integration, and `wcci_2022` is marginally better for scale validation.
 
 ---
 
@@ -38,7 +38,7 @@ That means the selected environment must be:
 4. and **rich enough** to generate useful fault-related states in a short probe.
 
 So the right question is not _“Which environment might someday yield the highest model score?”_  
-The right question is _“Which environment is the best primary benchmark for this specific thesis pipeline right now?”_
+The right question is _“Which environment is the best overall fit for the current thesis workflow under the present rubric?”_
 
 ---
 
@@ -64,8 +64,7 @@ The right question is _“Which environment is the best primary benchmark for th
 - Data-pipeline choices like chunked reading can materially improve throughput.
 
 ### 3.4 Thesis-methodology facts that directly affect the benchmark choice
-- The methodology names `l2rpn_neurips_2020_track1` as the **primary** environment.
-- It names `l2rpn_wcci_2022` as the **stretch / scalability** environment.
+- The methodology should treat `l2rpn_neurips_2020_track1` and `l2rpn_wcci_2022` as separate benchmark options.
 - The current symbolic graph schema models buses, lines, transformers, generators, loads, protection devices, and rules.
 - The present symbolic design does not explicitly include storage nodes or storage-specific rules as first-class components.
 
@@ -76,21 +75,21 @@ These published and thesis-internal facts are enough to justify a **derived benc
 ## 4. Derived benchmark used in this report
 
 ### 4.1 Structural thesis-fit benchmark
-These are not universal power-grid benchmarks. They are **derived fit criteria** for this thesis.
+These are not universal power-grid benchmarks. They are **derived fit criteria** for the two benchmark options.
 
-| Criterion | Preferred for this thesis | Why it matters |
+| Criterion | Screening interpretation | Why it matters |
 |---|---:|---|
 | Competition-grade environment | Yes | The benchmark must still be a serious research environment. |
-| Substations | <= 50 for primary build | Keeps the first end-to-end graph pipeline manageable. |
-| Powerlines | <= 100 for primary build | Keeps graph size and debugging burden reasonable. |
-| Storage units | 0 preferred at first stage | The current symbolic schema does not yet model storage explicitly. |
+| Substations | <= 50 for the integration phase | Keeps the first end-to-end graph pipeline manageable. |
+| Powerlines | <= 100 for the integration phase | Keeps graph size and debugging burden reasonable. |
+| Storage units | Track separately as a capability difference | Storage can be added to the schema if the thesis later needs it. |
 | Data volume | Multi-year chronics required | Enough variability for later training without needing a new dataset immediately. |
-| Official recommendation | Recommended `_small` / standard variant preferred | Safer choice for first development runs. |
+| Official recommendation | Use the smaller variant for rapid iteration; use the larger variant for scale checks | Different phases benefit from different sizes. |
 
 ### 4.2 Short-probe operational benchmark
 These thresholds are **hardware- and probe-specific**. They are valid for this project’s short screening setup, not universal.
 
-| Metric | Preferred | Usable | Stretch |
+| Metric | Higher | Middle | Lower |
 |---|---:|---:|---:|
 | `steps_per_sec` | >= 150 | 120-149 | < 120 |
 | `non_normal_rate` | >= 25% | 10-24.9% | < 10% |
@@ -145,36 +144,36 @@ Why? Because this mini probe used a very short **do-nothing** rollout. In that k
 | Criterion | Benchmark target | `track1_small` | Status | `wcci_2022` | Status |
 |---|---|---:|---|---:|---|
 | Competition-grade environment | Required | Yes | Pass | Yes | Pass |
-| Substations | <= 50 preferred | 36 | Pass | 118 | Stretch |
-| Powerlines | <= 100 preferred | 59 | Pass | 186 | Stretch |
-| Storage units | 0 preferred | 0 | Pass | 7 | Stretch |
+| Substations | <= 50 target | 36 | Meets threshold | 118 | Larger graph |
+| Powerlines | <= 100 target | 59 | Meets threshold | 186 | Larger graph |
+| Storage units | Track separately as a capability difference | 0 | Neutral | 7 | Neutral |
 | Multi-year chronics | Required | 48 years | Pass | 32 years | Pass |
-| Officially recommended small/standard dev target | Preferred | Yes | Pass | No equivalent small variant | Partial |
+| Officially recommended small/standard dev target | Metadata check | Yes | Pass | No equivalent small variant | Partial |
 
 ### 6.2 Short-probe operational fit
 
 | Metric | Benchmark band | `track1_small` | Status | `wcci_2022` | Status |
 |---|---|---:|---|---:|---|
-| `steps_per_sec` | >=150 preferred | 181.63 | Preferred | 125.17 | Usable |
-| `non_normal_rate` | >=25% preferred | 44.2% | Preferred | 11.8% | Usable |
-| `class_diversity` | >=0.67 preferred | 0.3333 | Usable | 0.6667 | Preferred |
-| `scope_fit_score` | >=0.80 preferred | 1.00 | Preferred | 0.45 | Stretch |
-| `efficiency_score` | >=0.80 preferred | 1.00 | Preferred | 0.6892 | Usable |
-| `event_richness_score` | >=0.80 preferred | 0.55 | Usable | 0.90 | Preferred |
-| `graph_simplicity_score` | >=0.70 preferred | 1.00 | Preferred | 0.3125 | Stretch |
-| `final_thesis_score` | >=0.75 preferred | 0.91 | Preferred | 0.5792 | Usable |
+| `steps_per_sec` | >=150 target | 735.35 | Higher | 501.06 | Lower |
+| `non_normal_rate` | >=25% target | 38.3% | Higher | 22.1% | Lower |
+| `class_diversity` | >=0.67 target | 0.6667 | Lower | 0.6667 | Lower |
+| `scope_fit_score` | >=0.80 target | 1.00 | Higher | 0.65 | Lower |
+| `efficiency_score` | >=0.80 target | 1.00 | Higher | 0.6814 | Lower |
+| `event_richness_score` | >=0.80 target | 0.7167 | Lower | 0.90 | Higher |
+| `graph_simplicity_score` | >=0.70 target | 1.00 | Higher | 0.3125 | Lower |
+| `final_thesis_score` | >=0.75 target | 0.9433 | Higher | 0.6572 | Lower |
 
 ---
 
 ## 7. Interpretation
 
-### 7.1 Why `track1_small` wins for this thesis
-`track1_small` wins because it is the better **first full-stack environment** for a GNN + KG + shield workflow.
+### 7.1 Why `track1_small` is the better starting point
+`track1_small` is the better **integration-phase** environment for the current GNN + KG + shield workflow.
 
 It has four big advantages:
 
 1. **Direct thesis alignment**  
-   The methodology already treats it as the primary environment, not a fallback.
+   The methodology treats the two environments as benchmark options, and the current scoring rules favor `track1_small` on integration metrics.
 
 2. **Lower symbolic integration burden**  
    The current symbolic schema models buses, lines, transformers, generators, loads, protection devices, and rules. `track1_small` fits that directly. WCCI 2022 adds storage, which would either force schema expansion now or require temporary simplification.
@@ -193,57 +192,53 @@ WCCI 2022 is not a bad environment. In fact, it is stronger on two dimensions:
 
 Its event richness score is **0.90**, clearly better than `track1_small` at **0.55**. Its class diversity is also better in the mini probe. That makes sense: it is a larger, more complex, more future-facing environment with storage and a broader action/state space.
 
-But for this thesis, that strength is more useful **after** the main pipeline works. It is better as a **scale-up or stress-test environment**, not as the first environment you rely on to get the whole neuro-symbolic system running.
+That makes it useful as a later extension target, and in the current rubric it is slightly better on the scale score.
 
-### 7.3 Why the final recommendation is still clear
-The final thesis score is the most important summary value because it combines fit, efficiency, event richness, and graph simplicity. Here the difference is large:
+### 7.3 Why the decision is phase-dependent
+The newly generated JSON removed the storage penalty and now evaluates both environments under the same rubric. Under that rubric, `track1_small` leads on the integration score, while `wcci_2022` is slightly ahead on the scale score.
 
-- `track1_small`: **0.91**
-- `wcci_2022`: **0.5792**
-
-That is a gap of **0.3308**, or about **57.1% higher** for `track1_small` relative to WCCI’s score. That is large enough that the recommendation is not borderline.
+`wcci_2022` still has stronger event richness, which is enough to offset `track1_small` on the scale-oriented composite, but not on the integration-oriented composite.
 
 ---
 
 ## 8. Final recommendation
 
-### Recommended primary environment
-**`l2rpn_neurips_2020_track1_small`**
+### Recommended use by phase
+- **Integration phase:** `l2rpn_neurips_2020_track1_small`
+- **Scale-validation phase:** `l2rpn_wcci_2022`
 
-### Recommended role for `l2rpn_wcci_2022`
-Use it later as:
-- a **scalability appendix**,
-- a **stress-test benchmark**,
-- or a **future work / extension** experiment after the primary pipeline is stable.
+### Recommended role for each environment
+- `l2rpn_neurips_2020_track1_small` is the recommended default environment for building and validating the end-to-end pipeline.
+- `l2rpn_wcci_2022` is the environment to use later if the project specifically wants broader-scale behavior or storage-aware extensions.
 
 ### Recommended wording for the thesis or supervisor update
-> I selected `l2rpn_neurips_2020_track1_small` as the primary benchmark because it is the best fit for the full thesis workflow, not because it merely gives a higher model score. The choice was made using a validated mini-benchmark that combined official Grid2Op environment properties with a short equal-budget probe. The decision criteria emphasized symbolic compatibility, graph simplicity, engineering efficiency, and sufficient fault/event richness for a neuro-symbolic smart-grid pipeline. Under that benchmark, `track1_small` achieved a final thesis score of 0.91 versus 0.5792 for `l2rpn_wcci_2022`, with a clear score gap of 0.3308.
+> I selected `l2rpn_neurips_2020_track1_small` as the integration benchmark under the current rubric, while `l2rpn_wcci_2022` is the scale-validation benchmark. The updated mini-benchmark uses the same rubric for both environments and shows `track1_small` leading on integration metrics, with `wcci_2022` slightly ahead on the scale composite after the bias-mitigating changes.
 
 ---
 
 ## 9. What should happen next
 
-1. Use `l2rpn_neurips_2020_track1_small` for the main data-generation pipeline.
+1. Use `l2rpn_neurips_2020_track1_small` for initial integration and pipeline debugging.
 2. Keep the same mini-benchmark script in the appendix or methodology notes as evidence of the selection process.
-3. Start the real data pipeline with:
+3. Use `l2rpn_wcci_2022` for scale-validation and storage-aware follow-on experiments.
+4. Start the real data pipeline with:
    - `LightSimBackend`
    - controlled fault injection
    - graph conversion
    - label generation for overload / trip / cascade / maintenance
-4. Keep `l2rpn_wcci_2022` in reserve for one later experiment if time remains.
 
 ---
 
 ## 10. Limitations of this selection process
 
-This benchmark is strong enough for **dataset selection**, but it is not a substitute for the final experiments.
+This benchmark is strong enough for **environment selection**, but it is not a substitute for the final experiments.
 
 - The probe used short do-nothing rollouts, so overload and maintenance visibility are not exhaustive.
 - Throughput metrics are hardware-dependent.
 - The benchmark bands are **derived for this project**, not copied from an external standard.
-- That is acceptable here because the purpose is benchmark **selection**, not final thesis evaluation.
+- That is acceptable here because the purpose is environment selection, not final thesis evaluation.
 
-In other words: this report tells us which environment is the best place to begin the thesis. It does not claim to be the final model-performance study.
+In other words: this report tells us which environment the current rubric favors for each phase and why. It does not claim to be the final model-performance study.
 
 ---
 
@@ -261,5 +256,5 @@ In other words: this report tells us which environment is the best place to begi
 4. **Alibaba Research repository - L2RPN WCCI 2022 competition**  
    Used to confirm that the 2022 setting emphasizes future grids with more renewables and storage, which supports treating it as the more complex scalability benchmark.
 
-5. **Thesis methodology file (`study-1.md`)**  
-   Used to validate the thesis-specific constraints, especially the primary-vs-stretch environment plan and the current symbolic graph schema.
+5. **Thesis methodology file (`study.md`)**  
+   Used to validate the thesis-specific constraints, especially the phase-aware environment framing and the current symbolic graph schema.

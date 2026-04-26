@@ -29,7 +29,7 @@
 
 ```
 [Domain Documents]                        [Grid2Op Simulation]
-(IEEE standards, grid                     (l2rpn_neurips_2020_track1:
+(IEEE standards, grid                     (benchmark environment A:
  manuals, textbooks)                       36 substations, 59 lines,
                                            48 years of chronic data)
         │                                           │
@@ -444,23 +444,23 @@ Real operational data from utilities is proprietary, unavailable without NDAs, a
 
 We use **Grid2Op** — a Python framework developed by RTE (the French transmission system operator) specifically for sequential decision-making and AI research on power grids. It implements full power flow equations via a backend (PandaPower by default), enforces thermal limits and N-1 security constraints natively, and is the environment used in the L2RPN (Learn to Run a Power Network) challenge — the most prominent AI-for-grids benchmark in the literature. Simulation on standard benchmarks is the accepted methodology for this research domain.
 
-### The Environments: l2rpn_neurips_2020_track1 (Primary) + l2rpn_wcci_2022 (Scale)
+### The Environments: l2rpn_neurips_2020_track1 and l2rpn_wcci_2022
 
-Grid2Op ships several competition environments. Environment choice directly determines the scale and complexity of the problem the GNN must solve. `l2rpn_case14_sandbox` — which we were previously using — is explicitly a development/sandbox environment with only 14 buses and 20 lines. That is not a serious research benchmark; it leaves the majority of the Research PC's compute idle.
+Grid2Op ships several competition environments. Environment choice directly determines the scale and complexity of the problem the GNN must solve. `l2rpn_case14_sandbox` — which we were previously using — is explicitly a development/sandbox environment with only 14 buses and 20 lines. It is useful for quick checks, but it does not cover the same scale as the benchmark environments used for the thesis.
 
-**Primary: `l2rpn_neurips_2020_track1`**
+**Smaller benchmark: `l2rpn_neurips_2020_track1`**
 - 36 substations, 59 powerlines, 22 generators, 37 loads
 - Subset of the IEEE 118-bus grid (the standard large-scale benchmark)
 - Used in the NeurIPS 2020 L2RPN competition robustness track
 - Ships with two data tiers: `_small` (900MB, ~48 years of 5-min data) and `_large` (4.5GB, ~240 years)
-- We use `_small` for development, `_large` for final training runs
+- The `_small` variant is convenient for quick iteration; the `_large` variant provides broader coverage
 - Includes stochastic line disconnections and maintenance events — realistic fault conditions out of the box
 
-**Stretch / Scalability: `l2rpn_wcci_2022`**
+**Larger benchmark: `l2rpn_wcci_2022`**
 - 118 substations, 186 powerlines, 91 loads, 62 generators — full IEEE 118 scale
 - Supports `chronix2grid` for infinite synthetic data generation
-- Used if we want to demonstrate scalability beyond the primary environment
-- Secondary priority; only pursued if the primary benchmark is fully working
+- Useful for scalability checks or for experiments that benefit from a larger graph and storage nodes
+- A good candidate when comparing how the pipeline behaves at a broader problem scale
 
 ### What We Simulate and Log
 
@@ -499,7 +499,7 @@ from lightsim2grid import LightSimBackend  # faster backend — use this always
 import numpy as np
 import json
 
-# Use the NeurIPS 2020 track1 small environment (36 subs, 59 lines)
+# Example setup using the NeurIPS 2020 track1 small environment (36 subs, 59 lines)
 env = grid2op.make(
     "l2rpn_neurips_2020_track1_small",
     backend=LightSimBackend()  # ~10x faster than default PandaPowerBackend
@@ -865,7 +865,7 @@ Running all three scenarios successfully confirms:
 4. Explanations are traceable to specific rule IDs and source documents
 5. The full pipeline runs end-to-end without integration failures
 
-Only after all three toy scenarios pass do we move to formal evaluation on held-out chronics from `l2rpn_neurips_2020_track1_small`.
+Only after all three toy scenarios pass do we move to formal evaluation on held-out chronics from the selected benchmark environment.
 
 ---
 
@@ -888,7 +888,7 @@ Only after all three toy scenarios pass do we move to formal evaluation on held-
 
 ## 10. Hardware & Compute Allocation
 
-### Research PC — Primary Compute (All Heavy Workloads)
+### Research PC — Heavy Workloads
 - **CPU:** Intel Core i7-14700K (20 cores / 28 threads)
 - **GPU:** NVIDIA RTX 4080 Super — **16GB VRAM**
 - **RAM:** DDR5 64GB
@@ -944,10 +944,10 @@ Ground truth: a manually compiled reference set of rules from IEEE 1547 and one 
 
 ### End-to-End System
 
-- Run held-out chronics from `l2rpn_neurips_2020_track1_small` with injected faults
+- Run held-out chronics from the selected benchmark environment with injected faults
 - Compare: GNN-only output vs. GNN + Shield output
 - Metrics: safe action rate, blocked action rate, explanation quality (human-rated 1–5)
-- Reference target: Younesi et al. (2026) achieved 91.7% safe restoration with manually written rules — our system targets matching or exceeding that with automated rule generation
+- Reference target: Younesi et al. (2026) achieved 91.7% safe restoration with manually written rules — our system aims to match or exceed that with automated rule generation
 
 ---
 
@@ -977,8 +977,8 @@ These are decided exclusions. Do not prototype or propose these.
 | **Chronic** | A time-series of load and generation values used as one simulation episode in Grid2Op |
 | **`obs.rho`** | Grid2Op observation attribute — ratio of current flow to thermal limit per line; >1.0 means overload |
 | **`rte_case5_example`** | Grid2Op's 5-bus, 8-line minimal environment — used exclusively for toy scenario integration testing |
-| **`l2rpn_neurips_2020_track1`** | Grid2Op's NeurIPS 2020 competition environment — 36 substations, 59 lines, subset of IEEE 118. Our primary benchmark |
-| **`l2rpn_wcci_2022`** | Grid2Op's WCCI 2022 environment — full IEEE 118 scale (118 subs, 186 lines). Used for scalability testing |
+| **`l2rpn_neurips_2020_track1`** | Grid2Op's NeurIPS 2020 competition environment — 36 substations, 59 lines, subset of IEEE 118. One benchmark option used for the thesis |
+| **`l2rpn_wcci_2022`** | Grid2Op's WCCI 2022 environment — full IEEE 118 scale (118 subs, 186 lines). Another benchmark option used for larger-scale testing |
 | **LightSimBackend** | Fast power flow backend for Grid2Op (~10x faster than default); from the `lightsim2grid` package |
 | **Power flow** | Mathematical solution for voltage/current/power at every grid node |
 | **Fault injection** | Programmatically forcing a fault condition (overload, undervoltage, line trip) in simulation |

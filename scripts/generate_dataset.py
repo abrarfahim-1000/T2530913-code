@@ -28,6 +28,10 @@ import grid2op
 from grid2op.Parameters import Parameters
 from tqdm.auto import tqdm
 
+import ssl
+# This restores the old behavior of not verifying certificates
+ssl._create_default_https_context = ssl._create_unverified_context
+
 # ── ENV CONFIG ──────────────────────────────────────────────────────────────
 ENV_NAME = "l2rpn_neurips_2020_track1_small"
 ENV_TAG  = "neurips2020"

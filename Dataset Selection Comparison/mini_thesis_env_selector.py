@@ -6,7 +6,9 @@ import numpy as np
 import grid2op
 from lightsim2grid import LightSimBackend
 
-
+import ssl
+# This restores the old behavior of not verifying certificates
+ssl._create_default_https_context = ssl._create_unverified_context
 
 ENV_NAMES = [
     "l2rpn_neurips_2020_track1_small",
@@ -140,23 +142,17 @@ def scope_fit_score(static_metrics):
     Thesis-specific fit, not universal truth.
 
     Higher is better for YOUR current thesis:
-    - current schema has no storage entity
-    - current methodology is centered on a primary 36-sub / 59-line benchmark first
+    - storage is treated as a separate capability, not a selection penalty
+    - the comparison is rubric-based rather than tied to a fixed hierarchy
     - we want a serious benchmark that is still manageable end-to-end
     """
     score = 1.0
-
-    if static_metrics["n_storage"] > 0:
-        score -= 0.20
 
     if static_metrics["n_sub"] > 50:
         score -= 0.20
 
     if static_metrics["n_line"] > 100:
         score -= 0.15
-
-    if static_metrics["env_name"] == "l2rpn_neurips_2020_track1_small":
-        score += 0.10  # thesis-primary alignment bonus
 
     return max(0.0, min(1.0, score))
 
@@ -207,36 +203,28 @@ def compute_scores(results):
             "event_richness_score": round(erf, 4),
             "graph_simplicity_score": round(gsf, 4),
             "final_thesis_score": round(final_score, 4),
+            "integration_score": round(0.40 * sf + 0.35 * ef + 0.25 * gsf, 4),
+            "scale_score": round(0.45 * erf + 0.30 * r["probe"]["class_diversity"] + 0.25 * ef, 4),
         }
 
     return results
 
 
 def build_recommendation(results):
-    results = sorted(results, key=lambda x: x["scores"]["final_thesis_score"], reverse=True)
-    best = results[0]
-    second = results[1]
-
-    gap = best["scores"]["final_thesis_score"] - second["scores"]["final_thesis_score"]
-
-    if gap >= 0.08:
-        confidence = "clear"
-    elif gap >= 0.03:
-        confidence = "moderate"
-    else:
-        confidence = "close"
+    integration_best = max(results, key=lambda x: x["scores"]["integration_score"])
+    scale_best = max(results, key=lambda x: x["scores"]["scale_score"])
 
     rec = {
-        "recommended_env": best["static"]["env_name"],
-        "runner_up": second["static"]["env_name"],
-        "score_gap": round(gap, 4),
-        "confidence": confidence,
-        "reason_summary": {
-            "best_scope_fit": best["scores"]["scope_fit_score"],
-            "best_efficiency": best["scores"]["efficiency_score"],
-            "best_event_richness": best["scores"]["event_richness_score"],
-            "best_graph_simplicity": best["scores"]["graph_simplicity_score"],
-        }
+        "decision_mode": "phase_specific",
+        "integration_phase": {
+            "recommended_env": integration_best["static"]["env_name"],
+            "score": round(integration_best["scores"]["integration_score"], 4),
+        },
+        "scale_phase": {
+            "recommended_env": scale_best["static"]["env_name"],
+            "score": round(scale_best["scores"]["scale_score"], 4),
+        },
+        "note": "No single environment dominates across all criteria; the recommendation depends on whether the goal is initial integration or scale validation.",
     }
     return rec
 

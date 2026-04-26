@@ -10,24 +10,27 @@
         "n_storage": 0
       },
       "probe": {
-        "total_steps": 2304,
-        "steps_per_sec": 181.62678348005488,
-        "overload_rate": 0.0,
-        "line_down_rate": 0.4422743055555556,
+        "total_steps": 2248,
+        "steps_per_sec": 735.3525949096493,
+        "overload_rate": 0.00800711743772242,
+        "line_down_rate": 0.3830071174377224,
         "maintenance_rate": 0.0,
-        "non_normal_rate": 0.4422743055555556,
-        "class_diversity": 0.3333333333333333,
+        "non_normal_rate": 0.3830071174377224,
+        "class_diversity": 0.6666666666666666,
         "screening_counts": {
-          "normal": 1285,
-          "line_down": 1019
+          "normal": 1387,
+          "overload": 18,
+          "line_down": 843
         }
       },
       "scores": {
         "scope_fit_score": 1.0,
         "efficiency_score": 1.0,
-        "event_richness_score": 0.55,
+        "event_richness_score": 0.7167,
         "graph_simplicity_score": 1.0,
-        "final_thesis_score": 0.91
+        "final_thesis_score": 0.9433,
+        "integration_score": 1.0,
+        "scale_score": 0.7725
       }
     },
     {
@@ -40,38 +43,40 @@
         "n_storage": 7
       },
       "probe": {
-        "total_steps": 1075,
-        "steps_per_sec": 125.17357724293846,
-        "overload_rate": 0.04930232558139535,
-        "line_down_rate": 0.09209302325581395,
+        "total_steps": 990,
+        "steps_per_sec": 501.0591024581618,
+        "overload_rate": 0.06464646464646465,
+        "line_down_rate": 0.19595959595959597,
         "maintenance_rate": 0.0,
-        "non_normal_rate": 0.11813953488372093,
+        "non_normal_rate": 0.22121212121212122,
         "class_diversity": 0.6666666666666666,
         "screening_counts": {
-          "normal": 948,
-          "overload": 53,
-          "line_down": 74
+          "normal": 771,
+          "overload": 64,
+          "line_down": 155
         }
       },
       "scores": {
-        "scope_fit_score": 0.45,
-        "efficiency_score": 0.6892,
+        "scope_fit_score": 0.65,
+        "efficiency_score": 0.6814,
         "event_richness_score": 0.9,
         "graph_simplicity_score": 0.3125,
-        "final_thesis_score": 0.5792
+        "final_thesis_score": 0.6572,
+        "integration_score": 0.5766,
+        "scale_score": 0.7753
       }
     }
   ],
   "recommendation": {
-    "recommended_env": "l2rpn_neurips_2020_track1_small",
-    "runner_up": "l2rpn_wcci_2022",
-    "score_gap": 0.3308,
-    "confidence": "clear",
-    "reason_summary": {
-      "best_scope_fit": 1.0,
-      "best_efficiency": 1.0,
-      "best_event_richness": 0.55,
-      "best_graph_simplicity": 1.0
-    }
+    "decision_mode": "phase_specific",
+    "integration_phase": {
+      "recommended_env": "l2rpn_neurips_2020_track1_small",
+      "score": 1.0
+    },
+    "scale_phase": {
+      "recommended_env": "l2rpn_wcci_2022",
+      "score": 0.7753
+    },
+    "note": "No single environment dominates across all criteria; the recommendation depends on whether the goal is initial integration or scale validation."
   }
 }
