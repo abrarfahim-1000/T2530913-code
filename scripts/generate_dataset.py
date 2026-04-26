@@ -34,18 +34,26 @@ ENV_TAG  = "neurips2020"
 ENV_DESC = "NeurIPS 2020 L2RPN — 36 subs, 59 lines [PRIMARY]"
 
 # ── FIXED CONFIG ──────────────────────────────────────────────────────────────
-FAULT_PROB      = 0.05   # ← was 0.08; lower = longer episodes, more records
-RECONNECT_PROB  = 0.4    # probability of reconnecting a tripped line each step
+# FAULT_PROB      = 0.05   # ← was 0.08; lower = longer episodes, more records
+# RECONNECT_PROB  = 0.4    # probability of reconnecting a tripped line each step
+# SEED            = 42
+# RHO_CLIP        = 2.0     # clip rho before saving; must match GridDataset normalisation
+
+
+FAULT_PROB  = 0.10
+RECONNECT_PROB = 0.09
 SEED            = 42
-RHO_CLIP        = 2.0        # clip rho before saving; must match GridDataset normalisation
+RHO_CLIP        = 2.0    
+
 
 # Undersampling: only log a normal step with this probability
 # Fault/overload/cascade steps are ALWAYS logged
-NORMAL_KEEP_PROB = 0.3   # discard 70% of normal steps → ~70% fault in final set
+NORMAL_KEEP_PROB = 0.15  # discard 85% of normal steps → ~85% fault in final set (was 0.3, then 0.2, now 0.15 for more balance)
 
 # Smoke-test overrides (--smoke flag)
 SMOKE_MAX_CHRONICS = 3
-SMOKE_MAX_STEPS    = 200
+# SMOKE_MAX_STEPS    = 200
+SMOKE_MAX_STEPS    = 500
 
 LABEL_MAP = {"normal": 0, "overload": 1, "line_trip": 2, "cascade": 3, "maintenance": 4}
 
@@ -106,26 +114,58 @@ def extract_features(obs):
     return feats
 
 
-def derive_label(obs, prev_line_status, injected_label, injected_loc, env):
+# def derive_label(obs, prev_line_status, injected_label, injected_loc, env):
+#     if hasattr(obs, "time_next_maintenance") and hasattr(obs, "duration_next_maintenance"):
+#         under_maint = (obs.time_next_maintenance == 0) & (obs.duration_next_maintenance > 0)
+#         if under_maint.any():
+#             line_id = int(np.where(under_maint)[0][0])
+#             return "maintenance", int(env.line_or_to_subid[line_id])  # ← substation
+
+#     if obs.rho.max() > 1.0:
+#         line_id = int(obs.rho.argmax())
+#         return "overload", int(env.line_or_to_subid[line_id])         # ← substation
+
+#     new_trips = (~obs.line_status) & prev_line_status
+#     if new_trips.any() and injected_label == "normal":
+#         line_id = int(np.where(new_trips)[0][0])
+#         return "cascade", int(env.line_or_to_subid[line_id])          # ← substation
+
+#     # For line_trip: injected_loc is already set as line_id in the step loop
+#     # Convert it to substation here
+#     if injected_label == "line_trip" and injected_loc is not None:
+#         return "line_trip", int(env.line_or_to_subid[injected_loc])   # ← substation
+
+#     return injected_label, injected_loc
+
+def derive_label(obs, prev_line_status, injected_label, injected_loc, env, prev_injected=False):
     if hasattr(obs, "time_next_maintenance") and hasattr(obs, "duration_next_maintenance"):
         under_maint = (obs.time_next_maintenance == 0) & (obs.duration_next_maintenance > 0)
         if under_maint.any():
             line_id = int(np.where(under_maint)[0][0])
-            return "maintenance", int(env.line_or_to_subid[line_id])  # ← substation
+            return "maintenance", int(env.line_or_to_subid[line_id])
 
+    # Overload fires if rho > 1.0 — regardless of what we injected
     if obs.rho.max() > 1.0:
         line_id = int(obs.rho.argmax())
-        return "overload", int(env.line_or_to_subid[line_id])         # ← substation
+        return "overload", int(env.line_or_to_subid[line_id])
 
+    # Cascade: any line the env tripped that we did NOT inject
     new_trips = (~obs.line_status) & prev_line_status
-    if new_trips.any() and injected_label == "normal":
-        line_id = int(np.where(new_trips)[0][0])
-        return "cascade", int(env.line_or_to_subid[line_id])          # ← substation
+    if new_trips.any():
+        tripped_ids = set(np.where(new_trips)[0])
+        injected_set = {injected_loc} if (injected_label == "line_trip" and injected_loc is not None) else set()
+        env_trips = tripped_ids - injected_set
+        if env_trips:
+            line_id = int(next(iter(env_trips)))
+            return "cascade", int(env.line_or_to_subid[line_id])
 
-    # For line_trip: injected_loc is already set as line_id in the step loop
-    # Convert it to substation here
+    # Line_trip: our clean injection AND no overload anywhere AND no env trips
+    # But if prev step was also an injection that caused rho spike, label that as overload
     if injected_label == "line_trip" and injected_loc is not None:
-        return "line_trip", int(env.line_or_to_subid[injected_loc])   # ← substation
+        if obs.rho.max() > 0.75:   # rho climbing due to our trip → overload in the making
+            line_id = int(obs.rho.argmax())
+            return "overload", int(env.line_or_to_subid[line_id])
+        return "line_trip", int(env.line_or_to_subid[injected_loc])
 
     return injected_label, injected_loc
 
@@ -168,6 +208,23 @@ def build_meta(env, label_counts, total_records, total_time, smoke):
     }
 
 
+# def print_summary(meta, out_jsonl, out_meta):
+#     total   = meta["total_records"]
+#     print(f"\n{'='*56}")
+#     print(f"  Env      : {meta['env_name']}")
+#     print(f"  Records  : {total:,}")
+#     print(f"  Time     : {meta['total_time_sec']:.1f}s  "
+#           f"({meta['throughput_steps_per_sec']} steps/sec)")
+#     print(f"  n_classes: {meta['n_classes']}  →  {list(meta['label_map'].keys())}")
+#     print(f"\n  Label distribution:")
+#     for lbl, count in sorted(meta["label_counts"].items(), key=lambda x: -x[1]):
+#         pct = meta["label_pct"][lbl]
+#         bar = "█" * int(pct / 2)
+#         print(f"    {lbl:<12} {count:>8,}  ({pct:5.1f}%)  {bar}")
+#     print(f"\n  Data   → {out_jsonl}")
+#     print(f"  Meta   → {out_meta}")
+#     print(f"{'='*56}\n")
+
 def print_summary(meta, out_jsonl, out_meta):
     total   = meta["total_records"]
     print(f"\n{'='*56}")
@@ -177,14 +234,17 @@ def print_summary(meta, out_jsonl, out_meta):
           f"({meta['throughput_steps_per_sec']} steps/sec)")
     print(f"  n_classes: {meta['n_classes']}  →  {list(meta['label_map'].keys())}")
     print(f"\n  Label distribution:")
-    for lbl, count in sorted(meta["label_counts"].items(), key=lambda x: -x[1]):
-        pct = meta["label_pct"][lbl]
-        bar = "█" * int(pct / 2)
-        print(f"    {lbl:<12} {count:>8,}  ({pct:5.1f}%)  {bar}")
+    # Fixed order: normal → overload → line_trip → cascade
+    label_order = ["normal", "overload", "line_trip", "cascade", "maintenance"]
+    for lbl in label_order:
+        if lbl in meta["label_counts"]:
+            count = meta["label_counts"][lbl]
+            pct = meta["label_pct"][lbl]
+            bar = "█" * int(pct / 2)
+            print(f"    {lbl:<12} {count:>8,}  ({pct:5.1f}%)  {bar}")
     print(f"\n  Data   → {out_jsonl}")
     print(f"  Meta   → {out_meta}")
     print(f"{'='*56}\n")
-
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 def main():
@@ -209,7 +269,8 @@ def main():
     env = grid2op.make(ENV_NAME, **make_kwargs)
 
     params = Parameters()
-    params.NO_OVERFLOW_DISCONNECTION = True
+    # params.NO_OVERFLOW_DISCONNECTION = True
+    params.NO_OVERFLOW_DISCONNECTION = False 
     env.change_parameters(params)
     env.seed(SEED)
     np.random.seed(SEED)
