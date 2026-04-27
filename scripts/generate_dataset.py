@@ -52,7 +52,7 @@ RHO_CLIP        = 2.0
 
 # Undersampling: only log a normal step with this probability
 # Fault/overload/cascade steps are ALWAYS logged
-NORMAL_KEEP_PROB = 0.15  # discard 85% of normal steps → ~85% fault in final set (was 0.3, then 0.2, now 0.15 for more balance)
+NORMAL_KEEP_PROB = 0.3  # discard 70% of normal steps → ~70% fault in final set (was 0.3, then 0.2, now 0.15 for more balance)
 
 # Smoke-test overrides (--smoke flag)
 SMOKE_MAX_CHRONICS = 3

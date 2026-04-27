@@ -14,19 +14,31 @@
 # --- Grid Simulation ---
 grid2op
 lightsim2grid
+pandapower
 
 # --- LLM Pipeline ---
 langchain
 langchain-community
+langchain-text-splitters
+langgraph
+langsmith
 ollama
 
 # --- Knowledge Graph ---
 networkx
 
 # --- Data / Validation ---
-pydantic
 numpy
+pandas
+pandera
+pydantic
 scikit-learn
+scipy
+
+# --- Configuration & Database ---
+python-dotenv
+PyYAML
+SQLAlchemy
 
 # --- Experiment Tracking ---
 wandb
