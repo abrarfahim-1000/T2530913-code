@@ -7,7 +7,7 @@ This project implements a **Neuro-Symbolic AI system** designed for power grid f
 ### 🏗️ Core Architecture
 The system follows a four-component "Shield" architecture:
 1.  **Component A: GNN (Neural Layer)** - Uses PyTorch Geometric (GAT/GCN) to perceive grid states, classify faults, and recommend actions.
-2.  **Component B: LLM Extraction Pipeline** - Uses Ollama (Qwen2.5-32B) and LangChain to extract symbolic rules from grid standards (IEEE, manuals).
+2.  **Component B: LLM Extraction Pipeline** - Uses Ollama (Qwen3-14B & Nemotron-3 Nano 30B) and LangChain to extract symbolic rules from grid standards (IEEE, manuals).
 3.  **Component C: Knowledge Graph** - A NetworkX-based store that maps grid topology to extracted symbolic rules.
 4.  **Component D: Symbolic Validation Shield** - A hard constraint layer that intercepts GNN outputs and blocks any that violate the symbolic rules.
 
@@ -41,7 +41,7 @@ pip install -r requirements.txt
 | **Verification** | `python sanity/verify_grid2op.py` or `python sanity/verify_stack.py` |
 | **Data Generation** | `python scripts/generate_dataset.py` |
 | **GNN Training** | `python training/train_gnn.py` |
-| **LLM Extraction** | `ollama run qwen2.5:32b` (configured via scripts) |
+| **LLM Extraction** | `ollama run qwen3:14b` (configured via scripts) |
 | **End-to-End Test** | `python -c "import grid2op; ..."` (refer to `study.md` section 8) |
 
 ---

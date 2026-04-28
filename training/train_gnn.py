@@ -148,6 +148,8 @@ def train():
     else:
         print("Warning: meta JSON not found — falling back to Grid2Op init (slow).")
         meta = GridEnvMetadata()
+        LABEL_MAP_ACTIVE = LABEL_MAP # imported from pyg_data
+        n_classes = len(LABEL_MAP)
 
     if not os.path.exists(DATA_FILE):
         print(f"Error: Data file {DATA_FILE} not found.")

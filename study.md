@@ -35,7 +35,7 @@
         │                                           │
         ▼                                           ▼
 [LLM Knowledge Extraction]              [Dataset Generation]
- Qwen2.5-32B parses documents →          Observations logged per step:
+ Qwen3-14B parses documents →          Observations logged per step:
  outputs structured JSON rules           rho, voltages, flows, topology,
  → loaded into Knowledge Graph           fault labels
         │                                           │
@@ -135,18 +135,16 @@ The closest validated precedent is **Chen et al. (2025, 2026)**, who used an LLM
 - Grid operational documents may be institution-sensitive
 - API calls introduce non-determinism across runs (model updates, rate limits)
 - Local inference is fully reproducible
-- The Research PC (RTX 4080 Super, 16GB VRAM + 64GB RAM) handles Qwen2.5-32B at 4-bit quantization comfortably
+- The Research PC (RTX 4080 Super, 16GB VRAM + 64GB RAM) handles Qwen3-14B and Nemotron-3 Nano 30B at 4-bit quantization comfortably
 
 ### Model
 
-**Qwen2.5-72B (4-bit quantized)** via `llama-cpp-python`, run on the Research PC. This is the Extractor stage of the multi-LLM pipeline. At 4-bit quantization a 72B model requires ~40–44GB — this exceeds the 16GB VRAM of the RTX 4080 Super and relies heavily on CPU offloading into the 64GB system RAM. Inference will be slower than a fully GPU-resident model (~1–3 tokens/sec on offloaded layers), which is acceptable for a one-time offline extraction run.
+**Qwen3-14B (4-bit quantized)** via **Ollama**, run on the Research PC. This is the Extractor stage of the multi-LLM pipeline. At 4-bit quantization, the 14B model fits fully within the 16GB VRAM of the RTX 4080 Super, allowing for high-throughput extraction without CPU offloading.
 
-**Why Qwen2.5-72B over the previously noted 32B:**
-- The extraction task requires the highest possible recall on dense IEEE standards prose — 72B models materially outperform 32B on complex technical comprehension and constraint boundary detection
-- The Research PC's 64GB RAM absorbs the majority of layers that spill from VRAM; no model sharding or second machine required
-- Extraction is a one-time offline run — throughput is not a constraint
-
-**Fallback:** Qwen2.5-32B (4-bit) if 72B inference proves unacceptably slow — it fits within ~18–20GB with only ~4GB RAM offload and runs at ~5–8 tokens/sec.
+**Why Qwen3-14B:**
+- Superior technical comprehension and recall on dense IEEE standards prose compared to previous generation 32B models.
+- Fully GPU-resident performance ensures fast iteration across large document sets.
+- State-of-the-art benchmark performance for its size class in structured data extraction.
 
 ### Multi-LLM Hybrid Pipeline
 
@@ -160,10 +158,10 @@ Four patterns were evaluated (Extractor+Validator, Dual Extraction+Consensus, Ex
 [Document Chunk]
         │
         ▼
-[Qwen2.5-72B — Extractor]       ← high recall; extract everything that might be a rule
+[Qwen3-14B — Extractor]         ← high recall; extract everything that might be a rule
         │ JSON rule candidates
         ▼
-[Llama 3.3-70B — Validator]     ← high precision; verify each rule against the source chunk
+[Nemotron-3 Nano 30B (A3B)]     ← high precision; verify each rule against the source chunk
   For each rule:
     - Is this constraint actually present in the text?
     - Is the condition boundary correctly parsed?
@@ -181,13 +179,13 @@ Four patterns were evaluated (Extractor+Validator, Dual Extraction+Consensus, Ex
 ```
 
 **Why this split:**
-- Qwen2.5-72B for extraction: best technical comprehension and recall on dense IEEE prose — optimizes for not missing rules
-- Llama 3.3-70B for validation: different developer, different pretraining corpus, different tokenization — independent failure modes. Agreement between architecturally distinct models is stronger evidence of a correct extraction than two Qwen models agreeing
-- Validation is a strictly easier task than extraction; the 70B validator receives the original chunk plus the candidate rules, so it only needs to verify, not discover
-- The validation step produces a reportable precision metric for the thesis: % of extracted rules confirmed by the validator
+- Qwen3-14B for extraction: best-in-class technical comprehension and recall — optimizes for not missing rules.
+- NVIDIA Nemotron-3 Nano 30B (A3B) for validation: A Mixture-of-Experts (MoE) model with 3B active parameters. The MoE architecture provides the reasoning depth of a 30B model with the efficiency of a smaller model. Its independent training lineage (NVIDIA) provides the necessary diversity for cross-model validation.
+- Validation is a strictly easier task than extraction; the validator receives the original chunk plus the candidate rules, so it only needs to verify, not discover.
+- The validation step produces a reportable precision metric for the thesis: % of extracted rules confirmed by the validator.
 
 **Why not run both simultaneously:**
-Sequential execution on the Research PC avoids simultaneous multi-model VRAM pressure. Qwen2.5-72B at 4-bit quantization runs first across the full document set; results are saved. Llama 3.3-70B is then loaded for the validation pass. No concurrent loading required.
+While Qwen3-14B fits in VRAM, the Nemotron-3 30B (4-bit) requires ~18-20GB, necessitating some CPU offloading or sequential loading. Sequential execution avoids VRAM pressure and ensures maximum performance for each stage. Qwen3-14B runs first across the full document set; results are saved. Nemotron-3 Nano 30B is then loaded for the validation pass.
 
 **Confidence tiers produced:**
 
@@ -201,12 +199,12 @@ Sequential execution on the Research PC avoids simultaneous multi-model VRAM pre
 #### Implementation Skeleton
 
 ```python
-from llama_cpp import Llama, LlamaGrammar
+import ollama
 from pydantic import BaseModel, ValidationError
 import json
 
-EXTRACTOR_MODEL = "qwen2.5-72b-q4_k_m.gguf"
-VALIDATOR_MODEL  = "llama-3.3-70b-q4_k_m.gguf"
+EXTRACTOR_MODEL = "qwen3:14b"
+VALIDATOR_MODEL  = "nemotron-3-nano:30b"
 
 EXTRACT_PROMPT = """You are a power systems engineer extracting safety rules.
 From the text below, extract ALL operational constraints as a JSON array.
@@ -228,21 +226,22 @@ Extracted rules:
 {rules}"""
 
 def run_extraction(chunk: str) -> list:
-    llm = Llama(model_path=EXTRACTOR_MODEL, n_gpu_layers=-1, verbose=False)
-    grammar = LlamaGrammar.from_file("array.gbnf")  # enforces JSON array output
-    out = llm(EXTRACT_PROMPT.format(chunk=chunk), grammar=grammar, max_tokens=2048)
-    del llm  # release VRAM before loading validator
-    return json.loads(out["choices"][0]["text"])
+    response = ollama.generate(
+        model=EXTRACTOR_MODEL,
+        prompt=EXTRACT_PROMPT.format(chunk=chunk),
+        format="json",
+        options={"num_predict": 2048, "temperature": 0}
+    )
+    return json.loads(response["response"])
 
 def run_validation(chunk: str, candidates: list) -> list:
-    llm = Llama(model_path=VALIDATOR_MODEL, n_gpu_layers=-1, verbose=False)
-    grammar = LlamaGrammar.from_file("array.gbnf")
-    out = llm(
-        VALIDATE_PROMPT.format(chunk=chunk, rules=json.dumps(candidates, indent=2)),
-        grammar=grammar, max_tokens=2048
+    response = ollama.generate(
+        model=VALIDATOR_MODEL,
+        prompt=VALIDATE_PROMPT.format(chunk=chunk, rules=json.dumps(candidates, indent=2)),
+        format="json",
+        options={"num_predict": 2048, "temperature": 0}
     )
-    del llm
-    return json.loads(out["choices"][0]["text"])
+    return json.loads(response["response"])
 
 def process_chunk(chunk: str) -> dict:
     candidates  = run_extraction(chunk)
@@ -876,7 +875,7 @@ Only after all three toy scenarios pass do we move to formal evaluation on held-
 | Grid simulation | **Grid2Op** | Built by RTE (French TSO); native chronic/episode management; thermal limit enforcement; L2RPN benchmark environment; RL-compatible step API |
 | Grid2Op backend | **lightsim2grid** | ~10x faster power flow solver than Grid2Op's default PandaPower backend; mandatory for any serious data generation run |
 | GNN framework | **PyTorch + PyTorch Geometric** | De facto standard for GNN research; full architecture flexibility |
-| LLM inference | **llama-cpp-python + Qwen2.5-72B / Llama 3.3-70B (4-bit)** | Local, reproducible; sequential two-stage pipeline — Extractor then Validator; GBNF grammar enforcement on output |
+| LLM inference | **Ollama + Qwen3-14B / Nemotron-3 Nano 30B (A3B)** | Local, reproducible; sequential two-stage pipeline — Extractor then Validator; native JSON format enforcement |
 | LLM orchestration | **LangChain** | PDF document loaders, chunking, prompt chaining |
 | Knowledge graph | **NetworkX** → **Neo4j** if needed | Zero-setup for research scale; Neo4j only if Cypher querying becomes necessary |
 | Shield logic | **Python (custom)** | Fully auditable, no external dependencies, easy to unit test |
@@ -892,7 +891,7 @@ Only after all three toy scenarios pass do we move to formal evaluation on held-
 - **CPU:** Intel Core i7-14700K (20 cores / 28 threads)
 - **GPU:** NVIDIA RTX 4080 Super — **16GB VRAM**
 - **RAM:** DDR5 64GB
-- **Runs:** GNN training, large-scale dataset generation, LLM knowledge extraction (Qwen2.5-72B Extractor + Llama 3.3-70B Validator, sequential), hyperparameter sweeps
+- **Runs:** GNN training, large-scale dataset generation, LLM knowledge extraction (Qwen3-14B Extractor + Nemotron-3 Nano 30B (A3B) Validator, sequential), hyperparameter sweeps
 
 ### Personal PC — Development & Light Testing Only
 - **CPU:** AMD Ryzen 5 7500F
@@ -904,7 +903,7 @@ Only after all three toy scenarios pass do we move to formal evaluation on held-
 
 - All production runs (data generation, LLM extraction, GNN training) execute on the Research PC
 - Personal PC is for writing and testing code only — do not run the full pipeline there
-- LLM extraction uses two sequential passes: Qwen2.5-72B (Extractor, ~40–44GB total with majority CPU offload) then Llama 3.3-70B (Validator, ~40–44GB). Both run one at a time; 64GB system RAM handles the offload for either model
+- LLM extraction uses two sequential passes: Qwen3-14B (Extractor, ~8-10GB, fully GPU-resident) then Nemotron-3 Nano 30B (A3B) (Validator, ~18-20GB, partial CPU offload). Both run one at a time.
 - GNN must train in under 2 hours per run on the RTX 4080 Super — if it doesn't, reduce model size or dataset batch size first
 - No multi-GPU; keep everything single-device
 
@@ -985,8 +984,9 @@ These are decided exclusions. Do not prototype or propose these.
 | **Voltage pu** | Voltage in per-unit — normalized so 1.0 = nominal voltage |
 | **Knowledge bottleneck** | The problem that symbolic rules in NeSy systems must be written by hand — LLM extraction solves this |
 | **LangChain** | Python framework for orchestrating LLM pipelines with structured outputs |
+| **Ollama** | Local LLM runtime that simplifies model management, serving, and inference with structured output support |
 | **NetworkX** | Python graph library used as our initial knowledge graph backend |
-| **4-bit quantization** | Model compression that reduces LLM memory ~4×; allows Qwen2.5-32B (~18–20GB) to run on the Research PC with minor system RAM offload |
+| **4-bit quantization** | Model compression that reduces LLM memory ~4×; allows Qwen3-14B (~8-10GB) to run fully on the RTX 4080 Super VRAM |
 
 ---
 
@@ -997,7 +997,7 @@ These are decided exclusions. Do not prototype or propose these.
 > All model names, dataset choices, simulation environments, library selections, and architectural decisions recorded here reflect the best available information at the time of writing. Any of these may change as new findings, benchmarks, hardware constraints, or implementation realities emerge during the course of the thesis.
 >
 > Specific items subject to change without notice:
-> - LLM model selection (e.g. Qwen2.5-32B, Mistral-22B, formatter models)
+> - LLM model selection (e.g. Qwen3-14B, Nemotron-3 Nano 30B (A3B))
 > - GNN architecture choice (GCN vs GAT vs alternatives)
 > - Grid2Op environments and their version-specific behavior
 > - Knowledge graph backend (NetworkX vs Neo4j)
