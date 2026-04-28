@@ -81,8 +81,8 @@ def parse_args():
         help="Override: max steps per episode (default: full episode)"
     )
     parser.add_argument(
-        "--out-dir", type=str, default=".",
-        help="Output directory (default: current directory)"
+        "--out-dir", type=str, default="data",
+        help="Output directory (default: 'data' directory)"
     )
     return parser.parse_args()
 
