@@ -33,7 +33,7 @@ import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
 
 # ── ENV CONFIG ──────────────────────────────────────────────────────────────
-ENV_NAME = "l2rpn_neurips_2020_track1_small"
+ENV_NAME = "l2rpn_neurips_2020_track1_small" # ← change this to switch env
 ENV_TAG  = "neurips2020"
 ENV_DESC = "NeurIPS 2020 L2RPN — 36 subs, 59 lines [PRIMARY]"
 
@@ -52,7 +52,7 @@ RHO_CLIP        = 2.0
 
 # Undersampling: only log a normal step with this probability
 # Fault/overload/cascade steps are ALWAYS logged
-NORMAL_KEEP_PROB = 0.3  # discard 70% of normal steps → ~70% fault in final set (was 0.3, then 0.2, now 0.15 for more balance)
+NORMAL_KEEP_PROB = 0.15  # discard 70% of normal steps → ~70% fault in final set (was 0.3, then 0.2, now 0.15 for more balance)
 
 # Smoke-test overrides (--smoke flag)
 SMOKE_MAX_CHRONICS = 3
@@ -288,73 +288,90 @@ def main():
     print(f"       chronics: {len(env.chronics_handler.subpaths)} available "
           f"→ {n_chronics} running\n")
 
+    TARGET_RECORDS = 300000 # Increase this to whatever you need
     do_nothing   = env.action_space({})
     label_counts = Counter({k: 0 for k in LABEL_MAP})
     total_written = 0
     t_start = time.time()
 
     with out_jsonl.open("w") as out_f:
-        for chronic_id in tqdm(range(n_chronics), desc="Chronics", unit="chronic"):
-            obs   = env.reset()
-            steps = min(env.max_episode_duration(),
-                        max_steps if max_steps else int(1e9))
+        # We replace the chronic progress bar with a record-based progress bar
+        with tqdm(total=TARGET_RECORDS, desc="Generating Dataset", unit="rec") as pbar:
+            chronic_idx = 0
+            
+            # Loop indefinitely until we hit the exact target
+            while total_written < TARGET_RECORDS:
+                # Cycle through the available chronics repeatedly (epochs)
+                env.set_id(chronic_idx % max(1, n_chronics))
+                obs   = env.reset()
+                chronic_idx += 1
 
-            prev_line_status = obs.line_status.copy()
-            tripped_lines = set()  # track lines we tripped so we can reconnect them
+                steps = min(env.max_episode_duration(),
+                            max_steps if max_steps else int(1e9))
 
-            for t in tqdm(range(steps), desc=f"  Chronic {chronic_id+1}", leave=False, unit="step"):
-                action      = do_nothing
-                fault_label = "normal"
-                fault_loc   = None
-
-                # ── Reconnect a previously tripped line (grid recovery) ──────────────
-                if tripped_lines and np.random.rand() < RECONNECT_PROB:
-                    line_id = int(np.random.choice(list(tripped_lines)))
-                    action  = env.action_space({"set_line_status": [(line_id, 1)]})
-                    tripped_lines.discard(line_id)
-
-                # ── Inject a new fault (only if not already reconnecting) ────────────
-                elif np.random.rand() < FAULT_PROB:
-                    connected = np.where(obs.line_status)[0]
-                    # Don't trip a line if fewer than N lines are up (avoid guaranteed collapse)
-                    if len(connected) > env.n_line * 0.7:
-                        line_id     = int(np.random.choice(connected))
-                        action      = env.action_space({"set_line_status": [(line_id, -1)]})
-                        fault_label = "line_trip"
-                        fault_loc   = line_id
-                        tripped_lines.add(line_id)
-
-                obs, reward, done, _info = env.step(action)
-                fault_label, fault_loc   = derive_label(
-                    obs, prev_line_status, fault_label, fault_loc, env
-                )
                 prev_line_status = obs.line_status.copy()
+                tripped_lines = set()
 
-                # Update tripped set from actual observation (handles env-side disconnections)
-                newly_tripped = set(np.where(~obs.line_status)[0])
-                tripped_lines.update(newly_tripped)
+                for t in range(steps):
+                    action      = do_nothing
+                    fault_label = "normal"
+                    fault_loc   = None
 
-                is_normal = (fault_label == "normal")
-                if is_normal and np.random.rand() > NORMAL_KEEP_PROB:
-                    pass  # skip — discard 70% of normal steps
-                else:
-                    record = {
-                        **extract_features(obs),
-                        "label":      fault_label,
-                        "label_int":  LABEL_MAP[fault_label],
-                        "fault_loc":  fault_loc,
-                        "timestep":   t,
-                        "chronic_id": chronic_id,
-                        "reward":     float(reward),
-                    }
+                    # ── Reconnect a previously tripped line (grid recovery) ──────────────
+                    if tripped_lines and np.random.rand() < RECONNECT_PROB:
+                        line_id = int(np.random.choice(list(tripped_lines)))
+                        action  = env.action_space({"set_line_status": [(line_id, 1)]})
+                        tripped_lines.discard(line_id)
 
-                    validate_record(record)
-                    out_f.write(json.dumps(record) + "\n")
-                    label_counts[fault_label] += 1
-                    total_written += 1
+                    # ── Inject a new fault (only if not already reconnecting) ────────────
+                    elif np.random.rand() < FAULT_PROB:
+                        connected = np.where(obs.line_status)[0]
+                        if len(connected) > env.n_line * 0.7:
+                            line_id     = int(np.random.choice(connected))
+                            action      = env.action_space({"set_line_status": [(line_id, -1)]})
+                            fault_label = "line_trip"
+                            fault_loc   = line_id
+                            tripped_lines.add(line_id)
 
-                if done:
-                    tripped_lines.clear()  # reset for next chronic
+                    obs, reward, done, _info = env.step(action)
+                    fault_label, fault_loc   = derive_label(
+                        obs, prev_line_status, fault_label, fault_loc, env
+                    )
+                    prev_line_status = obs.line_status.copy()
+
+                    newly_tripped = set(np.where(~obs.line_status)[0])
+                    tripped_lines.update(newly_tripped)
+
+                    is_normal = (fault_label == "normal")
+                    if is_normal and np.random.rand() > NORMAL_KEEP_PROB:
+                        pass  
+                    else:
+                        record = {
+                            **extract_features(obs),
+                            "label":      fault_label,
+                            "label_int":  LABEL_MAP[fault_label],
+                            "fault_loc":  fault_loc,
+                            "timestep":   t,
+                            "chronic_id": chronic_idx - 1,
+                            "reward":     float(reward),
+                        }
+
+                        validate_record(record)
+                        out_f.write(json.dumps(record) + "\n")
+                        label_counts[fault_label] += 1
+                        total_written += 1
+                        pbar.update(1) # Update progress bar by 1 record
+
+                        # Stop immediately if we hit the target during an episode
+                        if total_written >= TARGET_RECORDS:
+                            break
+
+                    if done:
+                        tripped_lines.clear()
+                        break
+                
+                # Break the outer loop if we hit the target
+                if total_written >= TARGET_RECORDS:
                     break
 
     total_time = time.time() - t_start
