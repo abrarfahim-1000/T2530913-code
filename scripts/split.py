@@ -44,16 +44,16 @@ def compute_class_weights(labels, label_map):
         if l in label_map:
             counts[label_map[l]] += 1
     
-    # Effective count smoothing — reduces extreme weights for very rare classes
-    beta = 0.9999
-    effective_counts = (1.0 - np.power(beta, counts)) / (1.0 - beta)
-    weights = np.where(counts > 0, 1.0 / effective_counts, 0.0)
-    
-    # Normalize to n_classes
-    total = weights.sum()
-    if total > 0:
-        weights = weights * (n_classes / total)
-    
+    # Standard Inverse Class Frequency (ICF) weighting
+    # Gives higher weight to minority classes proportional to their scarcity
+    total_samples = counts.sum()
+    weights = np.zeros_like(counts)
+    for i in range(n_classes):
+        if counts[i] > 0:
+            weights[i] = total_samples / (n_classes * counts[i])
+        else:
+            weights[i] = 0.0
+            
     return weights.astype(np.float32)
 
 if __name__ == "__main__":
