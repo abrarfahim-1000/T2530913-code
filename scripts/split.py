@@ -2,7 +2,6 @@ import json
 import numpy as np
 import argparse
 import sys
-from sklearn.model_selection import train_test_split
 
 def load_labels(file_path):
     """Load only labels to save memory for splitting."""
@@ -15,25 +14,16 @@ def load_labels(file_path):
 
 def get_splits(file_path, train_size=0.7, val_size=0.15, test_size=0.15, random_seed=42):
     labels = load_labels(file_path)
-    idx = np.arange(len(labels))
+    n = len(labels)
     
-    # First split: train vs temp (val + test)
-    train_idx, temp_idx = train_test_split(
-        idx, 
-        test_size=(val_size + test_size), 
-        stratify=labels, 
-        random_state=random_seed
-    )
+    # Strict chronological split to prevent temporal leakage
+    train_end = int(n * train_size)
+    val_end = int(n * (train_size + val_size))
     
-    # Second split: val vs test
-    temp_labels = [labels[i] for i in temp_idx]
-    val_rel_size = val_size / (val_size + test_size)
-    val_idx, test_idx = train_test_split(
-        temp_idx, 
-        test_size=(1.0 - val_rel_size), 
-        stratify=temp_labels, 
-        random_state=random_seed
-    )
+    idx = np.arange(n)
+    train_idx = idx[:train_end]
+    val_idx = idx[train_end:val_end]
+    test_idx = idx[val_end:]
     
     return train_idx, val_idx, test_idx
 

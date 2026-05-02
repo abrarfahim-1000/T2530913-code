@@ -12,6 +12,7 @@ from torch_geometric.loader import DataLoader
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.amp import autocast, GradScaler
+from sklearn.metrics import f1_score
 from collections import Counter
 import numpy as np
 import argparse
@@ -22,7 +23,7 @@ except ImportError:
     from config import DEVICE, DATA_FILE, DATA_DIR, TRAIN_CONFIG, NODE_FEATURES, EDGE_FEATURES, SEED
 
 from scripts.pyg_data import PreloadedGridDataset, GridEnvMetadata, LABEL_MAP
-from scripts.split import get_splits, compute_class_weights
+from scripts.split import compute_class_weights, load_labels, get_splits
 
 
 class GridGNN(nn.Module):
@@ -47,13 +48,48 @@ class GridGNN(nn.Module):
         x = F.elu(self.conv1(x, edge_index, edge_attr))
         x = F.dropout(x, p=0.1, training=self.training)
         x = F.elu(self.conv2(x, edge_index, edge_attr))
-        x = F.dropout(x, p=0.1, training=self.training) 
+        x = F.dropout(x, p=0.1, training=self.training)
         x = self.conv3(x, edge_index, edge_attr)
         loc_logits   = self.localizer(x).squeeze(-1)
         graph_emb    = global_mean_pool(x, batch)
         class_logits = self.classifier(graph_emb)
         return class_logits, loc_logits
 
+
+class FocalLoss(nn.Module):
+    def __init__(self, weight=None, gamma=2.0, reduction='mean'):
+        super().__init__()
+        self.weight = weight
+        self.gamma = gamma
+        self.reduction = reduction
+
+    def forward(self, inputs, targets):
+        ce_loss = F.cross_entropy(inputs, targets, weight=self.weight, reduction='none')
+        pt = torch.exp(-ce_loss)
+        focal_loss = ((1 - pt) ** self.gamma) * ce_loss
+        if self.reduction == 'mean':
+            return focal_loss.mean()
+        return focal_loss.sum()
+
+class EarlyStopping:
+    def __init__(self, patience=10, min_delta=0.001):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.counter = 0
+        self.best_score = None
+        self.early_stop = False
+
+    def __call__(self, val_f1):
+        if self.best_score is None:
+            self.best_score = val_f1
+        elif val_f1 < self.best_score + self.min_delta:
+            self.counter += 1
+            print(f"EarlyStopping counter: {self.counter} out of {self.patience}")
+            if self.counter >= self.patience:
+                self.early_stop = True
+        else:
+            self.best_score = val_f1
+            self.counter = 0
 
 def build_loc_targets_fast(batch):
     """
@@ -90,6 +126,63 @@ def build_loc_targets_fast(batch):
     return targets
 
 
+def compute_normalization_stats(dataset, train_indices):
+    """Compute mean and std for node and edge features using only training data."""
+    device = dataset[0].x.device  # Get device from first sample
+
+    # Initialize accumulators
+    node_sum = None
+    node_sq_sum = None
+    node_count = 0
+    edge_sum = None
+    edge_sq_sum = None
+    edge_count = 0
+
+    # Accumulate statistics from training set only
+    for idx in train_indices:
+        data = dataset[idx]
+        x = data.x  # [num_nodes, num_node_features]
+        e = data.edge_attr  # [num_edges, num_edge_features]
+
+        # Node features
+        if node_sum is None:
+            node_sum = x.sum(dim=0)
+            node_sq_sum = (x.pow(2)).sum(dim=0)
+        else:
+            node_sum += x.sum(dim=0)
+            node_sq_sum += (x.pow(2)).sum(dim=0)
+        node_count += x.size(0)
+
+        # Edge features
+        if edge_sum is None:
+            edge_sum = e.sum(dim=0)
+            edge_sq_sum = (e.pow(2)).sum(dim=0)
+        else:
+            edge_sum += e.sum(dim=0)
+            edge_sq_sum += (e.pow(2)).sum(dim=0)
+        edge_count += e.size(0)
+
+    # Compute mean and std
+    if node_count > 0:
+        node_mean = node_sum / node_count
+        node_var = torch.clamp(node_sq_sum / node_count - node_mean.pow(2), min=0.0)
+        node_std = torch.sqrt(node_var) + 1e-7  # avoid division by zero
+    else:
+        # Fallback (should not happen with proper data)
+        node_mean = torch.zeros(dataset[0].x.size(1), device=device)
+        node_std = torch.ones_like(node_mean)
+
+    if edge_count > 0:
+        edge_mean = edge_sum / edge_count
+        edge_var = torch.clamp(edge_sq_sum / edge_count - edge_mean.pow(2), min=0.0)
+        edge_std = torch.sqrt(edge_var) + 1e-7
+    else:
+        edge_mean = torch.zeros(dataset[0].edge_attr.size(1), device=device)
+        edge_std = torch.ones_like(edge_mean)
+
+    return node_mean, node_std, edge_mean, edge_std
+
+
 def make_dataloader(dataset, batch_size, shuffle):
     """
     num_workers=0 on Windows (PyG + multiprocessing is broken there).
@@ -112,13 +205,15 @@ def make_dataloader(dataset, batch_size, shuffle):
 @torch.no_grad()
 def evaluate(model, loader, device):
     model.eval()
-    correct, total = 0, 0
+    all_preds, all_labels = [], []
     for batch in tqdm(loader, desc="Evaluating", leave=False):
         batch = batch.to(device, non_blocking=True)
         logits, _ = model(batch.x, batch.edge_index, batch.edge_attr, batch.batch)
-        correct += (logits.argmax(dim=1) == batch.y).sum().item()
-        total   += batch.num_graphs
-    return correct / (total + 1e-9)
+        all_preds.extend(logits.argmax(dim=1).cpu().numpy())
+        all_labels.extend(batch.y.cpu().numpy())
+
+    # Return Macro F1-Score
+    return f1_score(all_labels, all_preds, average='macro', zero_division=0)
 
 
 def train():
@@ -163,21 +258,31 @@ def train():
     if not (os.path.exists(train_idx_path) and os.path.exists(val_idx_path)):
         print(f"Error: Split files not found. Run: python scripts/split.py")
         sys.exit(1)
-        
+
     train_idx = np.load(train_idx_path)
     val_idx   = np.load(val_idx_path)
 
     pt_data_path = os.path.join(DATA_DIR, "processed_grid_data.pt")
-    
+
     # 1. Load the ENTIRE dataset onto the GPU once
     full_dataset = PreloadedGridDataset(pt_data_path, device=DEVICE)
 
-    # 2. PyG natively slices the dataset using your numpy arrays!
+    # 2. Compute normalization statistics using ONLY training data
+    print("Computing normalization statistics from training set...")
+    node_mean, node_std, edge_mean, edge_std = compute_normalization_stats(full_dataset, train_idx)
+
+    # 3. Apply normalization to the entire dataset (in-place)
+    print("Applying normalization to all datasets...")
+    # We apply the math directly to the hidden _data object, which contains 
+    # every node and edge in the dataset concatenated together.
+    full_dataset._data.x = (full_dataset._data.x - node_mean) / node_std
+    full_dataset._data.edge_attr = (full_dataset._data.edge_attr - edge_mean) / edge_std
+
+    # 4. PyG natively slices the dataset using your numpy arrays!
     train_ds = full_dataset[train_idx]
     val_ds   = full_dataset[val_idx]
 
     # ── Class weights ─────────────────────────────────────────────────────────
-    from scripts.split import load_labels
     all_labels   = load_labels(DATA_FILE)
     train_labels = [all_labels[i] for i in train_idx]
     weights      = compute_class_weights(train_labels, LABEL_MAP_ACTIVE)  # use active map
@@ -201,16 +306,17 @@ def train():
 
     optimizer   = AdamW(model.parameters(), lr=lr, weight_decay=TRAIN_CONFIG["weight_decay"])
     scheduler   = CosineAnnealingLR(optimizer, T_max=epochs)
-    cls_loss_fn = nn.CrossEntropyLoss(weight=class_weights)
+    cls_loss_fn = FocalLoss(weight=class_weights, gamma=2.0)
     loc_loss_fn = nn.BCEWithLogitsLoss()
 
     scaler = GradScaler(device=DEVICE.type)
-    best_val_acc = 0.0
+    best_val_f1 = 0.0
+    early_stopping = EarlyStopping(patience=10) # Stops if F1 doesn't improve for 10 epochs
 
     for epoch in range(epochs):
         model.train()
         total_loss = 0.0
-        
+
         pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{epochs}")
         for batch in pbar:
             batch = batch.to(DEVICE, non_blocking=True)
@@ -232,29 +338,34 @@ def train():
                     loc_loss = torch.tensor(0.0, device=DEVICE)
 
                 loss = cls_loss + TRAIN_CONFIG["loc_loss_weight"] * loc_loss
-            
+
             # 2. Scale the loss and call backward
             scaler.scale(loss).backward()
-            
+
             # 3. Step the optimizer and update the scaler
-            scaler.unscale_(optimizer)        
+            scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             scaler.step(optimizer)
             scaler.update()
-            
+
             total_loss += loss.item()
             pbar.set_postfix(loss=f"{loss.item():.4f}")
 
         scheduler.step()
 
-        val_acc = evaluate(model, val_loader, DEVICE)
-        print(f"Epoch {epoch+1:3d} | loss={total_loss/len(train_loader):.4f} | val_acc={val_acc:.4f}")
+        val_f1 = evaluate(model, val_loader, DEVICE)
+        print(f"Epoch {epoch+1:3d} | loss={total_loss/len(train_loader):.4f} | val_macro_f1={val_f1:.4f}")
 
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
+        if val_f1 > best_val_f1:
+            best_val_f1 = val_f1
             torch.save(model.state_dict(), "gnn_checkpoint_best.pt")
+        
+        early_stopping(val_f1)
+        if early_stopping.early_stop:
+            print("Early stopping triggered! Model has converged.")
+            break
 
-    print(f"Training complete. Best val_acc: {best_val_acc:.4f}")
+    print(f"Training complete. Best val_f1: {best_val_f1:.4f}")
 
 
 if __name__ == "__main__":

@@ -32,7 +32,7 @@ def preprocess_data():
     print(f"Label map in use: {label_map}")
 
     data_list = []
-    skipped   = 0
+    skipped = 0
 
     with open(DATA_FILE, 'r') as f:
         for line in tqdm(f):
@@ -45,18 +45,18 @@ def preprocess_data():
                 skipped += 1
                 continue
 
-            node_feats            = build_node_features(r, meta)
+            node_feats = build_node_features(r, meta)
             edge_index, edge_attr = build_edges(r, meta)
 
-            label     = label_map[label_str]
+            label = label_map[label_str]
             fault_loc = r["fault_loc"]
 
             data = Data(
-                x          = torch.tensor(node_feats,  dtype=torch.float),
-                edge_index = torch.tensor(edge_index,  dtype=torch.long),
-                edge_attr  = torch.tensor(edge_attr,   dtype=torch.float),
-                y          = torch.tensor(label,        dtype=torch.long),
-                fault_loc  = torch.tensor(fault_loc if fault_loc is not None else -1, dtype=torch.long),
+                x=torch.tensor(node_feats, dtype=torch.float),
+                edge_index=torch.tensor(edge_index, dtype=torch.long),
+                edge_attr=torch.tensor(edge_attr, dtype=torch.float),
+                y=torch.tensor(label, dtype=torch.long),
+                fault_loc=torch.tensor(fault_loc if fault_loc is not None else -1, dtype=torch.long),
             )
             data_list.append(data)
 
@@ -65,9 +65,8 @@ def preprocess_data():
 
     print(f"Collating {len(data_list)} graphs...")
     data, slices = InMemoryDataset.collate(data_list)
-    torch.save((data, slices), out_file)
     print(f"Saved → {out_file}")
-
+    torch.save((data, slices), out_file)
 
 if __name__ == "__main__":
     preprocess_data()
