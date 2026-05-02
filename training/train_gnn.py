@@ -271,6 +271,17 @@ def train():
     print("Computing normalization statistics from training set...")
     node_mean, node_std, edge_mean, edge_std = compute_normalization_stats(full_dataset, train_idx)
 
+    # THE PHYSICS FIX: Do not normalize rho (capacity). 
+    # It is already a strict physical ratio [0.0, 2.0]. 
+    # Force its mean to 0 and std to 1 so the math leaves it completely unscaled.
+    node_mean[3] = 0.0
+    node_std[3]  = 1.0
+    edge_mean[0] = 0.0
+    edge_std[0]  = 1.0
+
+    # 3. Apply normalization to the entire dataset (in-place)
+    print("Applying normalization to all datasets...")
+
     # 3. Apply normalization to the entire dataset (in-place)
     print("Applying normalization to all datasets...")
     # We apply the math directly to the hidden _data object, which contains 
@@ -306,7 +317,7 @@ def train():
 
     optimizer   = AdamW(model.parameters(), lr=lr, weight_decay=TRAIN_CONFIG["weight_decay"])
     scheduler   = CosineAnnealingLR(optimizer, T_max=epochs)
-    cls_loss_fn = FocalLoss(weight=class_weights, gamma=2.0)
+    cls_loss_fn = nn.CrossEntropyLoss()
     loc_loss_fn = nn.BCEWithLogitsLoss()
 
     scaler = GradScaler(device=DEVICE.type)
