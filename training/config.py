@@ -26,7 +26,7 @@ DATA_FILE = os.path.join(DATA_DIR, "grid_dataset_neurips2020.jsonl")
 if DEVICE.type == "cuda":
     # Research PC — full scale
     TRAIN_CONFIG = {
-        "epochs": 10,
+        "epochs": 20,
         "batch_size": 256,
         "lr": 1e-4,
         "weight_decay": 1e-4,
@@ -50,8 +50,8 @@ else:
 
 # ── MODEL ARCHITECTURE ───────────────────────────────────────────────────────
 # These dimensions are fixed by the GridDataset implementation in pyg_data.py
-NODE_FEATURES = 4  # load_p, gen_p, mean_v_or, max_rho
-EDGE_FEATURES = 3  # rho, p_or, q_or
+NODE_FEATURES = 5  # load_p, gen_p, mean_v_or, max_rho
+EDGE_FEATURES = 4  # rho, p_or, q_or
 
 # ── REPRODUCIBILITY ──────────────────────────────────────────────────────────
 SEED = 42

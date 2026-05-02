@@ -7,7 +7,7 @@ import json
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import GATConv, global_mean_pool
+from torch_geometric.nn import GATConv, global_mean_pool, global_max_pool
 from torch_geometric.loader import DataLoader
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
@@ -45,31 +45,39 @@ class GridGNN(nn.Module):
         )
 
     def forward(self, x, edge_index, edge_attr, batch):
-        x = F.elu(self.conv1(x, edge_index, edge_attr))
-        x = F.dropout(x, p=0.1, training=self.training)
-        x = F.elu(self.conv2(x, edge_index, edge_attr))
-        x = F.dropout(x, p=0.1, training=self.training)
-        x = self.conv3(x, edge_index, edge_attr)
-        loc_logits   = self.localizer(x).squeeze(-1)
-        graph_emb    = global_mean_pool(x, batch)
+        # THE SKIP CONNECTION: Capture the absolute peak physical values (like rho) BEFORE they are smoothed
+        raw_x_max = global_max_pool(x, batch)
+        
+        # Pass the data through the GNN (rename the intermediate variable so we don't overwrite raw x)
+        x_emb = F.elu(self.conv1(x, edge_index, edge_attr))
+        x_emb = F.dropout(x_emb, p=0.1, training=self.training)
+        x_emb = F.elu(self.conv2(x_emb, edge_index, edge_attr))
+        x_emb = F.dropout(x_emb, p=0.1, training=self.training)
+        x_emb = self.conv3(x_emb, edge_index, edge_attr)
+        
+        loc_logits = self.localizer(x_emb).squeeze(-1)
+        
+        # Pool the deep network embeddings
+        graph_emb  = global_max_pool(x_emb, batch)
+        
         class_logits = self.classifier(graph_emb)
         return class_logits, loc_logits
 
 
-class FocalLoss(nn.Module):
-    def __init__(self, weight=None, gamma=2.0, reduction='mean'):
-        super().__init__()
-        self.weight = weight
-        self.gamma = gamma
-        self.reduction = reduction
+# class FocalLoss(nn.Module):
+#     def __init__(self, weight=None, gamma=2.0, reduction='mean'):
+#         super().__init__()
+#         self.weight = weight
+#         self.gamma = gamma
+#         self.reduction = reduction
 
-    def forward(self, inputs, targets):
-        ce_loss = F.cross_entropy(inputs, targets, weight=self.weight, reduction='none')
-        pt = torch.exp(-ce_loss)
-        focal_loss = ((1 - pt) ** self.gamma) * ce_loss
-        if self.reduction == 'mean':
-            return focal_loss.mean()
-        return focal_loss.sum()
+#     def forward(self, inputs, targets):
+#         ce_loss = F.cross_entropy(inputs, targets, weight=self.weight, reduction='none')
+#         pt = torch.exp(-ce_loss)
+#         focal_loss = ((1 - pt) ** self.gamma) * ce_loss
+#         if self.reduction == 'mean':
+#             return focal_loss.mean()
+#         return focal_loss.sum()
 
 class EarlyStopping:
     def __init__(self, patience=10, min_delta=0.001):
@@ -127,55 +135,47 @@ def build_loc_targets_fast(batch):
 
 
 def compute_normalization_stats(dataset, train_indices):
-    """Compute mean and std for node and edge features using only training data."""
-    device = dataset[0].x.device  # Get device from first sample
+    """Compute mean and std using float64 to prevent catastrophic precision loss."""
+    device = dataset[0].x.device  
 
-    # Initialize accumulators
-    node_sum = None
-    node_sq_sum = None
+    # Initialize accumulators in 64-bit precision
+    node_sum = torch.zeros(dataset[0].x.size(1), dtype=torch.float64, device=device)
+    node_sq_sum = torch.zeros(dataset[0].x.size(1), dtype=torch.float64, device=device)
     node_count = 0
-    edge_sum = None
-    edge_sq_sum = None
+    
+    edge_sum = torch.zeros(dataset[0].edge_attr.size(1), dtype=torch.float64, device=device)
+    edge_sq_sum = torch.zeros(dataset[0].edge_attr.size(1), dtype=torch.float64, device=device)
     edge_count = 0
 
-    # Accumulate statistics from training set only
+    # Accumulate in high precision
     for idx in train_indices:
         data = dataset[idx]
-        x = data.x  # [num_nodes, num_node_features]
-        e = data.edge_attr  # [num_edges, num_edge_features]
+        x = data.x.to(torch.float64)
+        e = data.edge_attr.to(torch.float64)
 
-        # Node features
-        if node_sum is None:
-            node_sum = x.sum(dim=0)
-            node_sq_sum = (x.pow(2)).sum(dim=0)
-        else:
-            node_sum += x.sum(dim=0)
-            node_sq_sum += (x.pow(2)).sum(dim=0)
+        node_sum += x.sum(dim=0)
+        node_sq_sum += (x.pow(2)).sum(dim=0)
         node_count += x.size(0)
 
-        # Edge features
-        if edge_sum is None:
-            edge_sum = e.sum(dim=0)
-            edge_sq_sum = (e.pow(2)).sum(dim=0)
-        else:
-            edge_sum += e.sum(dim=0)
-            edge_sq_sum += (e.pow(2)).sum(dim=0)
+        edge_sum += e.sum(dim=0)
+        edge_sq_sum += (e.pow(2)).sum(dim=0)
         edge_count += e.size(0)
 
-    # Compute mean and std
+    # Compute mean and var in float64, then safely cast back to float32
     if node_count > 0:
-        node_mean = node_sum / node_count
-        node_var = torch.clamp(node_sq_sum / node_count - node_mean.pow(2), min=0.0)
-        node_std = torch.sqrt(node_var) + 1e-7  # avoid division by zero
+        n_mean = node_sum / node_count
+        n_var = torch.clamp(node_sq_sum / node_count - n_mean.pow(2), min=0.0)
+        node_mean = n_mean.to(torch.float32)
+        node_std = torch.sqrt(n_var).to(torch.float32) + 1e-7
     else:
-        # Fallback (should not happen with proper data)
         node_mean = torch.zeros(dataset[0].x.size(1), device=device)
         node_std = torch.ones_like(node_mean)
 
     if edge_count > 0:
-        edge_mean = edge_sum / edge_count
-        edge_var = torch.clamp(edge_sq_sum / edge_count - edge_mean.pow(2), min=0.0)
-        edge_std = torch.sqrt(edge_var) + 1e-7
+        e_mean = edge_sum / edge_count
+        e_var = torch.clamp(edge_sq_sum / edge_count - e_mean.pow(2), min=0.0)
+        edge_mean = e_mean.to(torch.float32)
+        edge_std = torch.sqrt(e_var).to(torch.float32) + 1e-7
     else:
         edge_mean = torch.zeros(dataset[0].edge_attr.size(1), device=device)
         edge_std = torch.ones_like(edge_mean)
@@ -281,9 +281,6 @@ def train():
 
     # 3. Apply normalization to the entire dataset (in-place)
     print("Applying normalization to all datasets...")
-
-    # 3. Apply normalization to the entire dataset (in-place)
-    print("Applying normalization to all datasets...")
     # We apply the math directly to the hidden _data object, which contains 
     # every node and edge in the dataset concatenated together.
     full_dataset._data.x = (full_dataset._data.x - node_mean) / node_std
@@ -317,7 +314,7 @@ def train():
 
     optimizer   = AdamW(model.parameters(), lr=lr, weight_decay=TRAIN_CONFIG["weight_decay"])
     scheduler   = CosineAnnealingLR(optimizer, T_max=epochs)
-    cls_loss_fn = nn.CrossEntropyLoss()
+    class_weights = torch.tensor(weights, dtype=torch.float32, device=DEVICE)
     loc_loss_fn = nn.BCEWithLogitsLoss()
 
     scaler = GradScaler(device=DEVICE.type)
@@ -338,8 +335,8 @@ def train():
                 class_logits, loc_logits = model(
                     batch.x, batch.edge_index, batch.edge_attr, batch.batch
                 )
-
-                cls_loss = cls_loss_fn(class_logits, batch.y)
+                w = class_weights.to(class_logits.dtype)
+                cls_loss = F.cross_entropy(class_logits, batch.y, weight=w)
 
                 has_fault = (batch.fault_loc >= 0).any()
                 if has_fault:
