@@ -39,8 +39,8 @@ from pydantic import BaseModel, ValidationError, field_validator
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 # EXTRACTOR_MODEL = "qwen3:14b"
 # VALIDATOR_MODEL = "nemotron-3-nano"   # update tag if yours differs
-EXTRACTOR_MODEL = "qwen3.5:0.8b"  # Your small test model
-VALIDATOR_MODEL = "qwen3.5:0.8b"  # Use the same model for both steps in the smoke run
+EXTRACTOR_MODEL = "qwen3.5:4b"  # Your small test model
+VALIDATOR_MODEL = "qwen3.5:4b"  # Use the same model for both steps in the smoke run
 
 CHUNK_SIZE = 1200  # chars per chunk — ~300–400 tokens for dense IEEE prose
 CHUNK_OVERLAP = 200  # overlap to avoid cutting mid-rule
