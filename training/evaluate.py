@@ -28,11 +28,11 @@ full_dataset = PreloadedGridDataset(os.path.join(DATA_DIR, "processed_grid_data.
 print("Computing normalization from train split to apply to test split...")
 node_mean, node_std, edge_mean, edge_std = compute_normalization_stats(full_dataset, train_idx)
 
-# THE PHYSICS FIX: Override rho so it stays physically bounded
-node_mean[3] = 0.0
-node_std[3]  = 1.0
-edge_mean[0] = 0.0
-edge_std[0]  = 1.0
+# # THE PHYSICS FIX: Override rho so it stays physically bounded
+# node_mean[3] = 0.0
+# node_std[3]  = 1.0
+# edge_mean[0] = 0.0
+# edge_std[0]  = 1.0
 
 # Apply the fixed math to the dataset
 full_dataset._data.x = (full_dataset._data.x - node_mean) / node_std
@@ -52,6 +52,16 @@ model = GridGNN(
 ).to(DEVICE)
 model.load_state_dict(torch.load("gnn_checkpoint_best.pt", map_location=DEVICE))
 model.eval()
+#........................................................................................................
+print("Model loaded. Testing on first test batch...")
+first_batch = next(iter(loader))
+first_batch = first_batch.to(DEVICE)
+with torch.no_grad():
+    logits, _ = model(first_batch.x, first_batch.edge_index, first_batch.edge_attr, first_batch.batch)
+    print("First batch logits shape:", logits.shape)
+    print("First batch logits (first 5):", logits[:5].cpu().numpy())
+    print("First batch true labels (first 5):", first_batch.y[:5].cpu().numpy())
+    print("Predicted classes (first 5):", logits.argmax(dim=1)[:5].cpu().numpy())
 
 # ── Inference ────────────────────────────────────────────────────────────────
 all_preds, all_labels = [], []

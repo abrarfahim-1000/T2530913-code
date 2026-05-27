@@ -1,0 +1,36 @@
+{
+  "run_start": "2026-05-27T14:30:07.773488",
+  "extractor_model": "qwen3:14b",
+  "chunk_size": 1200,
+  "chunk_overlap": 200,
+  "dry_run": false,
+  "files": [
+    {
+      "file": "prc-025-2.pdf",
+      "n_chunks": 197,
+      "n_raw_extracted": 117,
+      "n_schema_valid": 112,
+      "n_parse_errors": 23,
+      "total_extract_ms": 2962251.472099684
+    },
+    {
+      "file": "prc-029-1.pdf",
+      "n_chunks": 30,
+      "n_raw_extracted": 22,
+      "n_schema_valid": 22,
+      "n_parse_errors": 5,
+      "total_extract_ms": 343810.2222997695
+    },
+    {
+      "file": "RM16-1-000.pdf",
+      "n_chunks": 128,
+      "n_raw_extracted": 25,
+      "n_schema_valid": 25,
+      "n_parse_errors": 4,
+      "total_extract_ms": 1321841.128400294
+    }
+  ],
+  "run_end": "2026-05-27T16:05:44.041202",
+  "total_time_sec": 5736.3,
+  "total_candidates": 159
+}

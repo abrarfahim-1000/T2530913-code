@@ -14,7 +14,7 @@ from pydantic import BaseModel, ValidationError, field_validator
 
 # ── MODEL CONFIG ──────────────────────────────────────────────────────────────
 EXTRACTOR_MODEL = "qwen3:14b"
-VALIDATOR_MODEL = "nemotron-mini"   # update tag if yours differs
+VALIDATOR_MODEL = "nemotron-3-nano:latest"   # update tag if yours differs
 
 # ── CHUNKING CONFIG ───────────────────────────────────────────────────────────
 CHUNK_SIZE    = 1200   # chars — ~300–400 tokens for dense IEEE prose
