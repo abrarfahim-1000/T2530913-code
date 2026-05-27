@@ -166,9 +166,6 @@ def derive_label(obs, prev_line_status, injected_label, injected_loc, env, prev_
     # Line_trip: our clean injection AND no overload anywhere AND no env trips
     # But if prev step was also an injection that caused rho spike, label that as overload
     if injected_label == "line_trip" and injected_loc is not None:
-        if obs.rho.max() > 0.75:   # rho climbing due to our trip → overload in the making
-            line_id = int(obs.rho.argmax())
-            return "overload", int(env.line_or_to_subid[line_id])
         return "line_trip", int(env.line_or_to_subid[injected_loc])
 
     return injected_label, injected_loc
