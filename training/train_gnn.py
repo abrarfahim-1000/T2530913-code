@@ -61,7 +61,7 @@ class GridGNN(nn.Module):
         loc_logits   = self.localizer(x_emb).squeeze(-1)
 
         # FIX: max pooling preserves the fault-node signal; mean pooling buries it
-        graph_emb    = global_mean_pool(x_emb, batch)
+        graph_emb    = global_max_pool(x_emb, batch)
         class_logits = self.classifier(graph_emb)
 
         return class_logits, loc_logits
@@ -257,13 +257,10 @@ def train():
     # ── Class weights ─────────────────────────────────────────────────────────
     all_labels   = load_labels(DATA_FILE)
     train_labels = [all_labels[i] for i in train_idx]
-    # weights      = compute_class_weights(train_labels, LABEL_MAP_ACTIVE)
-    # class_weights = torch.tensor(weights, dtype=torch.float32, device=DEVICE)
-    class_weights = torch.tensor(
-    [2.0, 0.5, 4.0, 3.0],  # normal, overload, line_trip, cascade
-    dtype=torch.float32, device=DEVICE)
+    weights      = compute_class_weights(train_labels, LABEL_MAP_ACTIVE)
     print("Label counts :", Counter(train_labels))
-    print("Class weights:", dict(zip(LABEL_MAP_ACTIVE.keys(), class_weights))) 
+    print("Class weights:", dict(zip(LABEL_MAP_ACTIVE.keys(), weights)))
+    class_weights = torch.tensor(weights, dtype=torch.float32, device=DEVICE)
 
     # ── DataLoaders ───────────────────────────────────────────────────────────
     train_loader = make_dataloader(train_ds, batch_size, shuffle=True)

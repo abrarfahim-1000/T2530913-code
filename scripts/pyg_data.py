@@ -121,17 +121,13 @@ def build_edges(r, meta: GridEnvMetadata):
 
     Features:
       0  rho         — line loading ratio (clipped at 2.0)
-      1  p_or        — active power flow (origin side, clipped to ±500 MW)
-      2  q_or        — reactive power flow (clipped to ±300 MVAR)
+      1  p_or        — active power flow (origin side)
+      2  q_or        — reactive power flow
       3  line_status — 1=connected, 0=tripped (KEY: GNN sees disconnected edges)
-
-    p_or and q_or are clipped BEFORE z-score normalization in train_gnn.py.
-    Without clipping their std is ~44 and ~38 respectively, which drowns out
-    rho (std ~0.22) and line_status (std ~0.29) in GATConv attention computation.
     """
     rho         = np.clip(r["rho"], 0, RHO_CLIP).astype(np.float32)
-    p_or        = np.clip(r["p_or"], -500, 500).astype(np.float32)   # MW
-    q_or        = np.clip(r["q_or"], -300, 300).astype(np.float32)   # MVAR
+    p_or        = np.array(r["p_or"], dtype=np.float32)
+    q_or        = np.array(r["q_or"], dtype=np.float32)
     line_status = np.array(r["line_status"], dtype=np.float32)
 
     for arr in [rho, p_or, q_or]:

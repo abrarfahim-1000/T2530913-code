@@ -38,14 +38,14 @@ if DEVICE.type == "cuda":
 else:
     # Personal PC — smoke test only
     TRAIN_CONFIG = {
-        "epochs": 5,
+        "epochs": 3,
         "batch_size": 256,
-        "lr": 1e-3,
+        "lr": 1e-4,
         "weight_decay": 1e-4,
         "dropout": 0.2,
-        "hidden_channels": [128, 256, 256],
+        "hidden_channels": [64, 128, 256],
         "heads": [4, 4, 1],
-        "loc_loss_weight": 0.05
+        "loc_loss_weight": 0.5
     }
 
 # ── MODEL ARCHITECTURE ───────────────────────────────────────────────────────
