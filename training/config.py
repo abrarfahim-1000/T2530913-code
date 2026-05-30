@@ -26,7 +26,7 @@ DATA_FILE = os.path.join(DATA_DIR, "grid_dataset_neurips2020.jsonl")
 if DEVICE.type == "cuda":
     # Research PC — full scale
     TRAIN_CONFIG = {
-        "epochs": 20,
+        "epochs": 50,
         "batch_size": 256,
         "lr": 5e-4,             # Increased for GraphNorm
         "weight_decay": 1e-4,
