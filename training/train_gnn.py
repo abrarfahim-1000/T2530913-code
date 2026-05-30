@@ -40,7 +40,7 @@ class GridGNN(nn.Module):
 
         # FIX: classifier takes last_dim only — no skip connection, no concatenation
         self.classifier = nn.Sequential(
-            nn.Linear(last_dim, 128),
+            nn.Linear(last_dim * 3, 128),
             nn.ReLU(),
             nn.Dropout(0.3),
             nn.Linear(128, n_classes)
@@ -61,7 +61,10 @@ class GridGNN(nn.Module):
         loc_logits   = self.localizer(x_emb).squeeze(-1)
 
         # FIX: max pooling preserves the fault-node signal; mean pooling buries it
-        graph_emb    = global_max_pool(x_emb, batch)
+        emb_mean = global_mean_pool(x_emb, batch)
+        emb_max  = global_max_pool(x_emb, batch)
+        emb_min  = -global_max_pool(-x_emb, batch)
+        graph_emb = torch.cat([emb_mean, emb_max, emb_min], dim=1)
         class_logits = self.classifier(graph_emb)
 
         return class_logits, loc_logits
@@ -299,8 +302,8 @@ def train():
                 )
 
                 # FIX: cast weights to match autocast dtype explicitly
-                w        = class_weights.to(class_logits.dtype)
-                cls_loss = F.cross_entropy(class_logits, batch.y, weight=w)
+                # w        = class_weights.to(class_logits.dtype)
+                cls_loss = F.cross_entropy(class_logits, batch.y)
 
                 # FIX: cast loc_targets to match loc_logits dtype to avoid silent mismatch
                 has_fault = (batch.fault_loc >= 0).any()

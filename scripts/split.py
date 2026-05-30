@@ -40,7 +40,7 @@ def compute_class_weights(labels, label_map):
     weights = np.zeros_like(counts)
     for i in range(n_classes):
         if counts[i] > 0:
-            weights[i] = total_samples / (n_classes * counts[i])
+            weights[i] = np.sqrt(total_samples / (n_classes * counts[i]))
         else:
             weights[i] = 0.0
             

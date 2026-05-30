@@ -37,29 +37,23 @@ ENV_NAME = "l2rpn_neurips_2020_track1_small" # ← change this to switch env
 ENV_TAG  = "neurips2020"
 ENV_DESC = "NeurIPS 2020 L2RPN — 36 subs, 59 lines [PRIMARY]"
 
-# ── FIXED CONFIG ──────────────────────────────────────────────────────────────
-# FAULT_PROB      = 0.05   # ← was 0.08; lower = longer episodes, more records
-# RECONNECT_PROB  = 0.4    # probability of reconnecting a tripped line each step
-# SEED            = 42
-# RHO_CLIP        = 2.0     # clip rho before saving; must match GridDataset normalisation
-
-
-FAULT_PROB  = 0.10
-RECONNECT_PROB = 0.09
+FAULT_PROB  = 0.02
+RECONNECT_PROB = 0.20
 SEED            = 42
 RHO_CLIP        = 2.0    
 
 
 # Undersampling: only log a normal step with this probability
 # Fault/overload/cascade steps are ALWAYS logged
-NORMAL_KEEP_PROB = 0.15  # discard 70% of normal steps → ~70% fault in final set (was 0.3, then 0.2, now 0.15 for more balance)
+NORMAL_KEEP_PROB = 0.10 # discard 70% of normal steps → ~70% fault in final set (was 0.3, then 0.2, now 0.15 for more balance)
+LINE_TRIP_KEEP_PROB = 0.20  # ← NEW: Discard 80% of redundant N-1 cooldown frames
 
 # Smoke-test overrides (--smoke flag)
 SMOKE_MAX_CHRONICS = 3
 # SMOKE_MAX_STEPS    = 200
 SMOKE_MAX_STEPS    = 500
 
-LABEL_MAP = {"normal": 0, "overload": 1, "line_trip": 2, "cascade": 3, "maintenance": 4}
+LABEL_MAP = {"normal": 0, "overload": 1, "line_trip": 2, "cascade": 3}
 
 LINE_KEYS = ("rho", "p_or", "q_or", "p_ex", "q_ex", "v_or", "v_ex")
 BUS_KEYS  = ("load_p", "load_q", "gen_p", "gen_q", "topo_vect")
@@ -165,10 +159,10 @@ def derive_label(obs, prev_line_status, injected_label, injected_loc, env, prev_
 
     # Line_trip: our clean injection AND no overload anywhere AND no env trips
     # But if prev step was also an injection that caused rho spike, label that as overload
+    # Line_trip: our clean injection AND no overload anywhere AND no env trips
     if injected_label == "line_trip" and injected_loc is not None:
-        if obs.rho.max() > 0.75:   # rho climbing due to our trip → overload in the making
-            line_id = int(obs.rho.argmax())
-            return "overload", int(env.line_or_to_subid[line_id])
+        # We already checked for rho > 1.0 at the top of derive_label!
+        # So if we reach here, the grid survived the trip.
         return "line_trip", int(env.line_or_to_subid[injected_loc])
 
     return injected_label, injected_loc
@@ -314,8 +308,13 @@ def main():
 
                 for t in range(steps):
                     action      = do_nothing
-                    fault_label = "normal"
-                    fault_loc   = None
+                    if len(tripped_lines) > 0:
+                        fault_label = "line_trip"
+                        # Provide the localizer with the id of the disconnected line
+                        fault_loc = list(tripped_lines)[0] 
+                    else:
+                        fault_label = "normal"
+                        fault_loc = None
 
                     # ── Reconnect a previously tripped line (grid recovery) ──────────────
                     if tripped_lines and np.random.rand() < RECONNECT_PROB:
@@ -343,7 +342,11 @@ def main():
                     tripped_lines.update(newly_tripped)
 
                     is_normal = (fault_label == "normal")
+                    is_line_trip = (fault_label == "line_trip")
+                    
                     if is_normal and np.random.rand() > NORMAL_KEEP_PROB:
+                        pass  
+                    elif is_line_trip and np.random.rand() > LINE_TRIP_KEEP_PROB:
                         pass  
                     else:
                         record = {

@@ -116,30 +116,27 @@ def build_node_features(r, meta: GridEnvMetadata):
 
 
 def build_edges(r, meta: GridEnvMetadata):
-    """
-    Edge features (bidirectional, so 59*2=118 edges).
-
-    Features:
-      0  rho         — line loading ratio (clipped at 2.0)
-      1  p_or        — active power flow (origin side)
-      2  q_or        — reactive power flow
-      3  line_status — 1=connected, 0=tripped (KEY: GNN sees disconnected edges)
-    """
     rho         = np.clip(r["rho"], 0, RHO_CLIP).astype(np.float32)
-    p_or        = np.array(r["p_or"], dtype=np.float32)
-    q_or        = np.array(r["q_or"], dtype=np.float32)
+    p_or        = np.clip(r["p_or"], -500, 500).astype(np.float32)
+    q_or        = np.clip(r["q_or"], -300, 300).astype(np.float32)
     line_status = np.array(r["line_status"], dtype=np.float32)
 
     for arr in [rho, p_or, q_or]:
         np.nan_to_num(arr, copy=False, nan=0.0, posinf=0.0, neginf=0.0)
 
+    # Base arrays
     src = np.concatenate([meta.line_or_bus, meta.line_ex_bus])
     dst = np.concatenate([meta.line_ex_bus, meta.line_or_bus])
-    edge_index = np.stack([src, dst], axis=0)
+    
+    feats = np.stack([rho, p_or, q_or, line_status], axis=1)  
+    edge_attr_base = np.concatenate([feats, feats], axis=0)             
+    edge_status_base = np.concatenate([line_status, line_status], axis=0) 
 
-    # Stack 4 features per line, duplicate for both directions
-    feats     = np.stack([rho, p_or, q_or, line_status], axis=1)  # (59, 4)
-    edge_attr = np.concatenate([feats, feats], axis=0)             # (118, 4)
+    # FIX: Physically remove the severed connections from the graph
+    connected_mask = (edge_status_base == 1.0)
+    
+    edge_index = np.stack([src[connected_mask], dst[connected_mask]], axis=0)
+    edge_attr  = edge_attr_base[connected_mask]
 
     return edge_index, edge_attr
 
