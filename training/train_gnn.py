@@ -7,7 +7,7 @@ import json
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import GATConv, global_mean_pool, global_max_pool
+from torch_geometric.nn import GATConv, global_mean_pool, global_max_pool, GraphNorm
 from torch_geometric.loader import DataLoader
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
@@ -31,18 +31,21 @@ class GridGNN(nn.Module):
         super().__init__()
         
         self.conv1 = GATConv(node_features, hidden_channels[0], heads=heads[0], edge_dim=edge_features)
+        self.norm1 = GraphNorm(hidden_channels[0] * heads[0])
+        
         self.conv2 = GATConv(hidden_channels[0] * heads[0], hidden_channels[1], heads=heads[1], edge_dim=edge_features)
+        self.norm2 = GraphNorm(hidden_channels[1] * heads[1])
+        
         self.conv3 = GATConv(hidden_channels[1] * heads[1], hidden_channels[2], heads=heads[2], edge_dim=edge_features)
+        self.norm3 = GraphNorm(hidden_channels[2] * heads[2])
 
         last_dim = hidden_channels[2] * heads[2]
 
-        # REMOVED: self.graph_norm
-        # REMOVED: nn.LayerNorms
-
+        # Reintroduce a small, safe dropout exclusively to the dense classifier
         self.classifier = nn.Sequential(
             nn.Linear(last_dim * 3, 128),
             nn.ReLU(),
-            # REMOVED: nn.Dropout
+            nn.Dropout(p=0.2), # Safe here, prevents dense overfitting
             nn.Linear(128, n_classes)
         )
         self.localizer = nn.Sequential(
@@ -52,10 +55,15 @@ class GridGNN(nn.Module):
         )
 
     def forward(self, x, edge_index, edge_attr, batch):
-        # Clean forward pass. No LayerNorms destroying the scale.
-        x_emb = F.elu(self.conv1(x, edge_index, edge_attr))
-        x_emb = F.elu(self.conv2(x_emb, edge_index, edge_attr))
-        x_emb = F.elu(self.conv3(x_emb, edge_index, edge_attr)) 
+        # Apply GraphNorm to stabilize amplitudes per-graph without erasing outlier spikes
+        x_emb = self.conv1(x, edge_index, edge_attr)
+        x_emb = F.elu(self.norm1(x_emb, batch))
+        
+        x_emb = self.conv2(x_emb, edge_index, edge_attr)
+        x_emb = F.elu(self.norm2(x_emb, batch))
+        
+        x_emb = self.conv3(x_emb, edge_index, edge_attr)
+        x_emb = F.elu(self.norm3(x_emb, batch)) 
 
         loc_logits = self.localizer(x_emb).squeeze(-1)
 
@@ -63,9 +71,7 @@ class GridGNN(nn.Module):
         emb_max  = global_max_pool(x_emb, batch)
         emb_min  = -global_max_pool(-x_emb, batch)
 
-        # The absolute scale of emb_max is preserved perfectly for the classifier
         graph_emb = torch.cat([emb_mean, emb_max, emb_min], dim=1)
-        
         class_logits = self.classifier(graph_emb)
 
         return class_logits, loc_logits
