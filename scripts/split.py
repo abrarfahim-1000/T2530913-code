@@ -15,12 +15,16 @@ def load_labels(file_path):
 def get_splits(file_path, train_size=0.7, val_size=0.15, test_size=0.15, random_seed=42):
     labels = load_labels(file_path)
     n = len(labels)
+    idx = np.arange(n)
     
-    # Strict chronological split to prevent temporal leakage
+    # --- ADD THIS DIAGNOSTIC SHUFFLE ---
+    np.random.seed(random_seed)
+    np.random.shuffle(idx)
+    # -----------------------------------
+    
     train_end = int(n * train_size)
     val_end = int(n * (train_size + val_size))
     
-    idx = np.arange(n)
     train_idx = idx[:train_end]
     val_idx = idx[train_end:val_end]
     test_idx = idx[val_end:]

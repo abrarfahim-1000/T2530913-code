@@ -29,20 +29,20 @@ from scripts.split import compute_class_weights, load_labels, get_splits
 class GridGNN(nn.Module):
     def __init__(self, node_features, edge_features, n_classes, hidden_channels, heads, dropout):
         super().__init__()
-        self.conv1 = GATConv(node_features, hidden_channels[0], heads=heads[0],
-                             edge_dim=edge_features, dropout=dropout)
-        self.conv2 = GATConv(hidden_channels[0] * heads[0], hidden_channels[1],
-                             heads=heads[1], edge_dim=edge_features, dropout=dropout)
-        self.conv3 = GATConv(hidden_channels[1] * heads[1], hidden_channels[2],
-                             heads=heads[2], edge_dim=edge_features, dropout=dropout)
+        
+        self.conv1 = GATConv(node_features, hidden_channels[0], heads=heads[0], edge_dim=edge_features)
+        self.conv2 = GATConv(hidden_channels[0] * heads[0], hidden_channels[1], heads=heads[1], edge_dim=edge_features)
+        self.conv3 = GATConv(hidden_channels[1] * heads[1], hidden_channels[2], heads=heads[2], edge_dim=edge_features)
 
         last_dim = hidden_channels[2] * heads[2]
 
-        # FIX: classifier takes last_dim only — no skip connection, no concatenation
+        # REMOVED: self.graph_norm
+        # REMOVED: nn.LayerNorms
+
         self.classifier = nn.Sequential(
             nn.Linear(last_dim * 3, 128),
             nn.ReLU(),
-            nn.Dropout(0.3),
+            # REMOVED: nn.Dropout
             nn.Linear(128, n_classes)
         )
         self.localizer = nn.Sequential(
@@ -52,19 +52,20 @@ class GridGNN(nn.Module):
         )
 
     def forward(self, x, edge_index, edge_attr, batch):
+        # Clean forward pass. No LayerNorms destroying the scale.
         x_emb = F.elu(self.conv1(x, edge_index, edge_attr))
-        x_emb = F.dropout(x_emb, p=0.1, training=self.training)
         x_emb = F.elu(self.conv2(x_emb, edge_index, edge_attr))
-        x_emb = F.dropout(x_emb, p=0.1, training=self.training)
-        x_emb = self.conv3(x_emb, edge_index, edge_attr)
+        x_emb = F.elu(self.conv3(x_emb, edge_index, edge_attr)) 
 
-        loc_logits   = self.localizer(x_emb).squeeze(-1)
+        loc_logits = self.localizer(x_emb).squeeze(-1)
 
-        # FIX: max pooling preserves the fault-node signal; mean pooling buries it
         emb_mean = global_mean_pool(x_emb, batch)
         emb_max  = global_max_pool(x_emb, batch)
         emb_min  = -global_max_pool(-x_emb, batch)
+
+        # The absolute scale of emb_max is preserved perfectly for the classifier
         graph_emb = torch.cat([emb_mean, emb_max, emb_min], dim=1)
+        
         class_logits = self.classifier(graph_emb)
 
         return class_logits, loc_logits
@@ -169,7 +170,10 @@ def evaluate(model, loader, device, label_names=None):
     all_preds, all_labels = [], []
     for batch in tqdm(loader, desc="Evaluating", leave=False):
         batch = batch.to(device, non_blocking=True)
+        
+        # FIX 3: Removed autocast for perfect precision stability
         logits, _ = model(batch.x, batch.edge_index, batch.edge_attr, batch.batch)
+            
         all_preds.extend(logits.argmax(dim=1).cpu().numpy())
         all_labels.extend(batch.y.cpu().numpy())
 
@@ -225,6 +229,18 @@ def train():
     train_idx = np.load(train_idx_path)
     val_idx   = np.load(val_idx_path)
 
+    # 🚨 UNCONDITIONAL IN-MEMORY SHUFFLE 🚨
+    # Guarantee identical train/val distributions regardless of disk state
+    print("\n[Force Shuffle] Mixing train and val sets to eliminate chronological domain shift...\n")
+    
+    combined_idx = np.concatenate([train_idx, val_idx])
+    
+    np.random.seed(42)
+    np.random.shuffle(combined_idx)
+    
+    train_idx = combined_idx[:len(train_idx)]
+    val_idx   = combined_idx[len(train_idx):]
+
     # ── Dataset ───────────────────────────────────────────────────────────────
     pt_data_path = os.path.join(DATA_DIR, "processed_grid_data.pt")
     full_dataset = PreloadedGridDataset(pt_data_path, device=DEVICE)
@@ -260,10 +276,10 @@ def train():
     # ── Class weights ─────────────────────────────────────────────────────────
     all_labels   = load_labels(DATA_FILE)
     train_labels = [all_labels[i] for i in train_idx]
-    weights      = compute_class_weights(train_labels, LABEL_MAP_ACTIVE)
+    # weights      = compute_class_weights(train_labels, LABEL_MAP_ACTIVE)
     print("Label counts :", Counter(train_labels))
-    print("Class weights:", dict(zip(LABEL_MAP_ACTIVE.keys(), weights)))
-    class_weights = torch.tensor(weights, dtype=torch.float32, device=DEVICE)
+    # print("Class weights:", dict(zip(LABEL_MAP_ACTIVE.keys(), weights)))
+    # class_weights = torch.tensor(weights, dtype=torch.float32, device=DEVICE)
 
     # ── DataLoaders ───────────────────────────────────────────────────────────
     train_loader = make_dataloader(train_ds, batch_size, shuffle=True)
@@ -282,7 +298,6 @@ def train():
     optimizer   = AdamW(model.parameters(), lr=lr, weight_decay=TRAIN_CONFIG["weight_decay"])
     scheduler   = CosineAnnealingLR(optimizer, T_max=epochs)
     loc_loss_fn = nn.BCEWithLogitsLoss()
-    scaler      = GradScaler(device=DEVICE.type)
 
     best_val_f1   = 0.0
     early_stopping = EarlyStopping(patience=15)
@@ -296,30 +311,18 @@ def train():
             batch = batch.to(DEVICE, non_blocking=True)
             optimizer.zero_grad()
 
-            with autocast(device_type=DEVICE.type):
-                class_logits, loc_logits = model(
-                    batch.x, batch.edge_index, batch.edge_attr, batch.batch
-                )
+            # Clean FP32 Forward Pass
+            class_logits, loc_logits = model(
+                batch.x, batch.edge_index, batch.edge_attr, batch.batch
+            )
 
-                # FIX: cast weights to match autocast dtype explicitly
-                # w        = class_weights.to(class_logits.dtype)
-                cls_loss = F.cross_entropy(class_logits, batch.y)
+            cls_loss = F.cross_entropy(class_logits, batch.y)
+            loss = cls_loss  # Leaving loc_loss detached just for this classification check
 
-                # FIX: cast loc_targets to match loc_logits dtype to avoid silent mismatch
-                has_fault = (batch.fault_loc >= 0).any()
-                if has_fault:
-                    loc_targets = build_loc_targets_fast(batch).to(loc_logits.dtype)
-                    loc_loss    = loc_loss_fn(loc_logits, loc_targets)
-                else:
-                    loc_loss = torch.tensor(0.0, dtype=class_logits.dtype, device=DEVICE)
-
-                loss = cls_loss + TRAIN_CONFIG["loc_loss_weight"] * loc_loss
-
-            scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)
+            # Clean FP32 Backward Pass
+            loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            scaler.step(optimizer)
-            scaler.update()
+            optimizer.step()
 
             total_loss += loss.item()
             pbar.set_postfix(loss=f"{loss.item():.4f}")

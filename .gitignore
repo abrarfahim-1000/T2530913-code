@@ -212,3 +212,4 @@ __marimo__/
 data/
 *.pt
 docs/*.pdf
+done_pdfs/
