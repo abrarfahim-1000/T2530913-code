@@ -26,23 +26,27 @@ from scripts.pyg_data import PreloadedGridDataset, GridEnvMetadata, LABEL_MAP
 from scripts.split import compute_class_weights, load_labels, get_splits
 
 
+from torch_geometric.nn import GATConv, global_mean_pool, global_max_pool, BatchNorm
+
 class GridGNN(nn.Module):
     def __init__(self, node_features, edge_features, n_classes, hidden_channels, heads, dropout):
         super().__init__()
         
         self.conv1 = GATConv(node_features, hidden_channels[0], heads=heads[0], edge_dim=edge_features)
+        self.bn1   = BatchNorm(hidden_channels[0] * heads[0])
+        
         self.conv2 = GATConv(hidden_channels[0] * heads[0], hidden_channels[1], heads=heads[1], edge_dim=edge_features)
+        self.bn2   = BatchNorm(hidden_channels[1] * heads[1])
+        
         self.conv3 = GATConv(hidden_channels[1] * heads[1], hidden_channels[2], heads=heads[2], edge_dim=edge_features)
+        self.bn3   = BatchNorm(hidden_channels[2] * heads[2])
 
         last_dim = hidden_channels[2] * heads[2]
-
-        # REMOVED: self.graph_norm
-        # REMOVED: nn.LayerNorms
 
         self.classifier = nn.Sequential(
             nn.Linear(last_dim * 3, 128),
             nn.ReLU(),
-            # REMOVED: nn.Dropout
+            nn.Dropout(p=0.2), # Inverted dropout (safe for absolute magnitudes)
             nn.Linear(128, n_classes)
         )
         self.localizer = nn.Sequential(
@@ -52,10 +56,25 @@ class GridGNN(nn.Module):
         )
 
     def forward(self, x, edge_index, edge_attr, batch):
-        # Clean forward pass. No LayerNorms destroying the scale.
-        x_emb = F.elu(self.conv1(x, edge_index, edge_attr))
-        x_emb = F.elu(self.conv2(x_emb, edge_index, edge_attr))
-        x_emb = F.elu(self.conv3(x_emb, edge_index, edge_attr)) 
+        # 🚨 THE HASH BREAKER: Inject Gaussian noise during training 🚨
+        if self.training:
+            # Add 30% standard deviation noise to normalized node features
+            x = x + torch.randn_like(x) * 0.30
+            
+            # Add 10% noise to edges, but PROTECT the connected_mask (index 3)
+            edge_noise = torch.randn_like(edge_attr) * 0.10
+            edge_noise[:, 3] = 0.0 
+            edge_attr = edge_attr + edge_noise
+
+        # Smooth continuous gradients protected by Batch Normalization
+        x_emb = self.conv1(x, edge_index, edge_attr)
+        x_emb = F.elu(self.bn1(x_emb))
+        
+        x_emb = self.conv2(x_emb, edge_index, edge_attr)
+        x_emb = F.elu(self.bn2(x_emb))
+        
+        x_emb = self.conv3(x_emb, edge_index, edge_attr)
+        x_emb = F.elu(self.bn3(x_emb)) 
 
         loc_logits = self.localizer(x_emb).squeeze(-1)
 
@@ -63,7 +82,6 @@ class GridGNN(nn.Module):
         emb_max  = global_max_pool(x_emb, batch)
         emb_min  = -global_max_pool(-x_emb, batch)
 
-        # The absolute scale of emb_max is preserved perfectly for the classifier
         graph_emb = torch.cat([emb_mean, emb_max, emb_min], dim=1)
         
         class_logits = self.classifier(graph_emb)
@@ -276,10 +294,10 @@ def train():
     # ── Class weights ─────────────────────────────────────────────────────────
     all_labels   = load_labels(DATA_FILE)
     train_labels = [all_labels[i] for i in train_idx]
-    # weights      = compute_class_weights(train_labels, LABEL_MAP_ACTIVE)
+    weights      = compute_class_weights(train_labels, LABEL_MAP_ACTIVE)
     print("Label counts :", Counter(train_labels))
-    # print("Class weights:", dict(zip(LABEL_MAP_ACTIVE.keys(), weights)))
-    # class_weights = torch.tensor(weights, dtype=torch.float32, device=DEVICE)
+    print("Class weights:", dict(zip(LABEL_MAP_ACTIVE.keys(), weights)))
+    class_weights = torch.tensor(weights, dtype=torch.float32, device=DEVICE)
 
     # ── DataLoaders ───────────────────────────────────────────────────────────
     train_loader = make_dataloader(train_ds, batch_size, shuffle=True)
@@ -316,7 +334,7 @@ def train():
                 batch.x, batch.edge_index, batch.edge_attr, batch.batch
             )
 
-            cls_loss = F.cross_entropy(class_logits, batch.y)
+            cls_loss = F.cross_entropy(class_logits, batch.y, weight=class_weights)
             loss = cls_loss  # Leaving loc_loss detached just for this classification check
 
             # Clean FP32 Backward Pass
