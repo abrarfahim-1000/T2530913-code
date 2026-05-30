@@ -115,30 +115,28 @@ def build_node_features(r, meta: GridEnvMetadata):
     return np.stack([node_load, node_gen, node_v, node_rho, node_conn_frac], axis=1)
 
 
-def build_edges(r, meta: GridEnvMetadata):
-    rho         = np.clip(r["rho"], 0, RHO_CLIP).astype(np.float32)
-    p_or        = np.clip(r["p_or"], -500, 500).astype(np.float32)
-    q_or        = np.clip(r["q_or"], -300, 300).astype(np.float32)
-    line_status = np.array(r["line_status"], dtype=np.float32)
-
-    for arr in [rho, p_or, q_or]:
-        np.nan_to_num(arr, copy=False, nan=0.0, posinf=0.0, neginf=0.0)
-
-    # Base arrays
-    src = np.concatenate([meta.line_or_bus, meta.line_ex_bus])
-    dst = np.concatenate([meta.line_ex_bus, meta.line_or_bus])
+def build_edges(r, meta):
+    # 1. Convert line_status to a boolean mask (True = connected, False = disconnected)
+    line_status = np.array(r["line_status"], dtype=bool)
     
-    feats = np.stack([rho, p_or, q_or, line_status], axis=1)  
-    edge_attr_base = np.concatenate([feats, feats], axis=0)             
-    edge_status_base = np.concatenate([line_status, line_status], axis=0) 
-
-    # FIX: Physically remove the severed connections from the graph
-    connected_mask = (edge_status_base == 1.0)
+    # 2. Get the full static topology from the meta object
+    or_bus = meta.line_or_bus
+    ex_bus = meta.line_ex_bus
     
-    edge_index = np.stack([src[connected_mask], dst[connected_mask]], axis=0)
-    edge_attr  = edge_attr_base[connected_mask]
-
-    return edge_index, edge_attr
+    # 3. 🚨 CRITICAL: Prune the graph using the line_status mask
+    # This physically removes the dead line from the message-passing path
+    edge_index = np.array([or_bus[line_status], ex_bus[line_status]])
+    
+    # 4. Filter edge attributes so tripped lines provide zero signal
+    rho = np.array(r["rho"])
+    p_or = np.array(r["p_or"])
+    q_or = np.array(r["q_or"])
+    status_float = np.array(r["line_status"])
+    
+    # Stack features and apply the exact same active mask
+    edge_attr = np.column_stack((rho, p_or, q_or, status_float))[line_status]
+    
+    return edge_index.tolist(), edge_attr.tolist()
 
 
 class GridDataset(Dataset):

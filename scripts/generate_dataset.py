@@ -37,7 +37,7 @@ ENV_NAME = "l2rpn_neurips_2020_track1_small" # ← change this to switch env
 ENV_TAG  = "neurips2020"
 ENV_DESC = "NeurIPS 2020 L2RPN — 36 subs, 59 lines [PRIMARY]"
 
-FAULT_PROB  = 0.02
+FAULT_PROB  = 0.05
 RECONNECT_PROB = 0.20
 SEED            = 42
 RHO_CLIP        = 2.0    
@@ -45,8 +45,8 @@ RHO_CLIP        = 2.0
 
 # Undersampling: only log a normal step with this probability
 # Fault/overload/cascade steps are ALWAYS logged
-NORMAL_KEEP_PROB = 0.10 # discard 70% of normal steps → ~70% fault in final set (was 0.3, then 0.2, now 0.15 for more balance)
-LINE_TRIP_KEEP_PROB = 0.20  # ← NEW: Discard 80% of redundant N-1 cooldown frames
+NORMAL_KEEP_PROB = 0.02 # discard 70% of normal steps → ~70% fault in final set (was 0.3, then 0.2, now 0.15 for more balance)
+LINE_TRIP_KEEP_PROB = 1.0  # ← NEW: Discard 80% of redundant N-1 cooldown frames
 
 # Smoke-test overrides (--smoke flag)
 SMOKE_MAX_CHRONICS = 3
@@ -110,30 +110,6 @@ def extract_features(obs):
     for key in BUS_KEYS:
         feats[key] = safe_tolist(getattr(obs, key))
     return feats
-
-
-# def derive_label(obs, prev_line_status, injected_label, injected_loc, env):
-#     if hasattr(obs, "time_next_maintenance") and hasattr(obs, "duration_next_maintenance"):
-#         under_maint = (obs.time_next_maintenance == 0) & (obs.duration_next_maintenance > 0)
-#         if under_maint.any():
-#             line_id = int(np.where(under_maint)[0][0])
-#             return "maintenance", int(env.line_or_to_subid[line_id])  # ← substation
-
-#     if obs.rho.max() > 1.0:
-#         line_id = int(obs.rho.argmax())
-#         return "overload", int(env.line_or_to_subid[line_id])         # ← substation
-
-#     new_trips = (~obs.line_status) & prev_line_status
-#     if new_trips.any() and injected_label == "normal":
-#         line_id = int(np.where(new_trips)[0][0])
-#         return "cascade", int(env.line_or_to_subid[line_id])          # ← substation
-
-#     # For line_trip: injected_loc is already set as line_id in the step loop
-#     # Convert it to substation here
-#     if injected_label == "line_trip" and injected_loc is not None:
-#         return "line_trip", int(env.line_or_to_subid[injected_loc])   # ← substation
-
-#     return injected_label, injected_loc
 
 def derive_label(obs, prev_line_status, injected_label, injected_loc, env, prev_injected=False):
     if hasattr(obs, "time_next_maintenance") and hasattr(obs, "duration_next_maintenance"):
@@ -204,24 +180,6 @@ def build_meta(env, label_counts, total_records, total_time, smoke):
         "node_feature_dim": 4,   # load_p, gen_p, mean_v_or, max_rho — built in GridDataset
         "edge_feature_dim": 3,   # rho, p_or, q_or — per line, bidirectional
     }
-
-
-# def print_summary(meta, out_jsonl, out_meta):
-#     total   = meta["total_records"]
-#     print(f"\n{'='*56}")
-#     print(f"  Env      : {meta['env_name']}")
-#     print(f"  Records  : {total:,}")
-#     print(f"  Time     : {meta['total_time_sec']:.1f}s  "
-#           f"({meta['throughput_steps_per_sec']} steps/sec)")
-#     print(f"  n_classes: {meta['n_classes']}  →  {list(meta['label_map'].keys())}")
-#     print(f"\n  Label distribution:")
-#     for lbl, count in sorted(meta["label_counts"].items(), key=lambda x: -x[1]):
-#         pct = meta["label_pct"][lbl]
-#         bar = "█" * int(pct / 2)
-#         print(f"    {lbl:<12} {count:>8,}  ({pct:5.1f}%)  {bar}")
-#     print(f"\n  Data   → {out_jsonl}")
-#     print(f"  Meta   → {out_meta}")
-#     print(f"{'='*56}\n")
 
 def print_summary(meta, out_jsonl, out_meta):
     total   = meta["total_records"]
@@ -333,9 +291,14 @@ def main():
                             tripped_lines.add(line_id)
 
                     obs, reward, done, _info = env.step(action)
-                    fault_label, fault_loc   = derive_label(
+                    fault_label, fault_loc = derive_label(
                         obs, prev_line_status, fault_label, fault_loc, env
                     )
+                    is_disconnected = (not obs.line_status[fault_loc]) if fault_loc is not None else False
+                    if fault_label == "line_trip" and not is_disconnected:
+                        fault_label = "normal"
+                        fault_loc = None
+                        
                     prev_line_status = obs.line_status.copy()
 
                     newly_tripped = set(np.where(~obs.line_status)[0])
@@ -344,7 +307,9 @@ def main():
                     is_normal = (fault_label == "normal")
                     is_line_trip = (fault_label == "line_trip")
                     
-                    if is_normal and np.random.rand() > NORMAL_KEEP_PROB:
+                    MAX_NORMAL_RECORDS = TARGET_RECORDS * 0.40 # Cap normal at 40%
+                    
+                    if is_normal and (np.random.rand() > NORMAL_KEEP_PROB or label_counts["normal"] >= MAX_NORMAL_RECORDS):
                         pass  
                     elif is_line_trip and np.random.rand() > LINE_TRIP_KEEP_PROB:
                         pass  

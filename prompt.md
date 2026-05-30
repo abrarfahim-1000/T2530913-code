@@ -71,10 +71,28 @@ Through an iterative debugging process, we identified three hidden mathematical 
 * **Root Cause:** In Phase 4, we introduced `nn.LayerNorm` to stabilize the network. However, in a power grid, an `overload` is defined entirely by its absolute magnitude (e.g., line capacity `rho > 1.0`). `LayerNorm` was standardizing extreme power flows down to `N(0,1)` and scaling up low flows, mathematically erasing the absolute magnitude. It made heavily overloaded lines look identical to safe ones, forcing the model to memorize topological artifacts to minimize training loss.
 * **Fix:** Stripped all `LayerNorm` layers from the network entirely. The raw physical amplitudes now flow directly through the `GATConv` layers (activated by `ELU`) into the `global_max_pool`, preserving the extreme numeric spikes necessary for the linear classifier to detect overloads.
 
-### Final Current Architecture (`GridGNN`)
+## Phase 6: Resolving Ghost Topology & Class Imbalance
 
-* **Convolutions:** 3x `GATConv` layers (no dropout).
-* **Activations:** `F.elu` for smooth continuous gradients.
-* **Normalization:** Completely removed from the GNN (handled entirely by Z-score preprocessing on the dataset level).
-* **Pooling:** Concatenated `global_mean_pool`, `global_max_pool`, and `global_min_pool` (`-global_max_pool(-x)`).
-* **Precision & Loss:** Pure FP32 training with unweighted Cross-Entropy Loss.
+**Initial Problem:** Despite forcing a deterministic architecture and removing normalization scaling traps, the model completely failed to predict `normal` and `line_trip` (0% recall), predicting only `overload` or `cascade`.
+**Investigation:** We ran three new EDA scripts focusing on graph structure and discovered the **"Ghost Line Trip" bug**. A `line_trip` state had 37 nodes and 59 edges—the exact same topology as a `normal` state. The dataset generator was labeling lines as tripped without physically removing them from the graph. Because `GATConv` was still passing messages across the "dead" lines, a `line_trip` was mathematically indistinguishable from a `normal` state.
+
+**Fixes Implemented:**
+
+### 1. Topological Pruning (`scripts/pyg_data.py`)
+
+* **The Fix:** Completely rewrote the `build_edges` function to dynamically prune the graph. It now uses the JSON's `line_status` array as a boolean mask to filter both `edge_index` and `edge_attr`.
+* **Result:** A `line_trip` state now physically drops to 58 edges. This physically breaks the message-passing path in the `GATConv` layers, providing the GNN with the hard mathematical boundary it needs to separate a tripped grid from a normal grid.
+
+### 2. The Label Enforcer (`scripts/generate_dataset.py`)
+
+* **The Fix:** Added physical verification logic inside the simulation step loop.
+* **Mechanism:** Grid2Op sometimes rejects fault injections (e.g., due to line cooldowns). The script now checks `obs.line_status` *after* the step. If the label says `line_trip` but the line is still physically connected, the script forcefully reverts the label to `normal`.
+
+### 3. Aggressive Dataset Rebalancing (`scripts/generate_dataset.py`)
+
+* **The Trap:** Implementing the Label Enforcer revealed the true distribution: because the script was throwing away 80% of successful line trips but keeping 10% of the vastly more common normal states, the generated dataset became 85% `normal`.
+* **The Fix:**
+* Increased `FAULT_PROB` to `0.05`.
+* Crushed `NORMAL_KEEP_PROB` down to `0.02`.
+* Increased `LINE_TRIP_KEEP_PROB` to `1.0` (hoarding 100% of successful trips).
+* **Hard Quota:** Implemented a hard cap (`MAX_NORMAL_RECORDS = TARGET_RECORDS * 0.40`). Once `normal` states reach 40% of the dataset, the generator drops all subsequent normal steps and loops until it fills the remaining 60% with anomalies.
