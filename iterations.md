@@ -96,3 +96,29 @@ Through an iterative debugging process, we identified three hidden mathematical 
 * Crushed `NORMAL_KEEP_PROB` down to `0.02`.
 * Increased `LINE_TRIP_KEEP_PROB` to `1.0` (hoarding 100% of successful trips).
 * **Hard Quota:** Implemented a hard cap (`MAX_NORMAL_RECORDS = TARGET_RECORDS * 0.40`). Once `normal` states reach 40% of the dataset, the generator drops all subsequent normal steps and loops until it fills the remaining 60% with anomalies.
+
+## Phase 7: Resolving Ghost Topology & The Cooldown Trap
+
+**Initial Problem:** Despite forcing a deterministic architecture, the model completely failed to predict `normal` and `line_trip` (0% recall). An EDA topology check revealed the **"Ghost Line Trip" bug**: a `line_trip` state had 37 nodes and 59 edges—the exact same topology as a `normal` state. The GATConv layers were passing messages across dead lines, making the states mathematically indistinguishable. 
+
+Furthermore, the dataset generator suffered from the **Cooldown Trap**. Grid2Op maintains line disconnections for many consecutive steps. Keeping 100% of these frames resulted in massive class imbalances (e.g., dataset skewing to 65% redundant line trips or 85% normal states depending on the sampling math).
+
+**Fixes Implemented:**
+
+### 1. Pure Topological Labeling (`generate_dataset.py`)
+* **The Fix:** Removed predictive heuristics and complex history tracking (`prev_line_status`, `tripped_lines`). The label is now derived *exclusively* from the current physical frame:
+  * N-0 (59 Lines) = `normal`
+  * N-1 (58 Lines) = `line_trip`
+  * N-k (≤57 Lines) = `cascade`
+  * Any `rho >= 1.0` = `overload` (Supersedes topology)
+
+### 2. Topological Pruning (`pyg_data.py`)
+* **The Fix:** Completely rewrote the `build_edges` function to dynamically prune the graph. It uses the JSON's `line_status` array as a boolean mask to filter the static `edge_index` and `edge_attr`.
+* **Result:** A `line_trip` state now physically drops to 58 edges. This breaks the message-passing path in the `GATConv` layers, providing the GNN with the hard mathematical boundary it needs to separate a tripped grid from a normal grid.
+
+### 3. Aggressive Dataset Quotas (`generate_dataset.py`)
+* **The Fix:** Implemented hard record quotas during generation to force perfect class balance and prevent cooldown/normal frame dominance:
+  * `MAX_NORMAL_RECORDS = TARGET_RECORDS * 0.35`
+  * `MAX_TRIP_RECORDS = TARGET_RECORDS * 0.25`
+  * `MAX_CASCADE_RECORDS = TARGET_RECORDS * 0.20`
+* **Result:** The generator smoothly fills these buckets, explicitly dropping redundant frames once a class quota is met, ensuring a perfectly distributed dataset for training.

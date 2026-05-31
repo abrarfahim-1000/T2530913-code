@@ -111,37 +111,27 @@ def extract_features(obs):
         feats[key] = safe_tolist(getattr(obs, key))
     return feats
 
-def derive_label(obs, prev_line_status, injected_label, injected_loc, env, prev_injected=False):
-    if hasattr(obs, "time_next_maintenance") and hasattr(obs, "duration_next_maintenance"):
-        under_maint = (obs.time_next_maintenance == 0) & (obs.duration_next_maintenance > 0)
-        if under_maint.any():
-            line_id = int(np.where(under_maint)[0][0])
-            return "maintenance", int(env.line_or_to_subid[line_id])
-
-    # Overload fires if rho > 1.0 — regardless of what we injected
-    if obs.rho.max() > 1.0:
+def get_state_label(obs, env):
+    """Pure physical labeling based strictly on the current frame's topology and power flow."""
+    max_rho = obs.rho.max() if len(obs.rho) > 0 else 0.0
+    active_lines = int(np.sum(obs.line_status))
+    
+    # Priority 1: Overloads supersede everything
+    if max_rho >= 1.0:
         line_id = int(obs.rho.argmax())
         return "overload", int(env.line_or_to_subid[line_id])
-
-    # Cascade: any line the env tripped that we did NOT inject
-    new_trips = (~obs.line_status) & prev_line_status
-    if new_trips.any():
-        tripped_ids = set(np.where(new_trips)[0])
-        injected_set = {injected_loc} if (injected_label == "line_trip" and injected_loc is not None) else set()
-        env_trips = tripped_ids - injected_set
-        if env_trips:
-            line_id = int(next(iter(env_trips)))
-            return "cascade", int(env.line_or_to_subid[line_id])
-
-    # Line_trip: our clean injection AND no overload anywhere AND no env trips
-    # But if prev step was also an injection that caused rho spike, label that as overload
-    # Line_trip: our clean injection AND no overload anywhere AND no env trips
-    if injected_label == "line_trip" and injected_loc is not None:
-        # We already checked for rho > 1.0 at the top of derive_label!
-        # So if we reach here, the grid survived the trip.
-        return "line_trip", int(env.line_or_to_subid[injected_loc])
-
-    return injected_label, injected_loc
+        
+    # Priority 2: Full Topology
+    if active_lines == env.n_line:
+        return "normal", -1
+        
+    # Priority 3: N-1 Topology
+    if active_lines == env.n_line - 1:
+        line_id = int(np.where(~obs.line_status)[0][0])
+        return "line_trip", int(env.line_or_to_subid[line_id])
+        
+    # Priority 4: N-k Topology (Cascade)
+    return "cascade", -1
 
 def validate_record(record):
     """Raise immediately if any numeric field contains NaN/inf."""
@@ -261,60 +251,48 @@ def main():
                 steps = min(env.max_episode_duration(),
                             max_steps if max_steps else int(1e9))
 
-                prev_line_status = obs.line_status.copy()
-                tripped_lines = set()
+                # prev_line_status = obs.line_status.copy()
+                # tripped_lines = set()
 
                 for t in range(steps):
-                    action      = do_nothing
-                    if len(tripped_lines) > 0:
-                        fault_label = "line_trip"
-                        # Provide the localizer with the id of the disconnected line
-                        fault_loc = list(tripped_lines)[0] 
-                    else:
-                        fault_label = "normal"
-                        fault_loc = None
+                    action = do_nothing
+                    
+                    connected = np.where(obs.line_status)[0]
+                    disconnected = np.where(~obs.line_status)[0]
 
                     # ── Reconnect a previously tripped line (grid recovery) ──────────────
-                    if tripped_lines and np.random.rand() < RECONNECT_PROB:
-                        line_id = int(np.random.choice(list(tripped_lines)))
+                    if len(disconnected) > 0 and np.random.rand() < RECONNECT_PROB:
+                        line_id = int(np.random.choice(disconnected))
                         action  = env.action_space({"set_line_status": [(line_id, 1)]})
-                        tripped_lines.discard(line_id)
 
                     # ── Inject a new fault (only if not already reconnecting) ────────────
                     elif np.random.rand() < FAULT_PROB:
-                        connected = np.where(obs.line_status)[0]
                         if len(connected) > env.n_line * 0.7:
-                            line_id     = int(np.random.choice(connected))
-                            action      = env.action_space({"set_line_status": [(line_id, -1)]})
-                            fault_label = "line_trip"
-                            fault_loc   = line_id
-                            tripped_lines.add(line_id)
+                            line_id = int(np.random.choice(connected))
+                            action  = env.action_space({"set_line_status": [(line_id, -1)]})
 
                     obs, reward, done, _info = env.step(action)
-                    fault_label, fault_loc = derive_label(
-                        obs, prev_line_status, fault_label, fault_loc, env
-                    )
-                    is_disconnected = (not obs.line_status[fault_loc]) if fault_loc is not None else False
-                    if fault_label == "line_trip" and not is_disconnected:
-                        fault_label = "normal"
-                        fault_loc = None
-                        
-                    prev_line_status = obs.line_status.copy()
-
-                    newly_tripped = set(np.where(~obs.line_status)[0])
-                    tripped_lines.update(newly_tripped)
+                    
+                    # 🚨 THE PURE LABEL FIX 🚨
+                    fault_label, fault_loc = get_state_label(obs, env)
 
                     is_normal = (fault_label == "normal")
                     is_line_trip = (fault_label == "line_trip")
                     
-                    MAX_NORMAL_RECORDS = TARGET_RECORDS * 0.40 # Cap normal at 40%
+                    # 🚨 NEW: Hard quotas for PERFECT balancing
+                    MAX_NORMAL_RECORDS = TARGET_RECORDS * 0.35    # Cap normal at 35%
+                    MAX_TRIP_RECORDS = TARGET_RECORDS * 0.25      # Cap line_trip at 25%
+                    MAX_CASCADE_RECORDS = TARGET_RECORDS * 0.20   # Cap cascade at 20%
                     
                     if is_normal and (np.random.rand() > NORMAL_KEEP_PROB or label_counts["normal"] >= MAX_NORMAL_RECORDS):
                         pass  
-                    elif is_line_trip and np.random.rand() > LINE_TRIP_KEEP_PROB:
+                    elif is_line_trip and (np.random.rand() > LINE_TRIP_KEEP_PROB or label_counts["line_trip"] >= MAX_TRIP_RECORDS):
                         pass  
+                    elif fault_label == "cascade" and label_counts["cascade"] >= MAX_CASCADE_RECORDS:
+                        pass
                     else:
                         record = {
+                            # ... (Keep your existing extraction logic here) ...
                             **extract_features(obs),
                             "label":      fault_label,
                             "label_int":  LABEL_MAP[fault_label],
@@ -328,19 +306,13 @@ def main():
                         out_f.write(json.dumps(record) + "\n")
                         label_counts[fault_label] += 1
                         total_written += 1
-                        pbar.update(1) # Update progress bar by 1 record
+                        pbar.update(1)
 
-                        # Stop immediately if we hit the target during an episode
                         if total_written >= TARGET_RECORDS:
                             break
 
                     if done:
-                        tripped_lines.clear()
                         break
-                
-                # Break the outer loop if we hit the target
-                if total_written >= TARGET_RECORDS:
-                    break
 
     total_time = time.time() - t_start
     meta = build_meta(env, label_counts, total_written, total_time, smoke)
