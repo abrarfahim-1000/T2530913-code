@@ -39,19 +39,19 @@ else:
     # Personal PC — smoke test only
     TRAIN_CONFIG = {
         "epochs": 10,
-        "batch_size": 256,
-        "lr": 5e-4,             # Increased for GraphNorm
+        "batch_size": 512,
+        "lr": 1e-4,
         "weight_decay": 1e-4,
         "dropout": 0.0,         # Explicitly disabled for 100% determinism
-        "hidden_channels": [64, 128, 128], # Reduced to prevent memorization
+        "hidden_channels": [32, 64, 64], # Reduced to prevent memorization
         "heads": [2, 2, 1],
         "loc_loss_weight": 0.3
     }
 
 # ── MODEL ARCHITECTURE ───────────────────────────────────────────────────────
 # These dimensions are fixed by the GridDataset implementation in pyg_data.py
-NODE_FEATURES = 5  # load_p, gen_p, mean_v_or, max_rho
-EDGE_FEATURES = 4  # rho, p_or, q_or
+NODE_FEATURES = 4  # load_p, mean_v, max_rho, connected_line_frac
+EDGE_FEATURES = 4  # rho, p_or, q_or, line_status
 
 # ── REPRODUCIBILITY ──────────────────────────────────────────────────────────
 SEED = 42

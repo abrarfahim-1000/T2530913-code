@@ -24,32 +24,26 @@ except ImportError:
 
 from scripts.pyg_data import PreloadedGridDataset, GridEnvMetadata, LABEL_MAP
 from scripts.split import compute_class_weights, load_labels, get_splits
-
-
-from torch_geometric.nn import GATConv, global_mean_pool, global_max_pool, BatchNorm
+from torch_geometric.nn import GATConv, global_mean_pool, global_max_pool, global_add_pool
 
 class GridGNN(nn.Module):
     def __init__(self, node_features, edge_features, n_classes, hidden_channels, heads, dropout):
         super().__init__()
         
+        # Pure Convolutions. No BatchNorm.
         self.conv1 = GATConv(node_features, hidden_channels[0], heads=heads[0], edge_dim=edge_features)
-
-        self.bn1   = BatchNorm(hidden_channels[0] * heads[0])
-        
         self.conv2 = GATConv(hidden_channels[0] * heads[0], hidden_channels[1], heads=heads[1], edge_dim=edge_features)
-        self.bn2   = BatchNorm(hidden_channels[1] * heads[1])
-        
         self.conv3 = GATConv(hidden_channels[1] * heads[1], hidden_channels[2], heads=heads[2], edge_dim=edge_features)
-        self.bn3   = BatchNorm(hidden_channels[2] * heads[2])
 
         last_dim = hidden_channels[2] * heads[2]
 
         self.classifier = nn.Sequential(
             nn.Linear(last_dim * 3, 128),
             nn.ReLU(),
-            nn.Dropout(p=0.2), # Inverted dropout (safe for absolute magnitudes)
+            nn.Dropout(p=0.2), 
             nn.Linear(128, n_classes)
         )
+        
         self.localizer = nn.Sequential(
             nn.Linear(last_dim, 64),
             nn.ReLU(),
@@ -58,24 +52,19 @@ class GridGNN(nn.Module):
 
     def forward(self, x, edge_index, edge_attr, batch):
 
-        # Apply GraphNorm to stabilize amplitudes per-graph without erasing outlier spikes
-        x_emb = self.conv1(x, edge_index, edge_attr)
-        x_emb = F.elu(self.norm1(x_emb, batch))
-        
-        x_emb = self.conv2(x_emb, edge_index, edge_attr)
-        x_emb = F.elu(self.norm2(x_emb, batch))
-        
-        x_emb = self.conv3(x_emb, edge_index, edge_attr)
-        x_emb = F.elu(self.norm3(x_emb, batch)) 
-
+        # Raw physical amplitudes flow directly through the ELU activation
+        x_emb = F.elu(self.conv1(x, edge_index, edge_attr))
+        x_emb = F.elu(self.conv2(x_emb, edge_index, edge_attr))
+        x_emb = F.elu(self.conv3(x_emb, edge_index, edge_attr)) 
 
         loc_logits = self.localizer(x_emb).squeeze(-1)
 
+        # 🚨 THE POOLING FIX: Mean (Baselines), Max (Spikes), Add (Topology Size)
         emb_mean = global_mean_pool(x_emb, batch)
         emb_max  = global_max_pool(x_emb, batch)
-        emb_min  = -global_max_pool(-x_emb, batch)
+        emb_add  = global_add_pool(x_emb, batch)
 
-        graph_emb = torch.cat([emb_mean, emb_max, emb_min], dim=1)
+        graph_emb = torch.cat([emb_mean, emb_max, emb_add], dim=1)
         class_logits = self.classifier(graph_emb)
 
         return class_logits, loc_logits

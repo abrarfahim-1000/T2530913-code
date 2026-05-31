@@ -12,9 +12,9 @@ LABEL_MAP = {"normal": 0, "overload": 1, "line_trip": 2, "cascade": 3}
 RHO_CLIP  = 2.0
 
 # ── UPDATED DIMENSIONS ────────────────────────────────────────────────────────
-# node: load_p, gen_p, mean_v, max_rho, connected_line_frac  → 5 features
-# edge: rho, p_or, q_or, line_status                         → 4 features
-NODE_FEATURES = 5
+# node: load_p, mean_v, max_rho, connected_line_frac  → 4 features
+# edge: rho, p_or, q_or, line_status                  → 4 features
+NODE_FEATURES = 4
 EDGE_FEATURES = 4
 
 
@@ -59,15 +59,14 @@ def build_node_features(r, meta: GridEnvMetadata):
 
     Features:
       0  load_p              — total active load at bus
-      1  gen_p               — total active generation at bus
-      2  mean_v              — mean voltage of connected lines (normalized)
-      3  max_rho             — max line loading ratio at bus (key fault signal)
-      4  connected_line_frac — fraction of lines at this bus that are still connected
+      1  mean_v              — mean voltage of connected lines (normalized)
+      2  max_rho             — max line loading ratio at bus (key fault signal)
+      3  connected_line_frac — fraction of lines at this bus that are still connected
                                0.0 = all lines tripped (cascade/trip signal)
                                1.0 = all lines healthy (normal signal)
     """
+    # 1. Extract raw arrays (gen_p removed)
     load_p      = np.array(r["load_p"],      dtype=np.float32)
-    gen_p       = np.array(r["gen_p"],       dtype=np.float32)
     v_or        = np.array(r["v_or"],        dtype=np.float32)
     rho         = np.clip(r["rho"], 0, RHO_CLIP).astype(np.float32)
     line_status = np.array(r["line_status"], dtype=np.float32)  # 1=connected, 0=tripped
@@ -75,17 +74,16 @@ def build_node_features(r, meta: GridEnvMetadata):
     for arr in [v_or, rho]:
         np.nan_to_num(arr, copy=False, nan=0.0, posinf=0.0, neginf=0.0)
 
+    # 2. Initialize node arrays (node_gen removed)
     node_load    = np.zeros(meta.n_sub, dtype=np.float32)
-    node_gen     = np.zeros(meta.n_sub, dtype=np.float32)
     node_v       = np.zeros(meta.n_sub, dtype=np.float32)
     node_rho     = np.zeros(meta.n_sub, dtype=np.float32)
-    # For connected_line_frac: count connected and total lines per bus
     node_connected = np.zeros(meta.n_sub, dtype=np.float32)
     node_total     = np.zeros(meta.n_sub, dtype=np.float32)
     v_count        = np.zeros(meta.n_sub, dtype=np.float32)
 
+    # 3. Map features to buses
     np.add.at(node_load, meta.load_to_sub, load_p)
-    np.add.at(node_gen,  meta.gen_to_sub,  gen_p)
 
     # Voltage: mean of connected lines at each bus (or-side)
     np.add.at(node_v,   meta.line_or_bus, v_or)
@@ -97,22 +95,23 @@ def build_node_features(r, meta: GridEnvMetadata):
     np.maximum.at(node_rho, meta.line_or_bus, rho)
     np.maximum.at(node_rho, meta.line_ex_bus, rho)
 
-    # Connected line fraction per bus — KEY NEW FEATURE
-    # A tripped line contributes 0 to connected, 1 to total
+    # Connected line fraction per bus
     np.add.at(node_connected, meta.line_or_bus, line_status)
     np.add.at(node_connected, meta.line_ex_bus, line_status)
     np.add.at(node_total,     meta.line_or_bus, 1.0)
     np.add.at(node_total,     meta.line_ex_bus, 1.0)
 
+    # 4. Normalize
     node_v    = np.divide(node_v, v_count,
                           out=np.zeros_like(node_v), where=v_count > 0)
     node_v    = node_v / 150.0  # normalize kV → ~[0,1]
 
     node_conn_frac = np.divide(node_connected, node_total,
-                               out=np.ones_like(node_connected),   # default 1.0 (fully connected)
+                               out=np.ones_like(node_connected),   # default 1.0
                                where=node_total > 0)
 
-    return np.stack([node_load, node_gen, node_v, node_rho, node_conn_frac], axis=1)
+    # 5. Return stacked 4 features (node_gen removed)
+    return np.stack([node_load, node_v, node_rho, node_conn_frac], axis=1)
 
 
 def build_edges(r, meta):
