@@ -78,6 +78,12 @@ def parse_args():
         "--out-dir", type=str, default="data",
         help="Output directory (default: 'data' directory)"
     )
+    parser.add_argument(
+        "--target-records",
+        type=int,
+        default=300000,
+        help="Stop after this many records (default: 300000)"
+    )
     return parser.parse_args()
 
 
@@ -230,7 +236,7 @@ def main():
     print(f"       chronics: {len(env.chronics_handler.subpaths)} available "
           f"→ {n_chronics} running\n")
 
-    TARGET_RECORDS = 300000 # Increase this to whatever you need
+    TARGET_RECORDS = args.target_records # Increase this to whatever you need
     do_nothing   = env.action_space({})
     label_counts = Counter({k: 0 for k in LABEL_MAP})
     total_written = 0
