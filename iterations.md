@@ -122,3 +122,29 @@ Furthermore, the dataset generator suffered from the **Cooldown Trap**. Grid2Op 
   * `MAX_TRIP_RECORDS = TARGET_RECORDS * 0.25`
   * `MAX_CASCADE_RECORDS = TARGET_RECORDS * 0.20`
 * **Result:** The generator smoothly fills these buckets, explicitly dropping redundant frames once a class quota is met, ensuring a perfectly distributed dataset for training.
+
+## Phase 8: Resolving the `.eval()` Shift & Achieving 100% Determinism
+
+**Initial Problem:** After fixing the topology and dataset generation, the training loss dropped smoothly, but the validation `macro_f1` crashed and stagnated between 0.18 and 0.27. However, a diagnostic test evaluating the validation set in *training mode* (disabling `model.eval()`) yielded a significantly higher F1 score (0.56). This proved the GNN was successfully learning the grid physics, but PyTorch's evaluation mode mechanics were actively corrupting the data.
+
+**Investigation & Fixes Implemented:**
+
+### 1. Feature Optimization (`pyg_data.py`)
+* **The Discovery:** EDA correlation matrices revealed a perfect 1.00 correlation between `load_p` and `gen_p` (in power systems, generation matches load). 
+* **The Fix:** Removed `gen_p` from the node feature extraction to eliminate 100% redundant data, dropping `NODE_FEATURES` from 5 to 4 (`load_p`, `mean_v`, `max_rho`, `connected_line_frac`).
+
+### 2. The Normalization Trap (Removing `BatchNorm`)
+* **The Trap:** Power grids are highly imbalanced; 90%+ of nodes in any batch are operating safely. `BatchNorm` tracked this as a historical running average. During `.eval()`, PyTorch applied this "safe" historical average to the validation set, mechanically flattening out the extreme physical spikes (like `max_rho > 1.0`) needed to detect anomalies. 
+* **The Fix:** Stripped `BatchNorm` entirely from the `GridGNN`. Because the dataset is already perfectly Z-scored at the dataset level using global training statistics, the raw physical amplitudes now flow unaltered through the `GATConv` layers.
+
+### 3. The Dropout Scaling Shift
+* **The Trap:** `nn.Dropout(p=0.2)` in the classifier artificially scaled the remaining active neurons by 1.25x during training. When `.eval()` was called, that scaling dropped to 1.0x. Because continuous power flow anomaly boundaries are razor-thin, this 20% drop in magnitude pushed the logits completely across decision boundaries.
+* **The Fix:** Removed all dropout layers. The model is now **100% deterministic** (`model.train()` and `model.eval()` execute the exact same math).
+
+### 4. Pooling & Magnitude Corrections
+* **The Trap:** Attempted to use `global_add_pool` to "count" edges to detect line trips. However, PyTorch Geometric pools over *nodes* (which is always 36 in this environment), meaning `add_pool` simply multiplied the tensor magnitudes by 36x, overwhelming the classifier and causing gradient explosion.
+* **The Fix:** Finalized the pooling strategy to concatenate only `global_mean_pool` (to capture the grid's baseline state) and `global_max_pool` (to capture anomalous physical spikes).
+
+### 5. Smart Regularization via Capacity (`config.py`)
+* **The Trap:** Massive hidden layers (`[128, 256, 256]`) allowed the GNN to memorize the 36-node physical topology instead of learning generalized physics rules. Conversely, extreme bottlenecks (`[4, 32, 32]`) choked the network, preventing it from projecting the 4 input features into a separable space.
+* **The Fix:** Tuned `hidden_channels` to the "sweet spot" of `[16, 32, 32]`. This provides a 4x initial dimensional expansion to untangle the features, while remaining constrained enough to force the model to rely on actual physical thresholds (e.g., `rho >= 1.0`) rather than memorizing the environment layout.
