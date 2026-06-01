@@ -1,0 +1,5 @@
+label,sampled_graphs,mean_active_lines,mean_disconnected_lines,mean_connected_components,max_connected_components,mean_largest_component_fraction,mean_isolated_substations,fragmentation_rate_pct,mean_disconnected_static_bridge_lines
+normal,1639,59.0,0.0,1.0,1,1.0,0.0,0.0,0.0
+overload,2761,57.106121,1.893879,1.000724,2,0.99998,0.000724,0.072438,0.0
+line_trip,2000,58.0,1.0,1.0,1,1.0,0.0,0.0,0.0
+cascade,1600,52.581875,6.418125,3.49375,36,0.930729,2.565,7.125,0.07125

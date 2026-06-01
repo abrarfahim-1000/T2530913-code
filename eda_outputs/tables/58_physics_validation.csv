@@ -1,0 +1,8 @@
+,check,passed_records,failed_records,pass_percentage
+0,normal_has_no_overload,300000,0,100.0
+1,normal_has_intact_topology,300000,0,100.0
+2,overload_meets_rho_threshold,300000,0,100.0
+3,line_trip_has_exactly_one_disconnection,300000,0,100.0
+4,cascade_has_multiple_disconnections,300000,0,100.0
+5,connected_fraction_in_unit_interval,300000,0,100.0
+6,stored_rho_respects_clip,300000,0,100.0

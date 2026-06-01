@@ -1,0 +1,5 @@
+label,mean_connected_fraction,mean_disconnected_lines,mean_max_rho,mean_abs_active_flow,mean_abs_reactive_flow
+normal,1.0,0.0,0.73692,25.77212,16.25897
+overload,0.96811,1.88143,1.30335,28.55152,15.94224
+line_trip,0.98305,1.0,0.75374,25.54509,16.1111
+cascade,0.89338,6.2904,0.71991,23.68719,14.65322

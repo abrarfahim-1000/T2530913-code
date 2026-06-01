@@ -1,0 +1,4 @@
+,label,configured_cap_records,final_records,cap_reached,first_dataset_position_where_cap_was_reached,first_record_index_where_cap_was_reached
+0,normal,105000,61444,False,,
+1,line_trip,75000,75000,True,113718.0,113718.0
+2,cascade,60000,60000,True,158991.0,158991.0

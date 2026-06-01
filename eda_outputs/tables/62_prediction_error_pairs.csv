@@ -1,0 +1,9 @@
+,actual_label,predicted_label,records
+7,overload,overload,3450
+3,line_trip,line_trip,2497
+4,normal,normal,2038
+0,cascade,cascade,1999
+5,normal,overload,10
+2,line_trip,cascade,3
+6,overload,normal,2
+1,cascade,overload,1

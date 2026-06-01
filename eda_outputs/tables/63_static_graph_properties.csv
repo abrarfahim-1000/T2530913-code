@@ -1,0 +1,11 @@
+,property,value
+0,nodes,36
+1,transmission lines,59
+2,simple edges,55
+3,connected components,1
+4,is connected,True
+5,average degree,3.0555555555555554
+6,minimum degree,1.0
+7,maximum degree,9.0
+8,density,0.0873015873015873
+9,average clustering coefficient,0.23503086419753083

@@ -1,0 +1,12 @@
+,metric,value
+0,sampled graphs,8000.0
+1,graphs with valid node shape: n_sub x 4,8000.0
+2,graphs with valid edge_attr width: 4,8000.0
+3,graphs where active edges match connected lines,8000.0
+4,graphs where edge_attr rows match edge_index columns,8000.0
+5,graphs where retained line_status values are all 1,8000.0
+6,graphs with zero active edges,114.0
+7,mean active edges,56.81275
+8,metadata edge_feature_dim,3.0
+9,current pyg_data.py edge_feature_dim,4.0
+10,mean reciprocal-edge fraction,0.0

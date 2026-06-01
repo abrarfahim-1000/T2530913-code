@@ -1,0 +1,5 @@
+label,rho_topology_interaction,load_stress_interaction,flow_stress_interaction,imbalance_stress_interaction
+normal,0.0,523.920154,19.20256,6.320777
+overload,0.043061,986.686112,37.514684,17.592137
+line_trip,0.012775,523.627408,19.5364,6.561283
+cascade,0.029083,493.333316,18.599719,6.626974

@@ -1,0 +1,4 @@
+label_str,count,mean,median,min,max
+overload,7821,47.62524,34.0,1.0,486.0
+line_trip,2437,13.729175,10.0,1.0,99.0
+cascade,1089,35.932048,27.0,2.0,225.0

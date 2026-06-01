@@ -1,0 +1,5 @@
+label,records,mean_connected_lines,min_connected_lines,max_connected_lines,mean_disconnected_lines,max_disconnected_lines,mean_connected_fraction
+normal,61444,59.0,59,59,0.0,0,1.0
+overload,103556,57.1186,47,59,1.8814,12,0.9681
+line_trip,75000,58.0,58,58,1.0,1,0.9831
+cascade,60000,52.7096,0,57,6.2904,59,0.8934

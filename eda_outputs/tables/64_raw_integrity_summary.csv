@@ -1,0 +1,8 @@
+,metric,value
+0,raw JSONL rows scanned,300000
+1,metadata total_records,300000
+2,DataFrame rows loaded,300000
+3,array-length mismatch fields,{}
+4,non-finite-value fields,"{'rho': 0, 'p_or': 0, 'q_or': 0, 'p_ex': 0, 'q_ex': 0, 'v_or': 0, 'v_ex': 0, 'line_status': 0, 'load_p': 0, 'load_q': 0, 'gen_p': 0, 'gen_q': 0}"
+5,metadata edge_feature_dim,3
+6,current pyg_data.py edge attributes,"4: rho, p_or, q_or, line_status"

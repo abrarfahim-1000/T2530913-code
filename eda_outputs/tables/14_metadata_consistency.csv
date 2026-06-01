@@ -1,0 +1,10 @@
+,metadata_field,metadata_value,observed_or_expected_value
+0,environment,l2rpn_neurips_2020_track1_small,l2rpn_neurips_2020_track1_small
+1,total_records,300000,300000
+2,n_sub,36,36
+3,n_line,59,59
+4,n_load,37,37
+5,n_gen,22,22
+6,rho_clip,2.0,1.9999977350234985
+7,node_feature_dim,4,4
+8,edge_feature_dim,3,Generator metadata stores 3 raw edge measurements; current pyg_data.py constructs 4 edge attributes including line_status.

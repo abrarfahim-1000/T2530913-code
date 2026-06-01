@@ -1,0 +1,2 @@
+,original_feature_count,transformed_feature_count,generated_features
+0,5,20,"max_rho, mean_rho, total_load, total_gen, connected_fraction, max_rho^2, max_rho mean_rho, max_rho total_load, max_rho total_gen, max_rho connected_fraction, mean_rho^2, mean_rho total_load, mean_rho total_gen, mean_rho connected_fraction, total_load^2, total_load total_gen, total_load connected_fraction, total_gen^2, total_gen connected_fraction, connected_fraction^2"

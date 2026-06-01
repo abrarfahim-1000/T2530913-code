@@ -1,0 +1,5 @@
+label,full_dataset_pct,train_pct,test_pct
+normal,20.48133,20.48125,20.48167
+overload,34.51867,34.51875,34.51833
+line_trip,25.0,25.0,25.0
+cascade,20.0,20.0,20.0

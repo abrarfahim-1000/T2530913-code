@@ -1,0 +1,3 @@
+,metric,value
+0,adjusted_rand_index,0.08473298305241278
+1,silhouette_score,0.3379145645380788

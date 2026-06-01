@@ -1,0 +1,5 @@
+label,records,percentage,inverse_frequency_weight,sqrt_inverse_frequency_weight
+normal,61444,20.4813,1.220624,1.104818
+overload,103556,34.5187,0.724246,0.851026
+line_trip,75000,25.0,1.0,1.0
+cascade,60000,20.0,1.25,1.118034

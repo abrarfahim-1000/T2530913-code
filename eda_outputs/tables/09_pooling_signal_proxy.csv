@@ -1,0 +1,5 @@
+label,rho_mean_proxy,rho_max_proxy,rho_spread_proxy,active_edge_count_proxy,disconnected_edge_count_proxy
+normal,0.32609,0.73692,0.7078,59.0,0.0
+overload,0.38484,1.30335,1.30206,57.11857,1.88143
+line_trip,0.3227,0.75374,0.75374,58.0,1.0
+cascade,0.29628,0.71991,0.71991,52.7096,6.2904

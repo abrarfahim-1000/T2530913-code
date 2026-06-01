@@ -1,0 +1,5 @@
+label,count,mean,median,min,max
+normal,1639,59.0,59.0,59,59
+overload,2761,57.1061,57.0,49,59
+line_trip,2000,58.0,58.0,58,58
+cascade,1600,52.5819,57.0,0,57

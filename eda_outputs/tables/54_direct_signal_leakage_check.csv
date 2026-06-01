@@ -1,0 +1,3 @@
+,feature_setting,macro_f1,contains_direct_rule_signals
+0,full aggregate features,1.0,True
+1,reduced aggregate features,0.998356,False

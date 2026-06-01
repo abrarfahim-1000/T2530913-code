@@ -1,0 +1,4 @@
+,class_weight,macro_f1,weighted_f1
+0,None,0.998586,0.99856
+1,balanced,0.99843,0.9984
+2,balanced_subsample,0.998717,0.99872

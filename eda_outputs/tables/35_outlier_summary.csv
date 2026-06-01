@@ -1,0 +1,4 @@
+,method,outlier_records,outlier_percentage
+0,IQR,3660,18.3
+1,absolute z-score > 3,924,4.62
+2,Mahalanobis distance,1064,5.32

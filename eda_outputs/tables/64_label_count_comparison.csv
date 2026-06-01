@@ -1,0 +1,5 @@
+,metadata_count,raw_jsonl_count,loaded_dataframe_count
+normal,61444,61444,61444
+overload,103556,103556,103556
+line_trip,75000,75000,75000
+cascade,60000,60000,60000

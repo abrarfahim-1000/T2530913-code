@@ -1,0 +1,5 @@
+label_str,observed_runs,median_stored_frames,mean_stored_frames,median_observed_timestep_span,mean_observed_timestep_span,maximum_observed_timestep_span
+normal,27101,2.0,2.267223,7.0,50.845024,994
+overload,31554,2.0,3.281866,2.0,12.464759,620
+line_trip,6986,7.0,10.735757,10.0,21.495992,241
+cascade,9348,2.0,6.418485,2.0,9.852589,328

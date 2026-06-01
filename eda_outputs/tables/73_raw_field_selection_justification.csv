@@ -1,0 +1,14 @@
+,raw_field,selected_by_current_graph_builder,maximum_proxy_mutual_information,mean_proxy_mutual_information,proxy_feature_count
+12,v_or,True,0.98416716,0.69125975,8
+11,v_ex,False,0.94964159,0.64704674,8
+2,line_status,True,0.7993538,0.60681575,8
+5,p_ex,False,0.79907111,0.21232388,8
+8,q_or,True,0.79774865,0.24247523,8
+7,q_ex,False,0.79708988,0.23680011,8
+10,topo_vect,False,0.79619905,0.40687932,8
+6,p_or,True,0.79606466,0.21303172,8
+9,rho,True,0.79329743,0.39368564,8
+1,gen_q,False,0.22741577,0.09296494,8
+0,gen_p,False,0.0481929,0.03458521,8
+4,load_q,False,0.04629643,0.03635792,8
+3,load_p,True,0.0440115,0.03480844,8
