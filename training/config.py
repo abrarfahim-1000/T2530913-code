@@ -43,7 +43,7 @@ else:
         "lr": 1e-4,
         "weight_decay": 1e-5,
         "dropout": 0.0,         # Explicitly disabled for 100% determinism
-        "hidden_channels": [8, 16, 16], # Reduced to prevent memorization
+        "hidden_channels": [16, 32, 32], # Reduced to prevent memorization
         "heads": [4, 4, 1],
         "loc_loss_weight": 0.3
     }

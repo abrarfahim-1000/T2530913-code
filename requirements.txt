@@ -23,9 +23,11 @@ langchain-text-splitters
 langgraph
 langsmith
 ollama
+pdfplumber
 
 # --- Knowledge Graph ---
 networkx
+pyvis
 
 # --- Data / Validation ---
 numpy
