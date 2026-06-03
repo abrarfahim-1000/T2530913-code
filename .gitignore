@@ -213,3 +213,4 @@ data/
 *.pt
 docs/*.pdf
 done_pdfs/
+rules/

@@ -29,7 +29,7 @@ if DEVICE.type == "cuda":
         "epochs": 50,
         "batch_size": 256,
         "lr": 5e-4,             # Increased for GraphNorm
-        "weight_decay": 1e-4,
+        "weight_decay": 1e-5, # Reduced to prevent over-regularization
         "dropout": 0.0,         # Explicitly disabled for 100% determinism
         "hidden_channels": [64, 128, 128], # Reduced to prevent memorization
         "heads": [2, 2, 1],
@@ -41,10 +41,10 @@ else:
         "epochs": 10,
         "batch_size": 512,
         "lr": 1e-4,
-        "weight_decay": 1e-4,
+        "weight_decay": 1e-5,
         "dropout": 0.0,         # Explicitly disabled for 100% determinism
-        "hidden_channels": [32, 64, 64], # Reduced to prevent memorization
-        "heads": [2, 2, 1],
+        "hidden_channels": [16, 32, 32], # Reduced to prevent memorization
+        "heads": [4, 4, 1],
         "loc_loss_weight": 0.3
     }
 
