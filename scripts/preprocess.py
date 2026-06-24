@@ -65,8 +65,8 @@ def preprocess_data():
 
     print(f"Collating {len(data_list)} graphs...")
     data, slices = InMemoryDataset.collate(data_list)
-    print(f"Saved → {out_file}")
     torch.save((data, slices), out_file)
+    print(f"Saved -> {out_file}")
 
 if __name__ == "__main__":
     preprocess_data()

@@ -36,7 +36,10 @@ if DEVICE.type == "cuda":
         "loc_loss_weight": 0.5
     }
 else:
-    # Personal PC — smoke test only
+    # Personal PC — best-performing config to date (Exp 1 = macro F1 0.795).
+    # NOTE: scaling up to [64,128,128] was tried and OVERFITS/COLLAPSES under this schedule
+    # (train loss drops while val F1 falls; normal+cascade go to 0.0). Kept at the proven
+    # small config — its limited capacity acts as regularization.
     TRAIN_CONFIG = {
         "epochs": 10,
         "batch_size": 512,

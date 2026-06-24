@@ -326,6 +326,9 @@ def train():
             # label_smoothing=0.1 prevents overconfidence collapse in early epochs,
             # which was causing the model to lock onto cascade+overload and never
             # explore normal/line_trip predictions.
+            # NOTE: lowering to 0.05 was tried (Exp 2) and REGRESSED normal recall
+            # (0.54->0.42) and macro F1 (0.795->0.777) — less smoothing let the model
+            # overfit the dominant classes faster and suppress normal. Kept at 0.1.
             cls_loss = F.cross_entropy(
                 class_logits, batch.y,
                 weight=class_weights,
@@ -360,7 +363,7 @@ def train():
         if val_f1 > best_val_f1:
             best_val_f1 = val_f1
             torch.save(model.state_dict(), "gnn_checkpoint_best.pt")
-            print(f"  ✓ New best saved ({best_val_f1:.4f})")
+            print(f"  [best] New best saved ({best_val_f1:.4f})")
 
         early_stopping(val_f1)
         if early_stopping.early_stop:

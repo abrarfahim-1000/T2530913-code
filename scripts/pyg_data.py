@@ -12,8 +12,8 @@ LABEL_MAP = {"normal": 0, "overload": 1, "line_trip": 2, "cascade": 3}
 RHO_CLIP  = 2.0
 
 # ── UPDATED DIMENSIONS ────────────────────────────────────────────────────────
-# node: load_p, mean_v, max_rho, connected_line_frac  → 4 features
-# edge: rho, p_or, q_or, line_status                  → 4 features
+# node: load_p, mean_v, max_rho, connected_line_frac, global_trip_frac
+# edge: rho, p_or, q_or, near_limit
 NODE_FEATURES = 5
 EDGE_FEATURES = 4
 
@@ -68,6 +68,12 @@ def build_node_features(r, meta: GridEnvMetadata):
                                0.0 = normal/overload, ~0.017 = line_trip, ≥0.034 = cascade
                                broadcast uniformly to every node; primary discriminator
                                for line_trip vs cascade confusion
+
+    NOTE: a 6th binary `overloaded` node feature (max_rho ≥ 1.0) was tried (Exp 3b) and
+    collapsed the `normal` class to 0.0 F1 on the XPU smoke-test model — the same failure
+    as a prior continuous 6th feature. The common cause is the 6-feature input dimension on
+    the tiny smoke model (hidden=[16,32,32]), not the feature content. Revisit only on the
+    full research-PC model (hidden=[64,128,128]); kept at 5 features here.
     """
     # 1. Extract raw arrays (gen_p removed)
     load_p      = np.array(r["load_p"],      dtype=np.float32)
@@ -137,10 +143,15 @@ def build_edges(r, meta):
     rho        = np.array(r["rho"])[line_status]
     p_or       = np.array(r["p_or"])[line_status]
     q_or       = np.array(r["q_or"])[line_status]
-    # near-limit flag: 1 if line is at ≥90% thermal capacity.
+    # overload flag: 1 if line is at ≥100% thermal capacity (rho ≥ 1.0).
+    # Threshold set to exactly the normal/overload labeling boundary (max_rho ≥ 1.0).
+    # At 0.9 this fired on borderline NORMAL samples (rho ∈ [0.9, 1.0)), giving them the
+    # same edge signal as genuine overloads and blurring the only boundary that separates
+    # normal from overload. At 1.0 it is a clean separator: every normal sample gets 0,
+    # every overload has ≥1 line with the flag set.
     # Replaces the old `line_status` constant (always 1.0 here since tripped lines are
     # filtered out), which had std≈0 and became identically 0 after z-score normalization.
-    near_limit = (rho >= 0.9).astype(np.float32)
+    near_limit = (rho >= 1.0).astype(np.float32)
 
     edge_attr_fwd = np.column_stack((rho, p_or, q_or, near_limit))
 
