@@ -7,7 +7,7 @@ import json
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import GATConv, global_mean_pool, global_max_pool, GraphNorm
+from torch_geometric.nn import GATv2Conv, global_mean_pool, global_max_pool, GraphNorm
 from torch_geometric.loader import DataLoader
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
@@ -24,23 +24,24 @@ except ImportError:
 
 from scripts.pyg_data import PreloadedGridDataset, GridEnvMetadata, LABEL_MAP
 from scripts.split import compute_class_weights, load_labels, get_splits
-from torch_geometric.nn import GATConv, global_mean_pool, global_max_pool
+from torch_geometric.nn import GATv2Conv, global_mean_pool, global_max_pool
 
-from torch_geometric.nn import GATConv, global_mean_pool, global_max_pool, BatchNorm
+from torch_geometric.nn import GATv2Conv, global_mean_pool, global_max_pool, BatchNorm
 import torch.nn.functional as F
 
 class GridGNN(nn.Module):
     def __init__(self, node_features, edge_features, n_classes, hidden_channels, heads, dropout):
         super().__init__()
         
-        # GATConv with Live BatchNorm (track_running_stats=False)
-        self.conv1 = GATConv(node_features, hidden_channels[0], heads=heads[0], edge_dim=edge_features)
+        # GATv2Conv: dynamic attention (attention computed after concat, not before)
+        # Fixes rank collapse that GATConv suffers on small graphs like 36-bus grids.
+        self.conv1 = GATv2Conv(node_features, hidden_channels[0], heads=heads[0], edge_dim=edge_features)
         self.bn1   = BatchNorm(hidden_channels[0] * heads[0], track_running_stats=False)
-        
-        self.conv2 = GATConv(hidden_channels[0] * heads[0], hidden_channels[1], heads=heads[1], edge_dim=edge_features)
+
+        self.conv2 = GATv2Conv(hidden_channels[0] * heads[0], hidden_channels[1], heads=heads[1], edge_dim=edge_features)
         self.bn2   = BatchNorm(hidden_channels[1] * heads[1], track_running_stats=False)
-        
-        self.conv3 = GATConv(hidden_channels[1] * heads[1], hidden_channels[2], heads=heads[2], edge_dim=edge_features)
+
+        self.conv3 = GATv2Conv(hidden_channels[1] * heads[1], hidden_channels[2], heads=heads[2], edge_dim=edge_features)
         self.bn3   = BatchNorm(hidden_channels[2] * heads[2], track_running_stats=False)
 
         last_dim = hidden_channels[2] * heads[2]
@@ -322,8 +323,23 @@ def train():
                 batch.x, batch.edge_index, batch.edge_attr, batch.batch
             )
 
-            cls_loss = F.cross_entropy(class_logits, batch.y, weight=class_weights)
-            loss = cls_loss  # Leaving loc_loss detached just for this classification check
+            # label_smoothing=0.1 prevents overconfidence collapse in early epochs,
+            # which was causing the model to lock onto cascade+overload and never
+            # explore normal/line_trip predictions.
+            cls_loss = F.cross_entropy(
+                class_logits, batch.y,
+                weight=class_weights,
+                label_smoothing=0.1,
+            )
+
+            # Localization loss re-enabled: forces node embeddings to encode WHERE
+            # the fault is, not just WHAT class it is. Without this, the GNN has no
+            # gradient signal to distinguish line_trip (1 specific fault node) from
+            # cascade (fault_loc=-1, all-zero targets) — causing permanent collapse
+            # into predicting only cascade and overload.
+            loc_targets = build_loc_targets_fast(batch)
+            loc_loss    = loc_loss_fn(loc_logits, loc_targets)
+            loss        = cls_loss + TRAIN_CONFIG["loc_loss_weight"] * loc_loss
 
             # Clean FP32 Backward Pass
             loss.backward()

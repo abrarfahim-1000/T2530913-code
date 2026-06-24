@@ -33,7 +33,7 @@ if DEVICE.type == "cuda":
         "dropout": 0.0,         # Explicitly disabled for 100% determinism
         "hidden_channels": [64, 128, 128], # Reduced to prevent memorization
         "heads": [2, 2, 1],
-        "loc_loss_weight": 0.3
+        "loc_loss_weight": 0.5
     }
 else:
     # Personal PC — smoke test only
@@ -45,13 +45,13 @@ else:
         "dropout": 0.0,         # Explicitly disabled for 100% determinism
         "hidden_channels": [16, 32, 32], # Reduced to prevent memorization
         "heads": [4, 4, 1],
-        "loc_loss_weight": 0.3
+        "loc_loss_weight": 0.5
     }
 
 # ── MODEL ARCHITECTURE ───────────────────────────────────────────────────────
 # These dimensions are fixed by the GridDataset implementation in pyg_data.py
-NODE_FEATURES = 4  # load_p, mean_v, max_rho, connected_line_frac
-EDGE_FEATURES = 4  # rho, p_or, q_or, line_status
+NODE_FEATURES = 5  # load_p, mean_v, max_rho, connected_line_frac, global_trip_frac
+EDGE_FEATURES = 4  # rho, p_or, q_or, near_limit
 
 # ── REPRODUCIBILITY ──────────────────────────────────────────────────────────
 SEED = 42

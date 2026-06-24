@@ -14,7 +14,7 @@ RHO_CLIP  = 2.0
 # ── UPDATED DIMENSIONS ────────────────────────────────────────────────────────
 # node: load_p, mean_v, max_rho, connected_line_frac  → 4 features
 # edge: rho, p_or, q_or, line_status                  → 4 features
-NODE_FEATURES = 4
+NODE_FEATURES = 5
 EDGE_FEATURES = 4
 
 
@@ -64,12 +64,24 @@ def build_node_features(r, meta: GridEnvMetadata):
       3  connected_line_frac — fraction of lines at this bus that are still connected
                                0.0 = all lines tripped (cascade/trip signal)
                                1.0 = all lines healthy (normal signal)
+      4  global_trip_frac    — fraction of ALL lines in the graph that are tripped
+                               0.0 = normal/overload, ~0.017 = line_trip, ≥0.034 = cascade
+                               broadcast uniformly to every node; primary discriminator
+                               for line_trip vs cascade confusion
     """
     # 1. Extract raw arrays (gen_p removed)
     load_p      = np.array(r["load_p"],      dtype=np.float32)
     v_or        = np.array(r["v_or"],        dtype=np.float32)
     rho         = np.clip(r["rho"], 0, RHO_CLIP).astype(np.float32)
     line_status = np.array(r["line_status"], dtype=np.float32)  # 1=connected, 0=tripped
+
+    # Global trip fraction — cleanly separates:
+    #   normal/overload: 0.0
+    #   line_trip:       1/n_line ≈ 0.017 (exactly 1 line tripped)
+    #   cascade:         ≥2/n_line ≈ 0.034+
+    # Broadcast uniformly to every node; primary discriminator for line_trip vs cascade.
+    trip_frac = np.float32((1.0 - line_status).sum() / len(line_status))
+    node_trip_frac = np.full(meta.n_sub, trip_frac, dtype=np.float32)
 
     for arr in [v_or, rho]:
         np.nan_to_num(arr, copy=False, nan=0.0, posinf=0.0, neginf=0.0)
@@ -110,31 +122,36 @@ def build_node_features(r, meta: GridEnvMetadata):
                                out=np.ones_like(node_connected),   # default 1.0
                                where=node_total > 0)
 
-    # 5. Return stacked 4 features (node_gen removed)
-    return np.stack([node_load, node_v, node_rho, node_conn_frac], axis=1)
+    # 5. Return stacked 5 features (node_gen removed, global_trip_frac added)
+    return np.stack([node_load, node_v, node_rho, node_conn_frac, node_trip_frac], axis=1)
 
 
 def build_edges(r, meta):
     # 1. Convert line_status to a boolean mask (True = connected, False = disconnected)
     line_status = np.array(r["line_status"], dtype=bool)
-    
-    # 2. Get the full static topology from the meta object
-    or_bus = meta.line_or_bus
-    ex_bus = meta.line_ex_bus
-    
-    # 3. 🚨 CRITICAL: Prune the graph using the line_status mask
-    # This physically removes the dead line from the message-passing path
-    edge_index = np.array([or_bus[line_status], ex_bus[line_status]])
-    
-    # 4. Filter edge attributes so tripped lines provide zero signal
-    rho = np.array(r["rho"])
-    p_or = np.array(r["p_or"])
-    q_or = np.array(r["q_or"])
-    status_float = np.array(r["line_status"])
-    
-    # Stack features and apply the exact same active mask
-    edge_attr = np.column_stack((rho, p_or, q_or, status_float))[line_status]
-    
+
+    # 2. Filter to connected lines only
+    or_bus = meta.line_or_bus[line_status]
+    ex_bus = meta.line_ex_bus[line_status]
+
+    rho        = np.array(r["rho"])[line_status]
+    p_or       = np.array(r["p_or"])[line_status]
+    q_or       = np.array(r["q_or"])[line_status]
+    # near-limit flag: 1 if line is at ≥90% thermal capacity.
+    # Replaces the old `line_status` constant (always 1.0 here since tripped lines are
+    # filtered out), which had std≈0 and became identically 0 after z-score normalization.
+    near_limit = (rho >= 0.9).astype(np.float32)
+
+    edge_attr_fwd = np.column_stack((rho, p_or, q_or, near_limit))
+
+    # 3. Bidirectional edges: or→ex AND ex→or
+    # Without this, 5 buses (those that only appear as or_bus, never ex_bus)
+    # receive zero messages from neighbors — permanently isolated in message passing.
+    src = np.concatenate([or_bus, ex_bus])
+    dst = np.concatenate([ex_bus, or_bus])
+    edge_index = np.array([src, dst])
+    edge_attr  = np.concatenate([edge_attr_fwd, edge_attr_fwd], axis=0)
+
     return edge_index.tolist(), edge_attr.tolist()
 
 

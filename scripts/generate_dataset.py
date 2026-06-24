@@ -33,9 +33,28 @@ import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
 
 # ── ENV CONFIG ──────────────────────────────────────────────────────────────
-ENV_NAME = "l2rpn_neurips_2020_track1_small" # ← change this to switch env
-ENV_TAG  = "neurips2020"
-ENV_DESC = "NeurIPS 2020 L2RPN — 36 subs, 59 lines [PRIMARY]"
+ENV_CONFIGS = {
+    "neurips": {
+        "name": "l2rpn_neurips_2020_track1_small",
+        "tag":  "neurips2020",
+        "desc": "NeurIPS 2020 L2RPN — 36 subs, 59 lines [PRIMARY TRAINING]",
+    },
+    "case14": {
+        "name": "rte_case14_sandbox",
+        "tag":  "case14",
+        "desc": "RTE case14 sandbox — 14 subs, 20 lines [CROSS-TOPOLOGY TEST]",
+    },
+    "wcci": {
+        "name": "l2rpn_wcci_2022",
+        "tag":  "wcci2022",
+        "desc": "WCCI 2022 L2RPN — 118 subs, 186 lines [CROSS-TOPOLOGY TEST]",
+    },
+}
+
+# Defaults — overridden at runtime by --env arg
+ENV_NAME = ENV_CONFIGS["neurips"]["name"]
+ENV_TAG  = ENV_CONFIGS["neurips"]["tag"]
+ENV_DESC = ENV_CONFIGS["neurips"]["desc"]
 
 FAULT_PROB  = 0.05
 RECONNECT_PROB = 0.20
@@ -62,6 +81,10 @@ BUS_KEYS  = ("load_p", "load_q", "gen_p", "gen_q", "topo_vect")
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Grid2Op dataset generator")
+    parser.add_argument(
+        "--env", type=str, default="neurips", choices=list(ENV_CONFIGS.keys()),
+        help="Which Grid2Op environment to use: neurips (default), case14, wcci"
+    )
     parser.add_argument(
         "--smoke", action="store_true",
         help=f"Quick sanity check: {SMOKE_MAX_CHRONICS} chronics × {SMOKE_MAX_STEPS} steps"
@@ -167,8 +190,8 @@ def build_meta(env, label_counts, total_records, total_time, smoke):
         "throughput_steps_per_sec": round(total_records / max(total_time, 1e-9)),
         "total_time_sec": round(total_time, 1),
         # Shapes for GridDataset / GNN constructor — no magic numbers needed
-        "node_feature_dim": 4,   # load_p, gen_p, mean_v_or, max_rho — built in GridDataset
-        "edge_feature_dim": 3,   # rho, p_or, q_or — per line, bidirectional
+        "node_feature_dim": 4,   # load_p, mean_v, max_rho, connected_line_frac — built in pyg_data.py
+        "edge_feature_dim": 4,   # rho, p_or, q_or, line_status — bidirectional per active line
     }
 
 def print_summary(meta, out_jsonl, out_meta):
@@ -194,8 +217,16 @@ def print_summary(meta, out_jsonl, out_meta):
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 def main():
+    global ENV_NAME, ENV_TAG, ENV_DESC
+
     args = parse_args()
     smoke = args.smoke
+
+    # Apply --env selection
+    cfg      = ENV_CONFIGS[args.env]
+    ENV_NAME = cfg["name"]
+    ENV_TAG  = cfg["tag"]
+    ENV_DESC = cfg["desc"]
 
     max_chronics = SMOKE_MAX_CHRONICS if smoke else args.max_chronics
     max_steps    = SMOKE_MAX_STEPS    if smoke else args.max_steps
