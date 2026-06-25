@@ -40,9 +40,9 @@ ENV_CONFIGS = {
         "desc": "NeurIPS 2020 L2RPN — 36 subs, 59 lines [PRIMARY TRAINING]",
     },
     "case14": {
-        "name": "rte_case14_sandbox",
+        "name": "l2rpn_case14_sandbox",
         "tag":  "case14",
-        "desc": "RTE case14 sandbox — 14 subs, 20 lines [CROSS-TOPOLOGY TEST]",
+        "desc": "L2RPN case14 sandbox — 14 subs, 20 lines [CROSS-TOPOLOGY TEST]",
     },
     "wcci": {
         "name": "l2rpn_wcci_2022",
@@ -96,6 +96,11 @@ def parse_args():
     parser.add_argument(
         "--max-steps", type=int, default=None,
         help="Override: max steps per episode (default: full episode)"
+    )
+    parser.add_argument(
+        "--n_records", type=int, default=300000,
+        help="Target number of records to write (default: 300000). Use a smaller value for "
+             "cross-topology TEST sets, e.g. --n_records 15000."
     )
     parser.add_argument(
         "--out-dir", type=str, default="data",
@@ -261,7 +266,7 @@ def main():
     print(f"       chronics: {len(env.chronics_handler.subpaths)} available "
           f"→ {n_chronics} running\n")
 
-    TARGET_RECORDS = 300000 # Increase this to whatever you need
+    TARGET_RECORDS = args.n_records # default 300000; smaller for cross-topology test sets
     do_nothing   = env.action_space({})
     label_counts = Counter({k: 0 for k in LABEL_MAP})
     total_written = 0
@@ -309,14 +314,14 @@ def main():
 
                     is_normal = (fault_label == "normal")
                     is_line_trip = (fault_label == "line_trip")
-                    
+
                     # 🚨 NEW: Hard quotas for PERFECT balancing
                     MAX_NORMAL_RECORDS = TARGET_RECORDS * 0.35    # Cap normal at 35%
                     MAX_TRIP_RECORDS = TARGET_RECORDS * 0.25      # Cap line_trip at 25%
                     MAX_CASCADE_RECORDS = TARGET_RECORDS * 0.20   # Cap cascade at 20%
-                    
+
                     if is_normal and (np.random.rand() > NORMAL_KEEP_PROB or label_counts["normal"] >= MAX_NORMAL_RECORDS):
-                        pass  
+                        pass
                     elif is_line_trip and (np.random.rand() > LINE_TRIP_KEEP_PROB or label_counts["line_trip"] >= MAX_TRIP_RECORDS):
                         pass  
                     elif fault_label == "cascade" and label_counts["cascade"] >= MAX_CASCADE_RECORDS:
