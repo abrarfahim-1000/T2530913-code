@@ -13,20 +13,28 @@ Baseline before any of this (committed `main`): macro F1 ≈ 0.7701, `normal` re
 
 | # | Change | Best macro F1 | normal recall | other 3 F1 | Verdict |
 |---|--------|---------------|---------------|------------|---------|
-| **Exp 1** | `near_limit` edge flag threshold **0.9 → 1.0** (`scripts/pyg_data.py`) | **0.7950** | 0.48 → **0.54** | 0.84 / 0.76 / 0.86 (intact) | ✅ **KEPT** |
+| **Exp 1** | `near_limit` edge flag threshold **0.9 → 1.0** (`scripts/pyg_data.py`) | **0.7950** | 0.48 → **0.54** | 0.84 / 0.76 / 0.86 (intact) | ✅ **KEPT — FINAL** |
 | Exp 2 | `label_smoothing` 0.1 → 0.05 (`train_gnn.py`) | 0.7774 | ↓ 0.42 | slightly down | ❌ reverted |
-| Exp 3b | +6th node feature, binary `overloaded=(node_rho≥1.0)` | 0.4985 | **0.00 collapsed** | broken | ❌ reverted* |
-| Exp 3a | focal loss (γ=2) | not run | — | — | ⏳ pending |
+| Exp 3a | focal loss (γ=2), alpha=class_weights | 0.6634 | **0.03 collapsed** | overfit, all down | ❌ reverted (2026-06-25) |
+| Exp 3b | +6th node feature `overloaded=(node_rho≥1.0)`, **exempt from z-norm** | 0.4805 | **0.00 collapsed** | all down | ❌ dropped (2026-06-25) |
 
 \* **3b crash, updated understanding:** scaling the model up to `[64,128,128]` to "fix" the
 6-feature crash was a dead end — the big model **overfits and collapses** under this schedule
 (train loss falls while val F1 falls; `normal` AND `cascade` go to 0.0; best epoch-1 macro only
 ~0.36). Big model abandoned. The proven `[16,32,32]` config (macro 0.795) is the best to date and
-is what we work from. The 6-feature crash mechanism on the small model is **unconfirmed** — leading
-suspicion is z-scoring the sparse binary flag (~3% ones) produces a dominant spike that
-destabilizes training. 3b is **optional**: Exp 1 already encodes the overload boundary at the edge
-level, so a node-level duplicate may be redundant. Retry once with the no-normalize tweak (below);
-if it still crashes, drop it.
+is what we work from.
+
+**CONCLUSION (2026-06-25): both remaining levers FAILED; Exp 1 is the final state.**
+- **Exp 3a (focal loss):** `normal` recall collapsed to ~0.03 (precision 0.98 — model almost never
+  *commits* to `normal`); best macro 0.66; classic overfit (train loss → 0.076 while val F1 falls
+  0.66 → 0.62). Confirms loss-side levers (cf. Exp 2) do not move `normal` here. Reverted to weighted-CE.
+- **Exp 3b (6th feature, z-norm-exempt retry):** the z-scored-spike hypothesis was **wrong** — keeping
+  the flag raw 0/1 did NOT prevent the collapse. `normal` recall went 0.0 → 0.0004 → 0.0; best macro
+  only 0.48; overload/line_trip/cascade all regressed too. The collapse is **intrinsic to the extra
+  input dimension on the small `[16,32,32]` model**, not a normalization artifact. Dropped per plan —
+  Exp 1 already encodes the overload boundary at the edge level, so the node-level duplicate is redundant.
+- After reverting both, a clean 5-feature weighted-CE retrain reproduced the reference: **best macro
+  0.787, `normal` recall 0.54, others 0.84/0.75/0.86** — restored `gnn_checkpoint_best.pt`.
 
 ---
 
@@ -46,14 +54,27 @@ if it still crashes, drop it.
 
 ---
 
-## TODO tomorrow (in order)
+## STATUS: CONCLUDED (2026-06-25)
+
+All documented levers are exhausted. **Final state = Exp 1** (`near_limit=1.0`, 5 features,
+small `[16,32,32]` weighted-CE config). Macro F1 ~0.787, `normal` recall 0.54, others
+0.84/0.75/0.86. `gnn_checkpoint_best.pt` holds this model. Code on disk is the Exp 1 baseline
+plus a documentation note in `train_gnn.py` recording the focal-loss failure.
+
+**If picking this up again, do NOT re-run 3a/3b on the small model — both decisively failed
+(see results table). New ideas would have to come from outside this plan**, e.g.: a `normal`-vs-rest
+decision-threshold / two-stage head, oversampling `normal`, or revisiting capacity only with a
+proper regularization schedule (the naive big-model scale-up overfits — see note above).
+
+---
+
+## (archived) original TODO — all items DONE
 
 All commands assume: `source .venv/Scripts/activate` and prefix runs with `PYTHONIOENCODING=utf-8`.
 
-**Reference baseline = Exp 1 small model, macro F1 0.795, `normal` recall ~0.54.** No new baseline
-run needed — the big-model detour is abandoned and the config is already back to the proven setup.
+**Reference baseline = Exp 1 small model, macro F1 0.795, `normal` recall ~0.54.**
 
-### 1. Exp 3a — focal loss (no reprocess; stacks on the 0.795 state) — MAIN remaining lever
+### 1. Exp 3a — focal loss (no reprocess; stacks on the 0.795 state) — ❌ DONE, FAILED
 Add this helper to `training/train_gnn.py` (e.g. after `build_loc_targets_fast`):
 ```python
 def focal_loss(logits: torch.Tensor, targets: torch.Tensor,
@@ -75,7 +96,7 @@ Retrain (no reprocess), compare to the 0.795 reference. **Caveat:** loss-side le
 haven't moved `normal` so far — low expected value, but cheap. Revert to weighted-CE if it doesn't
 beat baseline.
 
-### 2. Exp 3b — 6th node feature `overloaded` (OPTIONAL; reprocess needed)
+### 2. Exp 3b — 6th node feature `overloaded` (OPTIONAL; reprocess needed) — ❌ DONE, DROPPED
 On the small model this collapsed `normal` to 0.0 (twice). Do NOT go bigger to fix it (big model
 overfits). Instead retry ONCE with the suspected fix: **add the binary flag but exempt it from
 z-normalization** (a z-scored sparse binary becomes a dominant spike — likely the destabilizer).

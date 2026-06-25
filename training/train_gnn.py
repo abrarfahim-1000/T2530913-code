@@ -329,6 +329,10 @@ def train():
             # NOTE: lowering to 0.05 was tried (Exp 2) and REGRESSED normal recall
             # (0.54->0.42) and macro F1 (0.795->0.777) — less smoothing let the model
             # overfit the dominant classes faster and suppress normal. Kept at 0.1.
+            # NOTE: focal loss gamma=2 (Exp 3a) was tried and FAILED HARD — normal
+            # recall COLLAPSED to ~0.03 (precision 0.98, model never commits to
+            # normal) and macro F1 fell to 0.66; train loss kept dropping while val
+            # F1 fell (overfit). Loss-side levers do not move normal here. Kept CE.
             cls_loss = F.cross_entropy(
                 class_logits, batch.y,
                 weight=class_weights,
