@@ -10,6 +10,6 @@
     "cascade"
   ],
   "tuned_on": "val",
-  "test_macro_f1": 0.8272,
-  "test_normal_recall": 0.8803
+  "test_macro_f1": 0.8277,
+  "test_normal_recall": 0.8806
 }
