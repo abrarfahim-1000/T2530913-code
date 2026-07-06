@@ -4,8 +4,23 @@
 
 ---
 
+## 0. Core Claim
+
+**This is not a full-loop autonomous system as an end in itself. The full loop is the instrument; the claim it exists to prove is empirical.**
+
+A GNN trained on one grid topology is a statistical approximator, not a guarantee. It generalizes imperfectly to topologies it has never seen — this is expected, not a flaw to eliminate. In a safety-critical system, an ungated GNN acting on a degraded, out-of-distribution prediction can recommend or trigger a physically invalid or destabilizing action. The claim under test:
+
+> **A GNN alone is not general enough to be trusted across grid topologies. The symbolic shield is a necessary safety layer — it prevents the GNN from acting on unhinged, physically invalid predictions when generalization fails, rather than assuming the GNN's confidence is reliable.**
+
+Everything in this document — the GNN (§2), the LLM-derived rule base (§3–4), and the shield (§5) — is built to generate the evidence for this claim, primarily via the cross-topology evaluation in §11: measuring how badly the frozen GNN degrades on unseen topologies (14/57/118-bus), and how much of that degradation the shield catches, corrects, or blocks before it reaches the grid. The three-tier table in §11 (Trained / Unseen-No-Shield / Unseen-With-Shield) is the direct empirical evidence for this claim, not a supplementary metric.
+
+**Consequence for every other section:** the GNN's job is detection, classification, and localization — never a final, unchecked action recommendation (see §12). Any wording elsewhere implying the GNN outputs an autonomous control decision is legacy phrasing from the pre-pivot framing and should be read as superseded by this section.
+
+---
+
 ## Table of Contents
 
+0. [Core Claim](#0-core-claim)
 1. [System Architecture](#1-system-architecture)
 2. [Component A — Graph Neural Network (Neural Layer)](#2-component-a--graph-neural-network-neural-layer)
 3. [Component B — LLM Knowledge Extraction Pipeline](#3-component-b--llm-knowledge-extraction-pipeline)
@@ -13,7 +28,7 @@
 5. [Component D — Symbolic Validation Shield](#5-component-d--symbolic-validation-shield)
 6. [Data Collection Strategy](#6-data-collection-strategy)
 7. [GNN Training Pipeline](#7-gnn-training-pipeline)
-8. [End-to-End Integration & Testing](#8-end-to-end-integration--testing)
+8. [End-to-End Toy Scenario Testing](#8-end-to-end-toy-scenario-testing)
 9. [Technology Stack](#9-technology-stack)
 10. [Hardware & Compute Allocation](#10-hardware--compute-allocation)
 11. [Evaluation Plan](#11-evaluation-plan)
@@ -23,66 +38,63 @@
 
 ---
 
+
 ## 1. System Architecture
 
 ### The Full Pipeline
 
 ```
-[Domain Documents]                        [Grid2Op Simulation]
-(IEEE standards, grid                     (TRAINING: l2rpn_neurips_2020_track1_small
- manuals, NERC/FERC/                       36 substations, 59 lines,
- AEMO standards)                           300,000 labeled records)
+[Domain Documents]                        [Grid2Op Simulation — 36-bus]
+(IEEE standards, grid                     (training environment:
+ manuals, textbooks)                       36 substations, 59 lines,
+                                           48 years of chronic data)
         │                                           │
         ▼                                           ▼
 [LLM Knowledge Extraction]              [Dataset Generation]
- Qwen3-14B (Extractor) parses            Observations logged per step:
- documents → JSON rules                  rho, voltages, flows, topology,
- Nemotron-3 Nano 30B (Validator)         fault labels (4-class)
- verifies each rule
- → 469 unique rules retained
+ Qwen3.6-35B-A3B (Extractor) →         Observations logged per step:
+ Nemotron 3 Nano (Validator) →           rho, voltages, flows, topology,
+ outputs structured JSON rules           fault labels
+ → loaded into Knowledge Graph
         │                                           │
         ▼                                           ▼
-[Knowledge Graph]                       [GNN Training]
- 587 nodes, 6,632 edges                  PyTorch Geometric GAT model
- (36 Bus, 59 Line, 22 Generator,         learns fault detection on
-  1 Grid, 469 Rule nodes)                36-bus home topology
- Rules linked via has_rule edges
+[Knowledge Graph]                       [GNN Training — 36-bus only]
+ Rules + grid topology stored            GATv2Conv, weights frozen
+ as queryable graph                      after training
+ (NetworkX)
         │                                           │
-        └──────────────────┬────────────────────────┘
-                           │
-                           ▼
-              [Symbolic Validation — THE SHIELD]
-              Every GNN prediction is checked against KG rules.
+        │                          ┌────────────────┴────────────────┐
+        │                          ▼                                  ▼
+        │              [Inference — 36-bus,              [Inference — Unseen Topology
+        │               known distribution]                14/57/118-bus, frozen weights]
+        │                          │                                  │
+        └──────────────────┬───────┴──────────────────┬───────────────┘
+                           │                            │
+                           ▼                            ▼
+              [Symbolic Validation — THE SHIELD, identical logic both paths]
+              Every GNN prediction (fault type + localization) is checked
+              against KG rules and, on the unseen-topology path, physical
+              invariants (KCL residual) computed from observation data.
               PASS → output forwarded
-              BLOCK → prediction blocked + explanation generated
+              FAIL → prediction blocked/corrected + explanation generated
                            │
                            ▼
                     [Final Output]
-              Validated prediction + traceable explanation
-              (cites rule ID and source document)
-                           │
-                           ▼
-              [Cross-Topology Evaluation]
-              Same trained GNN + same KG tested on:
-              • rte_case14_sandbox  (14 buses — unseen, smaller)
-              • l2rpn_wcci_2022     (118 buses — unseen, larger)
-              Measures GNN degradation vs Shield stability
-              across topologies it was never trained on
+              Validated fault classification + localization, traceable
+              explanation (cites rule ID and source document)
 ```
 
 ### The Non-Negotiable Principle
 
-**GNN outputs are never final without symbolic validation.** The GNN is the perception engine. The shield is the safety officer. They are always both active. There is no mode where the GNN output bypasses the shield — including during cross-topology evaluation on unseen environments.
+**GNN outputs are never final without symbolic validation.** The GNN is the perception engine — fault detection, classification, and localization only. The shield is the safety officer. They are always both active, on both the 36-bus and cross-topology inference paths. There is no mode where the GNN output bypasses the shield, and no mode where the GNN proposes a corrective action (see §12).
 
-### The Research Thesis
+### The Decoupling Invariant
 
-The system addresses two tightly linked research questions:
+This is the structural property the novelty claim rests on, stated explicitly so it isn't lost as components change:
 
-**Generalization (The "Where"):** Neural networks trained on one grid topology typically fail when deployed on a different one because node degrees and spatial relationships change. Physical safety rules do not — the IEEE standard that voltage must not drop below 0.95 pu applies equally to a 14-bus grid and a 118-bus grid. We train the GNN on the 36-bus NeurIPS 2020 environment and evaluate the full GNN+Shield system on unseen 14-bus and 118-bus environments. The GNN's classification accuracy is expected to degrade. The shield's rule compliance rate is expected to remain near-constant because the KG rules are topology-agnostic.
-
-**Epistemology (The "Why"):** Every prediction the shield blocks on an unseen topology is a structured diagnostic signal. Blocked predictions are clustered into four failure modes: overconfident wrong predictions, class confusion between fault types, localization failure, and novel topology states the GNN has never seen. This turns the shield from a safety layer into an explainability instrument — it tells us exactly where and why the neural component fails.
-
-**The open-ended thesis question:** Is the symbolic shield necessary for cross-topology safety, or does the GNN intrinsically generalize to unseen topologies? Both outcomes are publishable. If the shield is necessary, we prove that neural models cannot be trusted with topological changes and that our decoupled symbolic layer is a mandatory safety requirement. If the GNN generalizes, we discover the empirical boundaries of where neural perception succeeds on grid physics.
+- The GNN has no knowledge of the rules. It does not see the KG, and its weights are never affected by the KG.
+- The shield has no knowledge of GNN internals. It only sees `(predicted_label, top_buses, confidence)` plus raw observation context — never logits, weights, or architecture.
+- Consequence: the GNN can be retrained, swapped, or upgraded (e.g. GATConv → GATv2Conv) without touching the shield. Rules can be added or removed without retraining the GNN.
+- This decoupling is what separates this system from prior work that either fuses LLM-derived knowledge into training (loss-based) or never closes the loop into a runtime gate at all. It is verified, not assumed — see the interaction contract in the integration document (`study3(integration).md`, §4.7).
 
 ---
 
@@ -91,8 +103,10 @@ The system addresses two tightly linked research questions:
 ### What It Does
 
 Takes a snapshot of the grid state as a graph and outputs:
-- Fault classification: normal / overload / line_trip / cascade (4 classes)
-- Fault localization: which substation is the fault source (node-level)
+- Fault classification (normal / overload / line trip / cascade)
+- Fault localization (which bus is most likely the fault source)
+
+Does not output or recommend a corrective/control action — that is explicitly out of scope (§12). The GNN's job ends at detection and localization; the shield gates what happens to that output.
 
 ### Why GNN and Not Something Else
 
@@ -102,72 +116,41 @@ A power grid **is** a graph. Buses are nodes. Lines are edges. Electrical quanti
 - **LSTM:** Models time sequences well but is completely blind to graph structure. Cannot localize a fault spatially.
 - **CNN:** Designed for grid-like spatial data (images). Power grids are irregular, sparse graphs — CNN kernels have no meaning here.
 
-A GNN propagates information along edges, so it natively understands that a fault on Line 3-4 affects Bus 3 and Bus 4 differently depending on their local topology. Global pooling (mean/max/min) is topology-agnostic by construction — this is why the same trained model can run inference on graphs with different node counts without architectural changes.
+A GNN propagates information along edges, so it natively understands that a fault on Line 3-4 affects Bus 3 and Bus 4 differently depending on their local topology. This gives us accurate fault localization, topology-aware predictions, and generalization when lines are switched.
 
-### Architecture (Finalized)
+### Architecture Decision
 
-**Graph Attention Network (GAT)** with three GATConv layers, BatchNorm after each layer (`track_running_stats=False` — critical for eval mode stability), and triple global pooling.
+**Decided: GATv2Conv**, 3-layer, `hidden_channels=[64,128,128]`, `heads=[2,2,1]`, dropout 0.0, BatchNorm (`track_running_stats=False`), 3-pool concat (mean/max/min). Migrated from static GATConv — GATConv's fixed attention ranking caused rank collapse on 36-node graphs; GATv2Conv fixes this with near-identical API. GCN baseline dropped.
 
-```
-Input graph (n_nodes × 4 node features, n_edges × 4 edge features)
-    ↓
-GATConv(4 → 64, heads=2)  + BatchNorm + ELU
-    ↓
-GATConv(128 → 128, heads=2) + BatchNorm + ELU
-    ↓
-GATConv(256 → 128, heads=1) + BatchNorm + ELU
-    ↓
-global_mean_pool ‖ global_max_pool ‖ global_min_pool  → (128×3,)
-    ↓
-Classifier MLP → (4,) class logits
-Localizer MLP  → (n_nodes,) fault probability per bus
-```
+### Cross-Topology Inference (Frozen Weights)
 
-**Why triple pooling:** `global_max_pool` captures overload spikes. `global_min_pool` (implemented as `-global_max_pool(-x)`) captures line-trip drops in connectivity. `global_mean_pool` captures the baseline state. Each fault type requires a different pooling signal.
+Weights are trained once on the 36-bus environment and frozen. No fine-tuning on other topologies. Frozen model is evaluated zero-shot on IEEE 14/57/118-bus Grid2Op environments to characterize generalization behavior — see §11.
 
-**Why `track_running_stats=False`:** Standard BatchNorm tracks running statistics during training and applies them during eval. On power grid data where 90%+ of nodes are operating safely, these running stats flatten anomalous spikes (rho > 1.0) during validation — destroying the model's ability to detect overloads. Live batch statistics avoid this.
+**Normalization — decided: reuse 36-bus stats, fixed, unchanged.** `node_mean`/`node_std`/`edge_mean`/`edge_std` are computed once from the 36-bus training split and applied unchanged to 14/57/118-bus observations at inference. Not recomputed per topology — recomputing would launder away the exact distribution shift the cross-topology evaluation is designed to measure, and mirrors real zero-shot deployment (no target-domain stats available in production). Stated explicitly here so degradation isn't misattributed to normalization mismatch.
 
-**Why no dropout:** Dropout in GATConv randomly severs attention edges during training, destroying the physical graph structure. Dropout in the classifier creates a 1.25x scaling gap between train and eval mode — sufficient to push logits across decision boundaries on continuous power flow features. The model is 100% deterministic: `model.train()` and `model.eval()` execute identical math.
+Persisted to `normalization_stats.pt` (`save_normalization_stats.py`, deterministic — same `processed_grid_data.pt` + `split_neurips2020_train_idx.npy` — done, no retraining required). Neither `train_gnn.py` nor `evaluate.py` previously wrote this file; both recomputed stats in-memory each run. The saved file is what the cross-topology inference script (§7) loads.
 
-### Node Features (per bus, 4 features)
+### Library
 
-| Feature | Construction | Rationale |
-|---|---|---|
-| `load_p` | Sum of active loads at bus | Demand signal |
-| `mean_v` | Mean voltage of connected lines, normalized by 150.0 kV | Voltage health |
-| `max_rho` | Max loading ratio of connected lines | Overload signal |
-| `connected_line_frac` | Fraction of lines at bus still connected | Trip/cascade signal |
+**PyTorch Geometric (PyG)** — the standard library for GNN research. Direct integration with PyTorch, supports GCN, GAT, GraphSAGE, and all standard message-passing architectures out of the box.
 
-**Why these four:** `gen_p` was removed after EDA revealed 1.00 correlation with `load_p` (generation matches load by power flow law). Removing it eliminates 100% redundant information. The remaining four features are orthogonal and capture the four fault types directly.
+### Input/Output Specification
 
-### Edge Features (per line, 4 features)
+**Node features (per bus):**
+- Voltage magnitude (pu)
+- Active load (kW)
+- Reactive load (kVAR)
+- Active generation (kW)
+- Bus type (slack / PQ / PV — one-hot)
 
-`[rho, p_or, q_or, line_status]`
+**Edge features (per line):**
+- Active power flow (kW)
+- Line loading percentage (%)
+- Line resistance and reactance (pu)
 
-**Critical:** Tripped lines (`line_status = 0`) are physically pruned from `edge_index` at graph construction time using a boolean mask. This gives GATConv a hard topological boundary between a tripped grid and a normal grid — without pruning, a line_trip state has the same number of edges as a normal state and is mathematically indistinguishable.
-
-### Training Configuration
-
-| Parameter | Value |
-|---|---|
-| Optimizer | AdamW, lr=5e-4, weight_decay=1e-5 |
-| Scheduler | CosineAnnealingLR, T_max=50 |
-| Batch size | 256 |
-| Loss | Weighted CrossEntropy (ICF weights, sqrt-smoothed) |
-| Early stopping | patience=15, min_delta=0.001 |
-| Validation metric | Macro F1 (not accuracy — dataset is imbalanced) |
-| Normalization | Z-score from training split only, saved to `normalization_stats.pt` |
-
-**Normalization stats must be saved to disk after training.** They are required at inference time for cross-topology evaluation. The foreign topology graphs (14-bus, 118-bus) are normalized using the 36-bus training stats — this is intentional. The GNN sees the same feature scale it was trained on regardless of topology.
-
-### Cross-Topology Inference
-
-The trained GNN runs on foreign topology graphs without modification because:
-- Global pooling is topology-agnostic (operates over variable node counts)
-- Node and edge features are physical quantities that exist in any Grid2Op environment
-- The classification head outputs 4 logits regardless of input graph size
-
-The localization head is **disabled** for cross-topology evaluation. It outputs `n_nodes` logits, which varies by topology, and localization on an unseen graph is not a thesis claim. Classification accuracy and shield compliance rate are the cross-topology metrics.
+**Output:**
+- Node-level: fault probability per bus (localization)
+- Graph-level: fault type classification
 
 ---
 
@@ -175,74 +158,177 @@ The localization head is **disabled** for cross-topology evaluation. It outputs 
 
 ### What It Does
 
-An LLM reads domain-authoritative documents — IEEE standards, NERC/FERC operational standards, grid operation manuals — and extracts symbolic rules in structured JSON format. These rules are loaded into the knowledge graph and used by the shield at inference time.
+An LLM reads domain-authoritative documents — IEEE standards, grid operation manuals, safety protocols — and extracts symbolic rules in structured JSON format. These rules are then loaded into the knowledge graph.
 
-This replaces manual rule encoding, which is the core knowledge bottleneck in all existing Neuro-Symbolic systems for power grids. The closest validated precedent is **Chen et al. (2025, 2026)**, who used an LLM to extract rules from USGS geology textbooks into a KG, achieving 99.06% accuracy vs an 84.3% baseline. We apply the same pipeline to power grid documentation.
+This replaces manual rule encoding, which is the core knowledge bottleneck in all existing Neuro-Symbolic systems for power grids.
 
-### Why Local LLM
+### Why LLM for This
+
+The alternative is having a domain expert read every document and manually translate prose into code. That is:
+- Slow (weeks per document set)
+- Error-prone (rules buried in dense technical prose are easy to miss)
+- Not scalable (adding a new standard means starting over)
+
+The closest validated precedent is **Chen et al. (2025, 2026)**, who used an LLM to extract rules from USGS geology textbooks into a Knowledge Graph, then used those rules to constrain a Random Forest — achieving 99.06% accuracy vs an 84.3% baseline. We apply the same pipeline to power grid documents.
+
+### Why Local LLM (Not OpenAI API)
 
 - Grid operational documents may be institution-sensitive
-- API calls introduce non-determinism (model updates, rate limits)
+- API calls introduce non-determinism across runs (model updates, rate limits)
 - Local inference is fully reproducible
-- RTX 4080 Super (16GB VRAM) + 64GB RAM handles both models comfortably
+- The Research PC (RTX 3090, 24GB VRAM + 64GB RAM) handles Qwen3.6-35B-A3B and Nemotron 3 Nano (30B-A3B) at 4-bit/5-bit quantization comfortably — 24GB headroom (upgraded from a 16GB RTX 4080 Super) reduces the CPU-offloading pressure both models previously required
 
-### Models (Finalized)
+### Model
 
-**Extractor: Qwen3-14B** via Ollama. Fits fully in 16GB VRAM at 4-bit quantization (~8–10GB). Superior technical comprehension on dense IEEE prose. Thinking mode disabled via `/no_think` prefix — essential to prevent chain-of-thought tokens from breaking JSON output.
+**Qwen3.6-35B-A3B (MoE, Q4_K_M/Q5_K_M quantized)** via **Ollama**, run on the Research PC. This is the Extractor stage of the multi-LLM pipeline. As a Mixture-of-Experts model (35B total parameters, ~3B active per token), it fits comfortably within the 24GB VRAM of the RTX 3090 at these quant levels.
 
-**Validator: Nemotron-3 Nano 30B (A3B)** via Ollama. Mixture-of-Experts with 3B active parameters — reasoning depth of a 30B model at the efficiency of a smaller one. Independent training lineage from NVIDIA provides architecturally distinct failure modes from Qwen3. Thinking suppressed via `think=False` in `ollama.chat()`.
+**Why Qwen3.6-35B-A3B:**
+- Superior technical comprehension and recall on dense IEEE standards prose — MoE routing gives 30B+-class reasoning depth at a fraction of the active-parameter compute cost of a same-size dense model.
+- Fits GPU-resident on the RTX 3090 at Q4_K_M/Q5_K_M, allowing fast iteration across large document sets.
+- Superseded an earlier Qwen3-14B dense-model choice; retained for comprehension quality, not swapped back.
 
-**Why this split:** Extraction is a high-recall discovery task on dense prose. Validation is a high-precision verification task — the validator receives the original chunk plus the candidate rules, so it only needs to confirm, not discover. Architecturally distinct models provide stronger validation confidence than two Qwen models agreeing.
+### Multi-LLM Hybrid Pipeline
 
-**Sequential execution:** Qwen3-14B runs first across the full document set, results saved to `*_candidates.jsonl`. Nemotron-3 Nano 30B then loads for the validation pass. No concurrent model loading.
+A single-model extraction pipeline places competing demands on one model simultaneously: reading comprehension over dense technical prose, strict schema compliance, and precise constraint boundary detection. A two-LLM architecture separates these concerns across models optimized for each role.
 
-### Pipeline Architecture
+Four patterns were evaluated (Extractor+Validator, Dual Extraction+Consensus, Extractor+Formalizer, Self-Consistency). The chosen approach combines Pattern 1 and Pattern 2.
+
+#### Chosen Architecture: Extractor + Validator with Consensus Flagging
 
 ```
 [Document Chunk]
         │
         ▼
-[Qwen3-14B — Extractor]
- /no_think prefix enforced
- Output: JSON array of rule candidates
+[Qwen3.6-35B-A3B — Extractor]   ← high recall; extract everything that might be a rule
+        │ JSON rule candidates
+        ▼
+[Nemotron 3 Nano (30B-A3B)]     ← high precision; verify each rule against the source chunk
+  For each rule:
+    - Is this constraint actually present in the text?
+    - Is the condition boundary correctly parsed?
+    - Is the entity correctly identified?
+  Output: CONFIRM / REJECT / CORRECT per rule
         │
         ▼
-[Pydantic schema validation]
- Rule schema: rule_id, source, entity, condition,
-              action, severity, explanation
- Invalid schema → dropped, logged
+[Conflict cases] ──► flagged for manual review
         │
         ▼
-[Nemotron-3 Nano 30B — Validator]
- think=False enforced
- Input: original chunk + candidates
- Output: CONFIRM / REJECT / CORRECT per rule
-        │
-        ├── CONFIRM → load into KG as-is
-        ├── CORRECT → merge corrected_fields, load into KG
-        ├── REJECT  → discard
-        └── NO_VERDICT / error → flag for manual review
+[Pydantic + GBNF schema enforcement]
         │
         ▼
-[Deduplication]
- Key: (entity, condition) pair
- Duplicates: sources merged, rule dropped
-        │
-        ▼
-[all_rules_deduped.jsonl → Knowledge Graph]
+[Knowledge Graph]
 ```
 
-### Finalized Extraction Results
+**Why this split:**
+- Qwen3.6-35B-A3B for extraction: best-in-class technical comprehension and recall via MoE routing — optimizes for not missing rules.
+- NVIDIA Nemotron 3 Nano (30B-A3B) for validation: a hybrid Mamba-Transformer MoE model with ~3B active parameters. The MoE architecture provides the reasoning depth of a 30B model with the efficiency of a smaller model. Its independent training lineage (NVIDIA) provides the necessary diversity for cross-model validation. Outperformed all challenger validator candidates evaluated (Phi-4, Ministral, DeepSeek distills, GLM variants) at the 24GB VRAM tier — not assumed, benchmarked.
+- Validation is a strictly easier task than extraction; the validator receives the original chunk plus the candidate rules, so it only needs to verify, not discover.
+- The validation step produces a reportable precision metric for the thesis: % of extracted rules confirmed by the validator.
 
-| Stage | Count |
-|---|---|
-| Candidate rules extracted | 1,372 |
-| Confirmed as-is (CONFIRM) | 50 (3.64%) |
-| Corrected and retained (CORRECT) | 451 (32.87%) |
-| Rejected (REJECT) | 766 (55.83%) |
-| Flagged for review | 105 (7.65%) |
-| Retained before dedup | 501 |
-| **Unique rules after dedup** | **469** |
+**Why not run both simultaneously:**
+Both models fit within 24GB individually but not concurrently alongside batch overhead — sequential loading avoids VRAM pressure and ensures maximum performance for each stage. Qwen3.6-35B-A3B runs first across the full document set; results are saved. Nemotron 3 Nano is then loaded for the validation pass. The 24GB RTX 3090 (upgraded from a 16GB RTX 4080 Super) gives more headroom than previously available — a candidate future change is bumping Nemotron's quant level (Q5_K_M → Q6/Q8) using the freed VRAM, not yet done.
+
+**Confidence tiers produced:**
+
+| Outcome | Meaning | Action |
+|---|---|---|
+| Validator: CONFIRM | Rule verified in source text | Load into KG |
+| Validator: CORRECT | Rule present but condition/entity adjusted | Load corrected version |
+| Validator: REJECT | Rule not supported by source text | Discard |
+| Validator: CONFLICT (score 0.5–0.85) | Ambiguous — partial match | Flag for manual review |
+
+#### Implementation Skeleton
+
+```python
+import ollama
+from pydantic import BaseModel, ValidationError
+import json
+
+EXTRACTOR_MODEL = "qwen3.6:35b-a3b"
+VALIDATOR_MODEL  = "nemotron-3-nano:30b-a3b"
+
+EXTRACT_PROMPT = """You are a power systems engineer extracting safety rules.
+From the text below, extract ALL operational constraints as a JSON array.
+Each rule must have: rule_id, source, entity, condition, action, severity, explanation.
+If no rule is present, return an empty list. Output ONLY a JSON array.
+
+Text:
+{chunk}"""
+
+VALIDATE_PROMPT = """You are a power systems safety auditor.
+Below is a source text and a list of rules extracted from it.
+For each rule, output: rule_id, verdict (CONFIRM/REJECT/CORRECT), and if CORRECT provide the corrected fields.
+Output ONLY a JSON array.
+
+Source text:
+{chunk}
+
+Extracted rules:
+{rules}"""
+
+def run_extraction(chunk: str) -> list:
+    response = ollama.generate(
+        model=EXTRACTOR_MODEL,
+        prompt=EXTRACT_PROMPT.format(chunk=chunk),
+        format="json",
+        options={"num_predict": 2048, "temperature": 0}
+    )
+    return json.loads(response["response"])
+
+def run_validation(chunk: str, candidates: list) -> list:
+    response = ollama.generate(
+        model=VALIDATOR_MODEL,
+        prompt=VALIDATE_PROMPT.format(chunk=chunk, rules=json.dumps(candidates, indent=2)),
+        format="json",
+        options={"num_predict": 2048, "temperature": 0}
+    )
+    return json.loads(response["response"])
+
+def process_chunk(chunk: str) -> dict:
+    candidates  = run_extraction(chunk)
+    verdicts    = run_validation(chunk, candidates)
+
+    verdict_map = {v["rule_id"]: v for v in verdicts}
+    confirmed, flagged = [], []
+
+    for rule in candidates:
+        v = verdict_map.get(rule["rule_id"], {})
+        if v.get("verdict") == "CONFIRM":
+            confirmed.append(rule)
+        elif v.get("verdict") == "CORRECT":
+            confirmed.append({**rule, **v.get("corrected_fields", {})})
+        elif v.get("verdict") == "REJECT":
+            pass  # discard
+        else:
+            flagged.append({"rule": rule, "verdict": v})  # ambiguous — manual review
+
+    return {"confirmed": confirmed, "flagged": flagged}
+```
+
+### Extraction Pipeline (Step by Step)
+
+**Step 1 — Document ingestion**
+LangChain's document loaders parse PDFs/text into chunks. Each chunk is a few paragraphs.
+
+**Step 2 — Prompted extraction**
+Each chunk is passed to the LLM with a structured prompt:
+
+```
+You are a power systems engineer extracting safety rules from grid documentation.
+From the text below, extract ALL operational constraints as JSON objects.
+Each rule must have: rule_id, source, entity, condition, action, severity, explanation.
+If no rule is present, return an empty list.
+Respond ONLY with a JSON array. No preamble.
+
+Text:
+{chunk}
+```
+
+**Step 3 — Parsing and validation**
+JSON output is parsed and validated against a Pydantic schema. Malformed outputs are retried once, then logged as failures for manual review.
+
+**Step 4 — Deduplication**
+Rules with identical conditions across overlapping chunks are merged. Source references are preserved.
 
 ### Output Schema
 
@@ -258,25 +344,12 @@ This replaces manual rule encoding, which is the core knowledge bottleneck in al
 }
 ```
 
-### Document Tier System
+### Source Documents (Planned)
 
-Rules are sourced from documents classified by authority:
-
-| Tier | Source Type | Treatment |
-|---|---|---|
-| A | IEEE/IEC/NERC/FERC/ENTSO-E standards | Mandatory inclusion |
-| B | Official operational manuals, simulation docs | Included |
-| C | Academic papers | Conditional — only if citing Tier A |
-| D | Textbooks, theses, blog posts, AI-generated | Rejected |
-
-Source documents used: IEEE Std 1547-2018, IEEE Std C37.2, NERC FAC-001/FAC-002, AEMO PSR 2020.
-
-### Key Implementation Notes
-
-- `keep_alive=0` in every Ollama call — releases VRAM immediately after inference, preventing overlap between Extractor and Validator
-- GBNF grammar enforcement on array output prevents malformed JSON from reaching Pydantic
-- `strip_think()` regex applied to all model output before JSON parsing — Qwen3 occasionally leaks `<think>` tokens despite `/no_think`
-- Rule IDs are rewritten to globally unique sequential IDs (`R_001`, `R_002`, ...) across all chunks and documents before validation
+- IEEE Std 1547-2018 (Interconnection and Interoperability Standards)
+- IEEE Std C37.2 (Standard for Electrical Power System Device Function Numbers)
+- Pandapower documentation (line ratings, transformer limits)
+- Any grid operation manual available in the public domain
 
 ---
 
@@ -284,61 +357,61 @@ Source documents used: IEEE Std 1547-2018, IEEE Std C37.2, NERC FAC-001/FAC-002,
 
 ### What It Does
 
-Stores the extracted rules and the grid topology as a queryable graph. During inference, the shield traverses `has_rule` edges from the predicted fault entity to collect all applicable rules and evaluate them against the current grid context.
-
-### Finalized KG Statistics
-
-| Metric | Value |
-|---|---|
-| Total nodes | 587 |
-| Bus nodes | 36 |
-| Line nodes | 59 |
-| Generator nodes | 22 |
-| Grid node | 1 |
-| Rule nodes | 469 |
-| Total directed edges | 6,632 |
-| `connected_to` edges | 118 |
-| `part_of` edges | 139 |
-| `has_rule` edges | 6,375 |
-
-Rule severity breakdown: majority critical/high. Largest entity category: generator constraints.
+Stores the extracted rules and the grid topology as a queryable graph. During inference, the shield queries this graph to evaluate a GNN prediction.
 
 ### Graph Schema
 
-**Nodes:**
+**Nodes (Entities):**
 
-| Node Type | Key Attributes |
+| Node Type | Attributes |
 |---|---|
 | `Bus` | bus_id, voltage_nominal, bus_type |
 | `Line` | line_id, max_current_A, max_loading_pct |
+| `Transformer` | trafo_id, max_loading_pct, tap_ratio |
 | `Generator` | gen_id, p_min_kw, p_max_kw |
-| `Grid` | (singleton — anchors system-level rules) |
-| `Rule` | rule_id, condition, action, severity, source, explanation |
+| `Load` | load_id, p_nominal_kw |
+| `ProtectionDevice` | device_id, trip_threshold |
+| `Rule` | rule_id, condition, action, severity, source |
 
-**Edges:**
+**Edges (Relations):**
 
-| Edge Type | Meaning |
+| Edge | Meaning |
 |---|---|
-| `connected_to` | Bus ↔ Line (physical topology) |
-| `part_of` | Bus → Grid, Line → Grid, Generator → Bus |
+| `connected_to` | Bus ↔ Line, Bus ↔ Transformer |
+| `feeds` | Generator → Bus, Line → Bus |
+| `protected_by` | Line/Bus → ProtectionDevice |
 | `has_rule` | Entity → Rule |
+| `triggers` | Rule → ProtectionDevice |
 
-### The Grid Node
+### Why a Graph and Not a Rule Database
 
-A single global `Grid` node anchors all system-level rules that apply regardless of which specific entity faulted. At inference time, the shield retrieves rules from both the predicted fault entity AND the Grid node. This ensures system-wide constraints (frequency response, N-1 security) are always evaluated, not just entity-specific ones.
+Rules in power grids are **relational**. The rule "if Line 3-4 is overloaded, trip the breaker protecting Bus 3" requires knowing that Line 3-4 connects to Bus 3, which is protected by Breaker B-12. A flat table or a simple list cannot traverse these relationships. A graph can resolve the full chain in a single traversal.
 
-**Retrieval pattern:**
+### Why NetworkX (Not Neo4j) for Now
+
+Neo4j is production-grade but requires a running server process and Cypher queries. NetworkX is a pure Python library — zero setup, in-process, and sufficient for our IEEE 33-bus scale (33 nodes, 32 edges + rule nodes). We switch to Neo4j only if the graph grows beyond what NetworkX handles comfortably.
+
+### Graph Construction Code (Conceptual)
+
+```python
+import networkx as nx
+
+G = nx.DiGraph()
+
+# Add topology from Pandapower network
+for bus in net.bus.itertuples():
+    G.add_node(f"Bus_{bus.Index}", type="Bus", v_nom=bus.vn_kv)
+
+for line in net.line.itertuples():
+    G.add_edge(f"Bus_{line.from_bus}", f"Bus_{line.to_bus}",
+               type="connected_to", line_id=line.Index,
+               max_loading_pct=line.max_loading_percent)
+
+# Add extracted rules
+for rule in extracted_rules:
+    G.add_node(rule["rule_id"], type="Rule", **rule)
+    G.add_edge(rule["entity_id"], rule["rule_id"], type="has_rule")
 ```
-applicable = rules_of(predicted_entity) + rules_of("Grid")
-```
-
-### Why NetworkX (Not Neo4j)
-
-NetworkX is pure Python, zero setup, in-process. At 587 nodes and 6,632 edges, the full rule set is small enough that iterating all Rule nodes per inference step completes in under 1ms. Neo4j requires a running server process and Cypher queries — unnecessary overhead at this scale. Switch only if the graph grows beyond 50,000+ nodes.
-
-### Cross-Topology Note
-
-The KG is built from IEEE standards and grid documentation — it is **not built from the NeurIPS 2020 training topology**. The 36/59/22 Bus/Line/Generator counts in the KG reflect the training environment's topology nodes, but the Rule nodes (469) are sourced from physical standards that apply universally. When evaluating on 14-bus or 118-bus environments, the shield uses the same KG. Only the shield's context dict (rho, voltage, line_status) changes to reflect the foreign topology's observation. Rule conditions evaluate against physical thresholds regardless of topology size.
 
 ---
 
@@ -346,111 +419,97 @@ The KG is built from IEEE standards and grid documentation — it is **not built
 
 ### What It Does
 
-Intercepts every GNN prediction. Evaluates all applicable rules from the KG against the current grid state. Returns PASS (with the validated prediction) or BLOCK (with a structured explanation citing rule IDs and source documents).
+Intercepts every GNN prediction. Runs it against all applicable rules in the knowledge graph. Returns either a PASS (with the validated prediction) or a BLOCK (with a structured explanation).
 
 ### Why "Shield" and Not a Loss Function Penalty
 
 This is the distinction between Generation 2 and Generation 3 NeSy systems:
 
-- **Gen 2 (PINNs, soft constraints):** Loss function penalizes rule violations during training. The model is discouraged from breaking physics but not prevented. It can still output a physically impossible prediction at inference time.
-- **Gen 3 (Shield — this system):** Rule violations are detected at inference time, after the model outputs. The output is structurally blocked from reaching execution. Hard constraint, not a soft suggestion.
+- **Gen 2 (PINNs):** Loss function penalizes rule violations. The model is discouraged from breaking physics but not prevented. It can still output a physically impossible voltage.
+- **Gen 3 (Shield):** The rule violation is detected at inference time, after the model outputs. The output is structurally blocked from reaching execution. This is a **hard constraint**, not a soft suggestion.
 
-Directly inspired by **Younesi et al. (2026)**: their two-step microgrid system validated actions against a fixed rule set and achieved 91.7% safe power restoration. Our improvement: their rules were manually written. Ours are LLM-generated from IEEE standards.
+Directly inspired by **Younesi et al. (2026)**: their two-step microgrid system validated actions against a fixed rule set and achieved 91.7% safe power restoration. Our improvement: their rules were manually written. Ours are LLM-generated.
 
-### Shield as Diagnostic Tool (Cross-Topology Extension)
+### Why the Shield Is Necessary, Not Optional (Core Claim, §0)
 
-In the cross-topology evaluation, every BLOCK decision is logged with structured metadata and clustered into one of four failure modes:
+The Gen2/Gen3 distinction above is the mechanism. The reason it matters for this thesis specifically: a GNN's accuracy on a topology it wasn't trained on is a statistical claim, not a deterministic guarantee — a GNN is capable of running message-passing math on any graph size, but that says nothing about whether its output is correct on that graph. §11's cross-topology evaluation is designed to force this failure mode into the open (frozen 36-bus weights, zero-shot on 14/57/118-bus) specifically so the shield's intervention rate on those failures is the direct evidence that gating is necessary — not a defensive fallback bolted on for robustness, but the component the whole empirical argument rests on.
 
-| Failure Mode | Definition |
-|---|---|
-| **Overconfident wrong** | GNN predicts "normal" with confidence > 0.85 during a physical fault |
-| **Class confusion** | GNN detects a fault but confuses fault type (e.g., overload predicted as cascade) |
-| **Threshold failure** | GNN correctly identifies fault type but predicted entity violates physical thresholds |
-| **Novel topology state** | Fault state involves sub-graph structure never seen during training |
+### Correction Mechanism: Constrained Selection, Not Generation
 
-This clustering converts the shield's BLOCK log into a structured analysis of where and why the neural component fails on unseen topologies.
+Two distinct verdicts were previously conflated under "shield corrects the GNN": BLOCK (veto only, no fallback) and CORRECT (shield identifies the true fault from among the GNN's own candidates). CORRECT requires a candidate set to select over — a single argmax label gives the shield nothing to select from, only pass/veto. This gap is closed as follows:
 
-### Voltage Translation
+- The GNN already computes a full softmax distribution over fault classes/buses (used for entropy in §11's ML-tier metrics). Inference is changed to retain the **top-k** (k=3, matching the top-3 localization metric already logged during training, §7) instead of collapsing immediately to argmax.
+- The shield evaluates each of the k candidates against KG rules and the KCL residual (§9), in descending confidence order.
+- **PASS:** top-1 candidate satisfies all rules/physics — GNN and shield agree, no intervention counted.
+- **CORRECT:** top-1 fails, but exactly one lower-ranked candidate (of the k) satisfies all rules/physics — that candidate is output, logged as a shield correction.
+- **BLOCK:** none of the k candidates satisfy all rules/physics — no valid selection exists; falls through to Catastrophic Failure Rate (§11).
 
-Grid2Op provides voltage in kV. IEEE rules use per-unit. For the NeurIPS 2020 environment, nominal is ~150kV:
+This is **constrained selection over the model's existing hypothesis space**, not generation of a new answer. The shield never proposes a fault location, bus, or action the GNN did not already surface as a candidate — it only narrows. This is what keeps CORRECT inside the detection-and-gating scope and outside the excluded corrective-action capability (§12): the shield is not computing a repair or redispatch action; it is filtering the GNN's own output distribution against symbolic and physical constraints.
 
-```
-voltage_pu = v_or_kv / 150.0
-```
-
-Loading percentage:
-```
-loading_pct = rho_max * 100
-```
-
-These translations are fixed constants in the shield's condition evaluation namespace. If evaluating on a different environment with a different nominal voltage, this constant must be updated from the environment's meta JSON.
+If all k candidates are exhausted with no valid selection, that case is not silently treated as BLOCK — it is logged separately as Catastrophic Failure (§11), since it indicates the GNN's entire local hypothesis space was wrong, not just its top pick.
 
 ### Validation Logic
 
 ```python
-SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-
-def validate(prediction_context: dict, KG) -> dict:
-    fault_type       = prediction_context["fault_type"]
-    applicable_rules = get_applicable_rules(KG, fault_type)
-
+def check_candidate(candidate, knowledge_graph):
+    """Returns list of violated rules for a single candidate (empty = valid)."""
+    context = candidate.context
     violated = []
-    for rule in applicable_rules:
-        if evaluate_condition(rule["condition"], prediction_context):
+    for rule_node in knowledge_graph.get_rules_for(candidate.entity):
+        rule = knowledge_graph.nodes[rule_node]
+        if evaluate_condition(rule["condition"], context, candidate):
             violated.append(rule)
-
-    if not violated:
-        return {
-            "status":     "PASS",
-            "fault_type": fault_type,
-            "confidence": prediction_context["confidence"],
-        }
-
-    violated.sort(key=lambda r: SEVERITY_ORDER.get(r.get("severity", "low"), 3))
-
-    return {
-        "status":           "BLOCK",
-        "fault_type":       fault_type,
-        "confidence":       prediction_context["confidence"],
-        "violated_rules":   violated,
-        "highest_severity": violated[0]["severity"],
-        "explanation":      build_explanation(violated),
-    }
+    return violated
 
 
-def evaluate_condition(condition: str, context: dict) -> bool:
-    namespace = {
-        "voltage_pu":      min(context["v_or"]) / 150.0,
-        "loading_pct":     context["rho_max"] * 100,
-        "rho":             context["rho_max"],
-        "rho_max":         context["rho_max"],
-        "n_tripped_lines": context["n_tripped_lines"],
-        "line_status":     not all(context["line_status"]),
-    }
-    try:
-        return bool(eval(condition, {"__builtins__": {}}, namespace))
-    except Exception:
-        return False  # malformed condition → do not block
+def validate(candidates, knowledge_graph):
+    """
+    candidates: top-k GNN predictions (k=3), ranked by descending confidence.
+    Selection is constrained to this set only — never generates a candidate
+    the GNN did not already surface (§5, Correction Mechanism).
+    """
+    top1, *rest = candidates
+    top1_violations = check_candidate(top1, knowledge_graph)
+
+    if not top1_violations:
+        return {"status": "PASS", "output": top1}
+
+    for candidate in rest:
+        violations = check_candidate(candidate, knowledge_graph)
+        if not violations:
+            explanation = build_explanation(top1_violations)
+            return {"status": "CORRECT", "output": candidate,
+                     "rejected": top1, "explanation": explanation}
+
+    # no candidate in the top-k satisfies all rules/physics
+    explanation = build_explanation(top1_violations)
+    return {"status": "BLOCK", "violated_rules": top1_violations, "explanation": explanation}
 
 
-def build_explanation(violated_rules: list) -> str:
-    return " | ".join(
-        f"Rule {r['rule_id']} ({r['severity'].upper()}): {r['explanation']} [Source: {r['source']}]"
-        for r in violated_rules
-    )
+def build_explanation(violated_rules):
+    lines = []
+    for rule in violated_rules:
+        lines.append(
+            f"Rule {rule['rule_id']} violated: {rule['explanation']} "
+            f"(Source: {rule['source']})"
+        )
+    return " | ".join(lines)
 ```
 
-### Example BLOCK Output
+### Example Output (Blocked Prediction)
 
 ```
-Rule R_042 (CRITICAL): Voltage at point of common coupling is 0.91 pu.
-Minimum permissible is 0.95 pu per IEEE Std 1547-2018, Section 7.4.
-[Source: IEEE Std 1547-2018, Section 7.4]
-|
-Rule R_019 (HIGH): N-1 security constraint violated — Bus 7 has no alternate
-feed path after proposed disconnection.
-[Source: NERC FAC-002, Section 3.1]
+ACTION BLOCKED: Switch OFF Line 3-4
+
+Reason:
+  Rule R_042 violated: Voltage at Bus 5 would drop to 0.91 pu.
+  Minimum permissible voltage is 0.95 pu per IEEE Std 1547-2018, Section 7.4.
+
+  Rule R_019 violated: Disconnecting Line 3-4 leaves Bus 7 with no alternate
+  feed path, violating N-1 security constraint per grid operations manual, p.34.
 ```
+
+Every blocked decision cites a specific rule and a specific source document — this is the explainability output.
 
 ---
 
@@ -458,168 +517,451 @@ feed path after proposed disconnection.
 
 ### Why Simulation, Not Real Data
 
-Real operational data from utilities is proprietary, unavailable without NDAs, and typically anonymized in ways that remove the topology information a GNN needs. This is a known limitation across the entire field — Ahmadi et al. (2026) explicitly identifies this as the "simulation-to-reality gap." Simulation on standard benchmarks is the accepted methodology for this research domain.
+Real operational data from utilities is proprietary, unavailable without NDAs, and typically anonymized in ways that remove the topology information a GNN needs. This is a known limitation across the entire field — Ahmadi et al. (2026) explicitly identifies this as the "simulation-to-reality gap."
 
-### Environment Role Assignment
+We use **Grid2Op** — a Python framework developed by RTE (the French transmission system operator) specifically for sequential decision-making and AI research on power grids. It implements full power flow equations via a backend (PandaPower by default), enforces thermal limits and N-1 security constraints natively, and is the environment used in the L2RPN (Learn to Run a Power Network) challenge — the most prominent AI-for-grids benchmark in the literature. Simulation on standard benchmarks is the accepted methodology for this research domain.
 
-| Environment | Role | Buses | Lines | Records |
-|---|---|---|---|---|
-| `l2rpn_neurips_2020_track1_small` | **Training only** | 36 | 59 | 300,000 |
-| `rte_case14_sandbox` | **Test only — unseen smaller** | 14 | 20 | ~15,000 |
-| `l2rpn_wcci_2022` | **Test only — unseen larger** | 118 | 186 | ~20,000 |
+### The Environments: l2rpn_neurips_2020_track1 and l2rpn_wcci_2022
 
-No training occurs on case14 or WCCI 2022. These are evaluation-only datasets used to measure cross-topology generalization. The GNN checkpoint from NeurIPS 2020 training is applied directly without fine-tuning.
+Grid2Op ships several competition environments. Environment choice directly determines the scale and complexity of the problem the GNN must solve. `l2rpn_case14_sandbox` — which we were previously using — is explicitly a development/sandbox environment with only 14 buses and 20 lines. It is useful for quick checks, but it does not cover the same scale as the benchmark environments used for the thesis.
 
-### Training Dataset (NeurIPS 2020, Finalized)
+**Smaller benchmark: `l2rpn_neurips_2020_track1`**
+- 36 substations, 59 powerlines, 22 generators, 37 loads
+- Subset of the IEEE 118-bus grid (the standard large-scale benchmark)
+- Used in the NeurIPS 2020 L2RPN competition robustness track
+- Ships with two data tiers: `_small` (900MB, ~48 years of 5-min data) and `_large` (4.5GB, ~240 years)
+- The `_small` variant is convenient for quick iteration; the `_large` variant provides broader coverage
+- Includes stochastic line disconnections and maintenance events — realistic fault conditions out of the box
 
-**300,000 records, 4 classes:**
+**Larger benchmark: `l2rpn_wcci_2022`**
+- 118 substations, 186 powerlines, 91 loads, 62 generators — full IEEE 118 scale
+- Supports `chronix2grid` for infinite synthetic data generation
+- Useful for scalability checks or for experiments that benefit from a larger graph and storage nodes
+- A good candidate when comparing how the pipeline behaves at a broader problem scale
 
-| Label | Count | Percentage |
+### What We Simulate and Log
+
+**Normal operation:** Grid2Op's chronics already provide 48–240 years of realistic load and generation time-series at 5-minute resolution — including renewable variability and demand peaks. No synthetic load profiles needed.
+
+**Fault injection:** Grid2Op natively supports stochastic line disconnections and scheduled maintenance. We additionally inject targeted faults:
+
+| Fault Type | How Injected in Grid2Op | Label |
 |---|---|---|
-| Normal | 61,444 | 20.48% |
-| Overload | 103,556 | 34.52% |
-| Line Trip | 75,000 | 25.00% |
-| Cascade | 60,000 | 20.00% |
+| Line overload | Reduce line thermal limit temporarily; monitor `obs.rho > 1.0` | `overload` |
+| Line trip | `action_space({"set_line_status": [(line_id, -1)]})` | `line_trip` |
+| Cascading failure | Trip a high-flow line; adjacent lines exceed thermal limit within 1–3 steps | `cascade` |
+| Maintenance | Use Grid2Op's built-in maintenance schedule from chronics | `maintenance` |
 
-Generated using **chronic-level splitting** (not frame-level) to prevent cascade sequence leakage across train/val splits. Runtime: ~2h38m at ~32 steps/sec.
+**Per-step observation (from `obs` returned by `env.step()`):**
 
-### Labeling Logic (Pure Topology-Based)
+| Feature Group | Grid2Op Attribute | Shape |
+|---|---|---|
+| Line loading ratio | `obs.rho` | `(59,)` — current / thermal limit; >1.0 = overload |
+| Active power flow | `obs.p_or`, `obs.p_ex` | `(59,)` each |
+| Reactive power flow | `obs.q_or`, `obs.q_ex` | `(59,)` each |
+| Voltage at buses | `obs.v_or`, `obs.v_ex` | `(59,)` each |
+| Load values | `obs.load_p`, `obs.load_q` | `(37,)` each |
+| Generation | `obs.gen_p`, `obs.gen_q` | `(22,)` each |
+| Topology vector | `obs.topo_vect` | `(n_sub_elements,)` — busbar assignment per element |
+| Line status | `obs.line_status` | `(59,)` — bool |
+
+**Label:** derived from `obs.rho.max() > 1.0` (overload), `obs.line_status` changes (trip/maintenance), and step-over-step cascading detection.
+
+### Data Generation Script (Skeleton)
 
 ```python
-def get_state_label(obs, env):
-    max_rho      = obs.rho.max() if len(obs.rho) > 0 else 0.0
-    active_lines = int(np.sum(obs.line_status))
+import grid2op
+from grid2op.Parameters import Parameters
+from lightsim2grid import LightSimBackend  # faster backend — use this always
+import numpy as np
+import json
 
-    if max_rho >= 1.0:                          # overload supersedes topology
-        line_id = int(obs.rho.argmax())
-        return "overload", int(env.line_or_to_subid[line_id])
-    if active_lines == env.n_line:              # all lines up → normal
-        return "normal", -1
-    if active_lines == env.n_line - 1:          # exactly one line down → trip
-        line_id = int(np.where(~obs.line_status)[0][0])
-        return "line_trip", int(env.line_or_to_subid[line_id])
-    return "cascade", -1                        # two or more lines down → cascade
+# Example setup using the NeurIPS 2020 track1 small environment (36 subs, 59 lines)
+env = grid2op.make(
+    "l2rpn_neurips_2020_track1_small",
+    backend=LightSimBackend()  # ~10x faster than default PandaPowerBackend
+)
+
+params = Parameters()
+params.NO_OVERFLOW_DISCONNECTION = True  # keep overloads alive so we can label them
+env.change_parameters(params)
+
+do_nothing = env.action_space({})
+records = []
+
+for chronic_id in range(len(env.chronics_handler.subpaths)):
+    obs = env.reset()
+
+    for t in range(env.max_episode_duration()):
+        action = do_nothing
+        fault_label = "normal"
+        fault_loc = None
+
+        # Inject line trip with 8% probability
+        if np.random.rand() < 0.08:
+            line_id = np.random.randint(0, env.n_line)
+            action = env.action_space({"set_line_status": [(line_id, -1)]})
+            fault_label = "line_trip"
+            fault_loc = int(line_id)
+
+        obs, reward, done, info = env.step(action)
+
+        # Overload detection from observation
+        if obs.rho.max() > 1.0:
+            fault_label = "overload"
+            fault_loc = int(obs.rho.argmax())
+
+        records.append({
+            "rho":         obs.rho.tolist(),        # (59,) line loading
+            "p_or":        obs.p_or.tolist(),        # (59,) active power origin
+            "q_or":        obs.q_or.tolist(),
+            "v_or":        obs.v_or.tolist(),        # (59,) voltage origin bus
+            "load_p":      obs.load_p.tolist(),      # (37,) load active power
+            "gen_p":       obs.gen_p.tolist(),       # (22,) gen active power
+            "topo_vect":   obs.topo_vect.tolist(),   # topology
+            "line_status": obs.line_status.tolist(), # (59,) bool
+            "label":       fault_label,
+            "fault_loc":   fault_loc,
+            "timestep":    t,
+            "chronic":     chronic_id
+        })
+
+        if done:
+            break
+
+with open("grid_dataset.json", "w") as f:
+    json.dump(records, f)
 ```
 
-**Key implementation facts:**
-- `NO_OVERFLOW_DISCONNECTION = False` — allows Grid2Op to auto-disconnect overloaded lines, enabling natural cascades. Must be passed at `grid2op.make()` time via `param=params`, not set post-`make()`.
-- FAULT_PROB = 0.10, RECONNECT_PROB = 0.09 — tuned to achieve the target distribution while preventing grid collapse within episodes.
-- Hard record quotas enforced during generation to cap each class.
+> **Note:** `LightSimBackend` from the `lightsim2grid` package replaces the default PandaPower backend. It is the recommended backend for any serious data collection — approximately 10x faster for power flow computation, which matters when iterating over thousands of chronic steps.
 
-### Cross-Topology Test Datasets
+### Why Not These Alternatives
 
-Generated from the same labeling logic above, applied to case14 and WCCI 2022 environments. Same fault injection parameters. No class balancing required — these are test sets, not training sets, so natural distribution is acceptable. ~15k–20k records each; generation time ~30 minutes per environment.
+| Alternative | Why Rejected |
+|---|---|
+| **Real utility datasets** | Proprietary; topology usually stripped; unavailable |
+| **Pandapower (standalone)** | Excellent power flow solver but no built-in episode/chronic management, no RL-compatible step API, and no native fault/maintenance injection framework — we would have to rebuild what Grid2Op already provides |
+| **PSCAD / MATLAB** | Commercial license required; not Python-native; no direct PyTorch integration |
+| **Random synthetic graphs** | Not comparable to published benchmarks; unreproducible by reviewers |
 
-### Train/Val/Test Split
+### Cross-Topology Evaluation Sets (IEEE 14/57/118-bus)
 
-70% train / 15% validation / 15% test. **Chronic-level splitting only** — frame-level splitting leaks cascade sequences across splits, making val/test metrics artificially inflated.
+Eval-only, no training. Same fault injection logic as above, applied to Grid2Op's standard IEEE cases (`case14`, `case57`, `case118` or L2RPN equivalents), used to generate held-out test sets for the frozen 36-bus GNN — see §11. **Prerequisite, unverified:** confirm `obs.rho`, `obs.v_or`, `obs.load_p`, `obs.gen_p`, `obs.topo_vect`, `obs.line_status` are all present with consistent semantics across these environments before generation. Node/edge feature builders (`build_node_features`, `build_edges`) must run unmodified on non-36-bus graphs — verify before use, not assumed.
+
+### Dataset Targets
+
+- **~200,000+ timestep samples** — the `_small` tier alone covers ~48 years at 5-min resolution; we use a sampled subset covering normal, overload, trip, cascade, and maintenance conditions
+- **Split:** 70% train / 15% validation / 15% test
+- **Stratified** by fault type to prevent class imbalance
+- Final training runs use `_large` (240 years of data) if validation metrics plateau on `_small`
 
 ---
 
 ## 7. GNN Training Pipeline
 
-### Feature Construction
+**Scope:** training happens on 36-bus data only. IEEE 14/57/118-bus data (§6) is never used to fit weights — frozen model is evaluated on it, see §11.
 
-**Node features** are constructed per substation by aggregating line-level observations to bus level. **Edge features** are per line. Tripped lines are physically pruned from `edge_index` using the `line_status` boolean mask before graph construction.
+### Cross-Topology Inference Script (new, not yet written)
 
-Node feature vector (4 features):
-```
-x_v = [load_p_v, mean_v_v, max_rho_v, connected_line_frac_v]
-```
+Separate from `evaluate.py`, which stays scoped to 36-bus in-domain test-split evaluation and is unaffected by this addition. New script's job:
 
-Edge feature vector (4 features):
-```
-e_uv = [rho_uv, p_or_uv, q_or_uv, line_status_uv]
-```
+1. Load frozen `gnn_checkpoint_best.pt` and `normalization_stats.pt` (36-bus stats, reused unchanged).
+2. For each unseen-topology test case: build PyG graph via the existing `build_node_features`/`build_edges` functions (prerequisite: verified to run unmodified on that topology, §6).
+3. Normalize using the **loaded** stats — not recomputed from the new topology.
+4. Forward pass → retain **top-k (k=3)** class/bus predictions from the softmax output, ranked by confidence — not argmax-only (§5, Correction Mechanism). Same distribution already computed for the entropy metric (§11), just no longer discarded before the shield step.
+5. Pass the top-k candidate set through the extended shield logic (§5) → PASS / CORRECT / BLOCK, per the constrained-selection procedure.
+6. Log per-case: predicted (top-1) vs. true label, shield output candidate vs. true fault bus (for hop-distance), shield verdict, and — if CORRECT — which rank in the top-k was selected.
 
-### Normalization
+Output feeds the three-tier table in §11: accuracy/F1 with and without shield, mean hop error, KCL residual (computed from obs, §9), Shield Activation Rate, Correction Delta, Catastrophic Failure Rate. Run once per topology (14, 57, 118-bus).
 
-Z-score normalization computed from the training split only:
+### From Raw Records to PyG Graph Objects
 
-```python
-node_mean, node_std, edge_mean, edge_std = compute_normalization_stats(dataset, train_idx)
-
-# Applied to entire dataset in-place before split
-full_dataset._data.x         = (full_dataset._data.x         - node_mean) / node_std
-full_dataset._data.edge_attr = (full_dataset._data.edge_attr - edge_mean) / edge_std
-
-# Saved to disk — required for cross-topology inference
-torch.save({
-    "node_mean": node_mean, "node_std": node_std,
-    "edge_mean": edge_mean, "edge_std": edge_std,
-}, "data/normalization_stats.pt")
-```
-
-All features are normalized uniformly. No physics exemptions for rho or connected_line_frac — exempting individual features creates scale mismatches inside GATConv attention weight computation.
-
-### In-Memory Shuffle (Required)
-
-The training script enforces an unconditional in-memory shuffle before training to eliminate chronological domain shift:
+The JSON records produced by the data collection script are raw arrays — they need to be converted into PyTorch Geometric `Data` objects before training. Each timestep becomes one graph: nodes are substations, edges are powerlines, and labels are the fault classification target.
 
 ```python
-combined_idx = np.concatenate([train_idx, val_idx])
-np.random.seed(42)
-np.random.shuffle(combined_idx)
-train_idx = combined_idx[:len(train_idx)]
-val_idx   = combined_idx[len(train_idx):]
+import torch
+from torch_geometric.data import Data, Dataset
+import json
+import numpy as np
+
+class GridDataset(Dataset):
+    def __init__(self, records):
+        super().__init__()
+        self.records = records
+
+    def len(self):
+        return len(self.records)
+
+    def get(self, idx):
+        r = self.records[idx]
+
+        # Node features: one row per substation (36 subs)
+        # We aggregate line-end features to bus level
+        node_feats = build_node_features(r)  # shape: (36, n_node_features)
+
+        # Edge index: (2, 59*2) — bidirectional
+        edge_index, edge_attr = build_edge_index_and_features(r)
+
+        # Label encoding: normal=0, overload=1, line_trip=2, cascade=3, maintenance=4
+        label = LABEL_MAP[r["label"]]
+
+        return Data(
+            x=torch.tensor(node_feats, dtype=torch.float),
+            edge_index=torch.tensor(edge_index, dtype=torch.long),
+            edge_attr=torch.tensor(edge_attr, dtype=torch.float),
+            y=torch.tensor(label, dtype=torch.long),
+            fault_loc=r["fault_loc"]
+        )
+
+
+def build_node_features(r):
+    # Per substation: aggregate load_p, gen_p, and mean voltage of connected lines
+    # Shape: (36, 4) — [load_p, gen_p, mean_v_or, max_rho_connected]
+    ...  # implemented during coding phase
+
+def build_edge_index_and_features(r):
+    # Lines become bidirectional edges
+    # Edge features: [rho, p_or, q_or] per line
+    # Shape: edge_index (2, 118), edge_attr (118, 3)
+    ...
 ```
 
-Without this, the model trains on low-load chronics and validates on high-load chronics, guaranteeing mode collapse.
+### Model Architecture
 
-### Class Weights
+We implement a two-headed GNN:
+- **Classification head:** graph-level output — what type of fault is this? (normal / overload / line\_trip / cascade / maintenance)
+- **Localization head:** node-level output — which substation/line is the fault at?
 
-Inverse Class Frequency with sqrt smoothing:
+```python
+import torch.nn as nn
+import torch.nn.functional as F
+from torch_geometric.nn import GATConv, global_mean_pool
+
+class GridGNN(nn.Module):
+    def __init__(self, node_features, edge_features, n_classes, n_nodes):
+        super().__init__()
+
+        # GAT layers — attention weights give us interpretability per edge
+        self.conv1 = GATConv(node_features, 64, heads=4, edge_dim=edge_features, dropout=0.2)
+        self.conv2 = GATConv(64 * 4, 128, heads=4, edge_dim=edge_features, dropout=0.2)
+        self.conv3 = GATConv(128 * 4, 256, heads=1, edge_dim=edge_features, dropout=0.2)
+
+        # Classification head (graph-level)
+        self.classifier = nn.Sequential(
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, n_classes)
+        )
+
+        # Localization head (node-level)
+        self.localizer = nn.Sequential(
+            nn.Linear(256, 64),
+            nn.ReLU(),
+            nn.Linear(64, 1)   # fault probability per node
+        )
+
+    def forward(self, x, edge_index, edge_attr, batch):
+        # Message passing
+        x = F.elu(self.conv1(x, edge_index, edge_attr))
+        x = F.elu(self.conv2(x, edge_index, edge_attr))
+        x = self.conv3(x, edge_index, edge_attr)
+
+        # Node-level: localization logits
+        loc_logits = self.localizer(x).squeeze(-1)
+
+        # Graph-level: pool then classify
+        graph_emb = global_mean_pool(x, batch)
+        class_logits = self.classifier(graph_emb)
+
+        return class_logits, loc_logits
 ```
-w_c = sqrt(N / (C × N_c))
+
+### Training Loop
+
+```python
+from torch_geometric.loader import DataLoader
+from torch.optim import AdamW
+from torch.optim.lr_scheduler import CosineAnnealingLR
+
+# Split dataset
+train_set, val_set, test_set = stratified_split(dataset, ratios=(0.70, 0.15, 0.15))
+train_loader = DataLoader(train_set, batch_size=64, shuffle=True)
+val_loader   = DataLoader(val_set,   batch_size=64)
+
+model = GridGNN(node_features=4, edge_features=3, n_classes=5, n_nodes=36).cuda()
+optimizer = AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
+scheduler = CosineAnnealingLR(optimizer, T_max=50)
+
+# Class weights to handle imbalance (normal >> fault samples)
+class_weights = compute_class_weights(train_set).cuda()
+cls_loss_fn = nn.CrossEntropyLoss(weight=class_weights)
+loc_loss_fn = nn.BCEWithLogitsLoss()
+
+for epoch in range(100):
+    model.train()
+    for batch in train_loader:
+        batch = batch.cuda()
+        class_logits, loc_logits = model(
+            batch.x, batch.edge_index, batch.edge_attr, batch.batch
+        )
+
+        cls_loss = cls_loss_fn(class_logits, batch.y)
+
+        # Localization loss only on fault samples (loc target = 1 at fault node, 0 elsewhere)
+        if batch.fault_loc is not None:
+            loc_targets = build_loc_targets(batch)  # (total_nodes,) binary
+            loc_loss = loc_loss_fn(loc_logits, loc_targets)
+        else:
+            loc_loss = torch.tensor(0.0).cuda()
+
+        loss = cls_loss + 0.5 * loc_loss   # weighted sum; tune alpha if needed
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+    scheduler.step()
+    evaluate(model, val_loader)  # logs to W&B
 ```
 
-Applied to CrossEntropyLoss. Prevents the model from ignoring cascade (rarest class).
+### What Gets Logged to W&B
 
-### Validation Metric
-
-**Macro F1, not accuracy.** On an imbalanced 4-class dataset, accuracy is dominated by the majority class. Macro F1 treats all four fault classes equally — a model that ignores cascade completely will show high accuracy but near-zero macro F1.
+Every epoch logs: train loss (classification + localization), validation macro F1, per-class F1, localization accuracy (correct fault node in top-3 predictions), and attention weight entropy (a proxy for how focused the model's attention is — useful for explainability analysis).
 
 ---
 
-## 8. End-to-End Integration & Testing
+## 8. End-to-End Toy Scenario Testing
 
-### Phase 1 — Toy Scenario Smoke Test
+This section describes how all four components are wired together and run against hand-crafted scenarios to verify the full pipeline before any formal evaluation.
 
-Three hand-crafted scenarios on `rte_case5_example` (5-bus) verify the full pipeline runs end-to-end without integration failures. Must all pass before proceeding to Phase 2.
+### The Toy Scenario Setup
 
-**Scenario 1 — Clean pass:** All lines at 60–80% load, voltages nominal. GNN predicts "normal". Expected: PASS.
+We use `rte_case5_example` — Grid2Op's 5-bus, 8-line minimal environment — specifically for toy testing. It is small enough that every state can be manually verified by inspection, but it runs through the exact same code path as the full environment. This is the integration test harness, not a benchmark.
 
-**Scenario 2 — Overload block:** Line 3 at 115% thermal limit. GNN predicts "disconnect Line 3". Shield evaluates voltage and N-1 rules. Expected: BLOCK citing rule IDs and sources.
+Three toy scenarios are defined manually:
 
-**Scenario 3 — Multi-rule cascade block:** Lines 2 and 5 at 90% load. GNN predicts "disconnect Line 2". Shield evaluates thermal limit AND N-1 security rules simultaneously. Expected: BLOCK with multi-rule explanation.
+**Scenario 1 — Clean pass (should not be blocked)**
+- Grid state: all lines operating at 60–80% load, voltages nominal
+- GNN prediction: "normal — no action required"
+- Expected shield output: PASS
 
-### Phase 2 — Home Topology Formal Evaluation
+**Scenario 2 — Overload (should be blocked)**
+- Grid state: Line 3 at 115% thermal limit (`obs.rho[3] = 1.15`)
+- GNN prediction: "switch off Line 3"
+- LLM-extracted rule R_011: "IF rho > 1.0 on any line THEN action must reduce loading, not disconnect without alternate path"
+- Expected shield output: BLOCK + explanation citing R_011
 
-Held-out test set from `l2rpn_neurips_2020_track1_small` (15% of 300,000 records). Full pipeline: obs → PyG graph → GNN → class logits → prediction context → shield → PASS/BLOCK + explanation. Metrics logged per step and aggregated.
+**Scenario 3 — Cascading risk (should be blocked with multi-rule explanation)**
+- Grid state: Lines 2 and 5 at 90% load
+- GNN prediction: "disconnect Line 2 to reduce load"
+- LLM-extracted rules: R_011 (thermal limit), R_019 (N-1 security — no bus left isolated)
+- Expected shield output: BLOCK + explanation citing both R_011 and R_019
 
-### Phase 3 — Cross-Topology Evaluation
+### The Full Wiring Code
 
-The same trained GNN checkpoint and the same KG are evaluated on case14 and WCCI 2022 test sets. No retraining, no fine-tuning, no KG modification.
+```python
+import grid2op
+from lightsim2grid import LightSimBackend
+import torch
+import networkx as nx
 
-**Information flow per step:**
+# ── 1. Load environment ──────────────────────────────────────────────────────
+env = grid2op.make("rte_case5_example", backend=LightSimBackend())
+
+# ── 2. Load trained GNN ─────────────────────────────────────────────────────
+model = GridGNN(node_features=4, edge_features=3, n_classes=5, n_nodes=5)
+model.load_state_dict(torch.load("gnn_checkpoint.pt"))
+model.eval()
+
+# ── 3. Load knowledge graph (built from LLM extraction run) ─────────────────
+KG = nx.read_gpickle("knowledge_graph.gpickle")
+
+# ── 4. Define toy scenarios ──────────────────────────────────────────────────
+scenarios = [
+    {"name": "clean_pass",      "inject": None},
+    {"name": "overload",        "inject": {"set_line_status": [(3, -1)]}},  # trip line 3
+    {"name": "cascade_risk",    "inject": {"set_line_status": [(2, -1)]}},  # trip line 2
+]
+
+for scenario in scenarios:
+    obs = env.reset()
+
+    # Apply scenario setup if needed
+    if scenario["inject"]:
+        action = env.action_space(scenario["inject"])
+        obs, _, _, _ = env.step(action)
+
+    # ── 5. Convert observation to PyG graph ──────────────────────────────────
+    graph = obs_to_pyg(obs)  # same function used during training
+
+    # ── 6. GNN inference ─────────────────────────────────────────────────────
+    with torch.no_grad():
+        class_logits, loc_logits = model(
+            graph.x, graph.edge_index, graph.edge_attr, graph.batch
+        )
+    predicted_class = class_logits.argmax().item()
+    predicted_action = CLASS_TO_ACTION[predicted_class]
+
+    # ── 7. Build prediction context for the shield ───────────────────────────
+    prediction = Prediction(
+        action=predicted_action,
+        context={
+            "rho":         obs.rho.tolist(),
+            "line_status": obs.line_status.tolist(),
+            "v_or":        obs.v_or.tolist(),
+        },
+        entity="grid"
+    )
+
+    # ── 8. Shield validation ──────────────────────────────────────────────────
+    result = validate(prediction, KG)
+
+    # ── 9. Print result ───────────────────────────────────────────────────────
+    print(f"\n{'='*60}")
+    print(f"Scenario : {scenario['name']}")
+    print(f"GNN says : {predicted_action}")
+    print(f"Shield   : {result['status']}")
+    if result["status"] == "BLOCK":
+        print(f"Reason   : {result['explanation']}")
 ```
-obs (foreign topology)
-    → build_node_features(obs, meta_foreign)   ← uses foreign env's topology meta
-    → build_edges(obs, meta_foreign)
-    → normalize using normalization_stats.pt    ← from 36-bus training split
-    → GNN inference (classification head only)  ← localization head disabled
-    → prediction context (raw obs values)
-    → shield validate()                         ← same KG, topology-agnostic rules
-    → PASS or BLOCK + failure mode classification
+
+### Expected Console Output
+
+```
+============================================================
+Scenario : clean_pass
+GNN says : no_action
+Shield   : PASS
+
+============================================================
+Scenario : overload
+GNN says : disconnect_line_3
+Shield   : BLOCK
+Reason   : Rule R_011 violated: Action would disconnect Line 3 without a verified
+           alternate feed path for Bus 4. N-1 security constraint not satisfied.
+           (Source: IEEE Std C37.2, Section 5.2)
+
+============================================================
+Scenario : cascade_risk
+GNN says : disconnect_line_2
+Shield   : BLOCK
+Reason   : Rule R_011 violated: Line 2 loading at 90% — disconnection triggers
+           thermal cascade on Line 5 (projected rho: 1.21).
+           (Source: IEEE Std 1547-2018, Section 7.4) |
+           Rule R_019 violated: Bus 3 has no alternate feed after Line 2 removal.
+           (Source: Grid Operations Manual, Section 4.2)
 ```
 
-**Why the same normalization stats work on foreign topologies:** The physical quantities (rho, voltage in kV, power in MW) have the same physical meaning and scale regardless of how many buses the environment has. The training distribution of these quantities is a reasonable prior for any Grid2Op environment.
+### What This Validates
 
-**What changes per topology:** The `meta` object passed to `build_node_features` and `build_edges` must come from the foreign environment's meta JSON, not the training environment's. This ensures node/edge construction uses the correct bus-to-line mappings for the foreign topology.
+Running all three scenarios successfully confirms:
+1. The GNN produces outputs in the expected format and can be converted from an observation without errors
+2. The knowledge graph was correctly built from LLM extraction and is queryable
+3. The shield correctly passes valid states and blocks invalid ones
+4. Explanations are traceable to specific rule IDs and source documents
+5. The full pipeline runs end-to-end without integration failures
 
-### Phase 4 — Failure Mode Clustering
-
-Every BLOCK decision from Phase 3 is logged to `failures_<topo>.jsonl` with: true label, predicted label, confidence, violated rule IDs, highest severity, and failure mode classification. Aggregated across all steps to produce the failure mode distribution per topology — a key thesis table.
+Only after all three toy scenarios pass do we move to formal evaluation on held-out chronics from the selected benchmark environment.
 
 ---
 
@@ -627,97 +969,113 @@ Every BLOCK decision from Phase 3 is logged to `failures_<topo>.jsonl` with: tru
 
 | Component | Tool | Justification |
 |---|---|---|
-| Grid simulation | **Grid2Op + LightSimBackend** | RTE-built; L2RPN benchmark environments; ~10x faster than PandaPower backend |
-| GNN framework | **PyTorch + PyTorch Geometric** | De facto standard for GNN research; GAT, global pooling, DataLoader |
-| LLM inference | **Ollama + Qwen3-14B + Nemotron-3 Nano 30B** | Local, reproducible; JSON format enforcement; think mode control |
-| LLM orchestration | **pdfplumber + custom chunker** | PDF ingestion; sliding-window chunking with paragraph-boundary detection |
-| Schema validation | **Pydantic** | Rule and Verdict schemas; malformed outputs dropped before KG ingestion |
-| Knowledge graph | **NetworkX DiGraph** | Zero setup; in-process; sufficient at 587 nodes / 6,632 edges |
-| Shield logic | **Python (custom)** | Fully auditable; `eval()` with whitelist namespace; no external dependencies |
-| Experiment tracking | **Weights & Biases** | Training metrics, per-class F1, confusion matrices |
+| Grid simulation | **Grid2Op** | Built by RTE (French TSO); native chronic/episode management; thermal limit enforcement; L2RPN benchmark environment; RL-compatible step API |
+| Grid2Op backend | **lightsim2grid** | ~10x faster power flow solver than Grid2Op's default PandaPower backend; mandatory for any serious data generation run |
+| Physics solver (KCL residuals) | **None — computed directly from Grid2Op obs** | Decided: no PyPSA/PowerModels.jl. Per-bus KCL residual computed from `obs.p_or`/`obs.p_ex` (and q equivalents) already logged in §6 — sum of incident line flows vs. `load_p − gen_p` at the bus. Zero new dependencies, no integration risk. |
+| GNN framework | **PyTorch + PyTorch Geometric** | De facto standard for GNN research; full architecture flexibility |
+| LLM inference | **Ollama + Qwen3.6-35B-A3B / Nemotron 3 Nano (30B-A3B)** | Local, reproducible; sequential two-stage pipeline — Extractor then Validator; native JSON format enforcement |
+| LLM orchestration | **LangChain** | PDF document loaders, chunking, prompt chaining |
+| Knowledge graph | **NetworkX** → **Neo4j** if needed | Zero-setup for research scale; Neo4j only if Cypher querying becomes necessary |
+| Shield logic | **Python (custom)** | Fully auditable, no external dependencies, easy to unit test |
+| Data validation | **Pydantic** | Schema enforcement on LLM JSON outputs |
+| Experiment tracking | **Weights & Biases** | Training metrics, hyperparameter logging, run comparison |
 | Version control | **Git + GitHub** | Standard |
 
 ---
 
 ## 10. Hardware & Compute Allocation
 
-### Research PC — All Primary Workloads
-
+### Research PC — Heavy Workloads
 - **CPU:** Intel Core i7-14700K (20 cores / 28 threads)
-- **GPU:** NVIDIA RTX 4080 Super — 16GB VRAM
+- **GPU:** NVIDIA RTX 3090 — **24GB VRAM** (upgraded from RTX 4080 Super 16GB)
 - **RAM:** DDR5 64GB
-- **Schedule:** Saturdays, Mondays, Wednesdays, 1 PM–1 AM
-- **Runs:** GNN training, all dataset generation (training + cross-topology test sets), LLM extraction (Qwen3-14B then Nemotron-3 Nano 30B, sequential), cross-topology evaluation
+- **Runs:** GNN training, large-scale dataset generation, LLM knowledge extraction (Qwen3.6-35B-A3B Extractor + Nemotron 3 Nano 30B-A3B Validator, sequential), hyperparameter sweeps
 
-### Personal PC — Development & Smoke Tests Only
-
+### Personal PC — Development & Light Testing Only
 - **CPU:** AMD Ryzen 5 7500F
-- **GPU:** Intel Arc B580 — 12GB VRAM (no PyG XPU support, no LLM inference)
+- **GPU:** Intel Arc B580 — **12GB VRAM**
 - **RAM:** DDR5 16GB
-- **Runs:** Code development, unit tests, shield logic, `num_workers=0` DataLoader tests
+- **Runs:** Code development, unit tests, shield logic, small-scale smoke tests
 
-### Allocation Rules
+### Implications for Implementation
 
-- All production runs execute on the Research PC only
-- Personal PC never runs training, dataset generation at scale, or LLM inference
-- LLM extraction: Qwen3-14B (~8–10GB VRAM, fully GPU-resident) runs first; Nemotron-3 Nano 30B (~18–20GB, partial CPU offload into 64GB RAM) runs second. Sequential, never concurrent.
-- GNN training target: under 2 hours per run on RTX 4080 Super
-- Cross-topology dataset generation: ~30 minutes per environment (inference only, no training)
-- `num_workers=0` enforced on Windows DataLoader (PyG multiprocessing constraint)
+- All production runs (data generation, LLM extraction, GNN training) execute on the Research PC
+- Personal PC is for writing and testing code only — do not run the full pipeline there
+- LLM extraction uses two sequential passes: Qwen3.6-35B-A3B (Extractor, GPU-resident at Q4_K_M/Q5_K_M) then Nemotron 3 Nano 30B-A3B (Validator). Both run one at a time; 24GB VRAM reduces but does not eliminate the case for sequential loading over concurrent.
+- GNN must train in under 2 hours per run on the RTX 3090 — if it doesn't, reduce model size or dataset batch size first
+- No multi-GPU; keep everything single-device
+- Cross-topology inference (frozen model on 14/57/118-bus, §11) is inference-only — cheap, no dedicated multi-hour block needed. Dataset generation for those topologies (§6) is the heavier cost; estimate before scheduling against the Research PC access window.
 
 ---
 
 ## 11. Evaluation Plan
 
-### GNN — Home Topology (NeurIPS 2020 Test Split)
+### GNN (Neural Component)
 
 | Metric | Description |
 |---|---|
-| Macro F1 | Primary metric — F1 averaged across all 4 fault classes equally |
-| Per-class F1 | Breakdown by normal / overload / line_trip / cascade |
-| Confusion matrix | Reveals which fault types are confused with each other |
+| Accuracy | Overall correct fault classification |
+| Macro F1-score | F1 averaged across all fault classes equally |
+| Precision / Recall | Per fault class — especially for rare fault types |
 
-Baseline comparisons: flat MLP on same data, LSTM on time-series version of same data. GNN should outperform both on macro F1 due to topology-aware message passing.
+Baseline comparisons: flat MLP on same data, LSTM on time-series version of same data. GNN should outperform both due to topology awareness.
+
+### Shield (Symbolic Validation)
+
+| Metric | Description |
+|---|---|
+| Rule compliance rate | % of passed predictions that satisfy all applicable rules |
+| False block rate | % of valid predictions incorrectly blocked |
+| Block precision | % of blocked predictions that were genuinely rule-violating |
+
+Test: Feed a set of deliberately crafted rule-violating predictions. Shield must block 100% of them. Feed valid predictions. False block rate should be near zero.
 
 ### LLM Rule Extraction
 
-| Metric | Value (finalized) |
-|---|---|
-| Candidates extracted | 1,372 |
-| Confirmed + corrected (retained) | 501 (36.5%) |
-| Rejected | 766 (55.8%) |
-| Flagged | 105 (7.6%) |
-| Unique rules after dedup | 469 |
-
-These numbers are reported as-is. The extraction pipeline is complete.
-
-### Shield — Home Topology
-
 | Metric | Description |
 |---|---|
-| Rule compliance rate | % of PASS decisions that satisfy all applicable rules (should be 100% by construction) |
-| False block rate | % of ground-truth normal/valid states incorrectly blocked |
-| Block precision | % of blocked predictions that were genuinely rule-violating |
+| Rule coverage | % of known ground-truth rules successfully extracted |
+| Rule precision | % of extracted rules that are correct (manually verified) |
+| Parse success rate | % of LLM outputs that are valid JSON matching the schema |
 
-Reference target: Younesi et al. (2026) achieved 91.7% safe restoration with manually written rules. Our target is to match or exceed this with LLM-generated rules.
+Ground truth: a manually compiled reference set of rules from IEEE 1547 and one grid operations manual, independently verified by the team.
 
-### Cross-Topology Generalization (New — Core Thesis Evaluation)
+### End-to-End System
 
-Evaluated on case14 (14-bus) and WCCI 2022 (118-bus) using the GNN trained on NeurIPS 2020 (36-bus). No retraining.
+- Run held-out chronics from the selected benchmark environment with injected faults
+- Compare: GNN-only output vs. GNN + Shield output
+- Metrics: safe action rate, blocked action rate, explanation quality (human-rated 1–5)
+- Reference target: Younesi et al. (2026) achieved 91.7% safe restoration with manually written rules — our system aims to match or exceed that with automated rule generation
+- **Scope note:** the shield's job in this evaluation is detection and gating (PASS/BLOCK), not corrective action. Comparison papers that perform redispatch or repair of unsafe states are evaluating a different capability; matching their safe-restoration numbers is the relevant comparison, not their corrective behavior. See §12.
 
-| Metric | Description |
-|---|---|
-| GNN macro F1 per topology | Expected to degrade as topology diverges from training |
-| Shield rule compliance rate per topology | Expected to remain near-constant — rules are topology-agnostic |
-| BLOCK rate per topology | Fraction of predictions the shield intercepts |
-| False block rate per topology | Shield over-blocking valid states on unseen topology |
-| Failure mode distribution | Count of each failure mode (overconfident wrong / class confusion / threshold failure / novel topology state) |
+### Cross-Topology Generalization Evaluation
 
-**The core thesis result** is the comparison of these two curves: GNN macro F1 (drops with topology distance) vs Shield compliance rate (stays flat). The gap between them is the safety contribution of the symbolic layer — the empirical proof of why a decoupled neuro-symbolic architecture is necessary for cross-topology deployment.
+Purpose: characterize how the frozen 36-bus GNN degrades on unseen topologies, and quantify what the shield recovers. This is a diagnostic/generalization claim, not an autonomy claim.
 
-### Explanation Quality
+**Three-tier results table** (per unseen topology — 14/57/118-bus):
 
-For blocked predictions, the explanation cites `rule_id` and `source`. Team members rate each explanation 1–5 on correctness, specificity, and actionability. Reported as mean ± std per topology.
+| Metric | 1. Trained (36-bus) | 2. Unseen [No Shield] | 3. Unseen [With Shield] |
+|---|---|---|---|
+| Fault Accuracy | baseline | degraded | restored |
+| Macro F1 | baseline | degraded | restored |
+| Mean Hop Error | ~0 | elevated | reduced |
+| KCL Violations | 0% | elevated | 0% (shield-guaranteed) |
+| Shield Activation Rate | — | — | monitored |
+
+**Metrics, by tier:**
+
+*ML tier* — Localization accuracy drop (`Δacc = Acc(T_A) − Acc(T_B)`); Macro F1 degradation (faults are class-imbalanced, accuracy alone misleads); prediction entropy shift (`H(X) = −Σ P(x_i) log₂ P(x_i)` — rising entropy signals the GNN is guessing).
+
+*Physics tier* — Topological distance error: shortest-path (hop) distance between predicted and true fault location on the target graph. Physical invariant residual: KCL residual `I_residual = |ΣI_in − ΣI_out|` at the predicted fault zone, computed directly from `obs.p_or`/`p_ex`/`q_or`/`q_ex` — no external solver (§9).
+
+*Shield tier* — Shield Activation Rate: `SAR = (Shield Interventions / Total Test Scenarios) × 100%`. Correction Delta: % of GNN-wrong cases where the shield selects a valid candidate from the GNN's own top-k output and it matches the true fault — constrained selection, not generation; see §5 Correction Mechanism for the exact procedure. Catastrophic Failure Rate: % of cases where no candidate in the top-k satisfies rules/physics, so no valid solution exists (reject / manual override).
+
+**Topology distance analysis:** for each candidate test topology, compute node-count ratio, average node degree, graph diameter, and density relative to the 36-bus training graph. Plot F1 against each metric independently across all available IEEE cases (14/30/33/57/118). Identify the breakpoint where performance collapses rather than degrades smoothly, then correlate which structural variable predicts it best — do not assume node count is the driver; average degree/density is the more likely candidate and must be checked, not presumed.
+
+**Prerequisites before running:**
+1. **Open.** Confirm feature builder (`build_node_features`/`build_edges`) runs unmodified on non-36-bus Grid2Op environments — one smoke-test episode on `case14`, personal PC, before generating full eval sets (§6).
+2. **Resolved.** Normalization strategy — reuse 36-bus stats, fixed (§2).
+3. **Resolved.** KCL residual — computed directly from obs, no external solver (§9).
 
 ---
 
@@ -727,11 +1085,12 @@ These are decided exclusions. Do not prototype or propose these.
 
 - Real utility deployment or hardware-in-the-loop
 - Training any foundation model (LLMs are used pre-trained, quantized only)
-- Fine-tuning the GNN on cross-topology test environments
+- Transmission-level grids (we work on distribution level via Grid2Op's built-in environments only)
 - Multi-agent / multi-microgrid coordination
-- Reinforcement Learning agent (future work only)
 - Blockchain, digital twins, or metaverse integration
-- Softening the shield into a loss penalty — the hard inference gate is non-negotiable
+- Reinforcement Learning agent (future work only)
+- **Corrective action (auto-repair of unsafe states).** The shield blocks unsafe GNN predictions; it does not propose or execute a fix. This is a deliberate scope boundary, not an oversight — redispatch/repair is a different problem (see Younesi et al. 2026, OPF/redispatch literature) and adding it would conflate detection-and-gating novelty with optimization novelty. Flagged explicitly here so it reads as scoped, not missing, at defense. **Note:** the shield's CORRECT verdict (§5, §11) is not an exception to this — it selects among the GNN's own top-k candidates via rule/physics filtering and never proposes a fault location, bus, or action the GNN did not already surface. Selection over an existing hypothesis set is categorically distinct from generating a repair action; if this distinction is challenged at defense, the answer is that scope.
+- **Retraining or fine-tuning on non-36-bus topologies.** Cross-topology evaluation (§11) uses frozen 36-bus weights only. Any retraining on 14/57/118-bus data would defeat the generalization measurement — explicitly excluded, not an oversight.
 
 ---
 
@@ -740,27 +1099,32 @@ These are decided exclusions. Do not prototype or propose these.
 | Term | Definition |
 |---|---|
 | **GNN** | Graph Neural Network — processes graph-structured input natively |
-| **GAT** | Graph Attention Network — GNN variant where edges have learned attention weights; our chosen architecture |
-| **Knowledge Graph (KG)** | Graph of grid entities (Bus, Line, Generator, Grid) and Rule nodes linked by `has_rule` edges |
-| **Shield** | The symbolic validation layer — hard-blocks rule-violating GNN outputs; also acts as diagnostic tool for cross-topology failure analysis |
-| **Cross-topology evaluation** | Running the trained GNN+Shield on grid environments it was never trained on, to measure generalization and safety guarantees |
-| **Failure mode** | Structured category of why the shield blocked a prediction on an unseen topology: overconfident wrong / class confusion / threshold failure / novel topology state |
+| **GCN** | Graph Convolutional Network — a specific GNN architecture using spectral convolution |
+| **GAT** | Graph Attention Network — GNN variant where edges have learned attention weights |
+| **Knowledge Graph (KG)** | Graph of entities, relationships, and rules — our symbolic rule store |
+| **Shield** | The symbolic validation layer — hard-blocks rule-violating GNN outputs |
 | **Grid2Op** | Python power grid simulation framework by RTE; manages episodes, chronics, and fault injection for AI research |
 | **Chronic** | A time-series of load and generation values used as one simulation episode in Grid2Op |
-| **Chronic-level splitting** | Assigning entire chronic sequences to train or test — prevents cascade sequence frames from leaking across splits |
-| **`obs.rho`** | Grid2Op observation attribute — ratio of current flow to thermal limit per line; ≥1.0 means overload |
-| **`rte_case14_sandbox`** | Grid2Op 14-bus environment — used as unseen smaller topology in cross-topology evaluation |
-| **`l2rpn_neurips_2020_track1_small`** | Grid2Op NeurIPS 2020 environment — 36 buses, 59 lines; training topology |
-| **`l2rpn_wcci_2022`** | Grid2Op WCCI 2022 environment — 118 buses, 186 lines; used as unseen larger topology in cross-topology evaluation |
-| **LightSimBackend** | Fast power flow backend for Grid2Op (~10x faster than default); from `lightsim2grid` package |
-| **Macro F1** | F1 score averaged equally across all classes — primary GNN validation metric; robust to class imbalance |
-| **Normalization stats** | Per-feature mean and std computed from the 36-bus training split; applied to all topologies at inference time; saved to `normalization_stats.pt` |
-| **Topology-agnostic** | Property of the shield's KG rules and the GNN's global pooling — both operate correctly regardless of how many buses or lines the environment has |
-| **`track_running_stats=False`** | BatchNorm setting that forces live batch statistics during both train and eval — prevents running stats from flattening anomaly signals in eval mode |
-| **Voltage pu** | Voltage in per-unit — normalized so 1.0 = nominal; IEEE rules use pu; Grid2Op provides kV; conversion: divide by 150.0 for NeurIPS 2020 environment |
-| **Gen-3 NeSy** | Generation 3 Neuro-Symbolic — hard inference-time symbolic gate, as opposed to Gen-2 soft loss penalty approaches (PINNs) |
-| **Ollama** | Local LLM runtime used for Qwen3-14B and Nemotron-3 Nano 30B inference; `keep_alive=0` releases VRAM immediately after each call |
-| **NetworkX** | Python graph library used as KG backend; `DiGraph` for directed edges |
+| **`obs.rho`** | Grid2Op observation attribute — ratio of current flow to thermal limit per line; >1.0 means overload |
+| **`rte_case5_example`** | Grid2Op's 5-bus, 8-line minimal environment — used exclusively for toy scenario integration testing |
+| **`l2rpn_neurips_2020_track1`** | Grid2Op's NeurIPS 2020 competition environment — 36 substations, 59 lines, subset of IEEE 118. One benchmark option used for the thesis |
+| **`l2rpn_wcci_2022`** | Grid2Op's WCCI 2022 environment — full IEEE 118 scale (118 subs, 186 lines). Another benchmark option used for larger-scale testing |
+| **LightSimBackend** | Fast power flow backend for Grid2Op (~10x faster than default); from the `lightsim2grid` package |
+| **Power flow** | Mathematical solution for voltage/current/power at every grid node |
+| **Fault injection** | Programmatically forcing a fault condition (overload, undervoltage, line trip) in simulation |
+| **Voltage pu** | Voltage in per-unit — normalized so 1.0 = nominal voltage |
+| **Knowledge bottleneck** | The problem that symbolic rules in NeSy systems must be written by hand — LLM extraction solves this |
+| **LangChain** | Python framework for orchestrating LLM pipelines with structured outputs |
+| **Ollama** | Local LLM runtime that simplifies model management, serving, and inference with structured output support |
+| **NetworkX** | Python graph library used as our initial knowledge graph backend |
+| **4-bit/5-bit quantization** | Model compression (Q4_K_M/Q5_K_M) that reduces LLM memory footprint; allows Qwen3.6-35B-A3B to run GPU-resident on the RTX 3090's 24GB VRAM |
+| **Frozen weights** | GNN weights fixed after 36-bus training; used unchanged for cross-topology inference, no fine-tuning |
+| **Geodesic / hop distance** | Shortest-path distance (in graph hops) between predicted and true fault location on the target topology |
+| **KCL residual** | `|ΣI_in − ΣI_out|` at a node — nonzero indicates a physically invalid prediction under Kirchhoff's Current Law |
+| **Shield Activation Rate (SAR)** | % of test cases where the shield intervenes (vetoes or corrects) a GNN prediction |
+| **Correction Delta** | % of GNN-wrong cases where the shield selects a valid candidate from the GNN's top-k output matching the true fault — constrained selection, not generation (§5) |
+| **Top-k candidate set** | The k=3 highest-confidence class/bus predictions from the GNN's softmax output, retained instead of collapsing to argmax, so the shield has candidates to select over for CORRECT verdicts (§5, §7) |
+| **Node count ratio** | Test-topology node count ÷ training-topology node count (e.g. 118/36 ≈ 3.3×) — one candidate predictor of generalization breakpoint |
 
 ---
 
@@ -768,19 +1132,18 @@ These are decided exclusions. Do not prototype or propose these.
 
 > **Nothing in this document is final.**
 >
-> All model names, dataset choices, simulation environments, library selections, and architectural decisions recorded here reflect the best available information at the time of writing. Any of these may change as new findings, benchmarks, hardware constraints, or implementation realities emerge.
+> All model names, dataset choices, simulation environments, library selections, and architectural decisions recorded here reflect the best available information at the time of writing. Any of these may change as new findings, benchmarks, hardware constraints, or implementation realities emerge during the course of the thesis.
 >
 > Specific items subject to change without notice:
-> - GNN hidden channel dimensions and head configuration
-> - Cross-topology evaluation environments (case14 / WCCI 2022 / others)
-> - Failure mode taxonomy and clustering method
-> - Normalization strategy for foreign topologies
-> - Evaluation metric thresholds and baseline comparisons
-> - LLM model versions (Qwen3 / Nemotron-3 Nano)
-> - Knowledge graph backend (NetworkX vs Neo4j if scale increases)
+> - LLM model selection (e.g. Qwen3.6-35B-A3B, Nemotron 3 Nano 30B-A3B)
+> - GNN architecture choice (GCN vs GAT vs alternatives)
+> - Grid2Op environments and their version-specific behavior
+> - Knowledge graph backend (NetworkX vs Neo4j)
+> - Dataset size targets and split ratios
+> - Evaluation metrics and baseline comparisons
 >
-> When a decision changes, the relevant section is updated to reflect the new choice and reasoning. Previous decisions are not preserved — this document describes the current state, not the history.
+> When a decision changes, the relevant section of this document is updated to reflect the new choice and the reasoning behind the change. Previous decisions are not preserved — this document describes the current state, not the history.
 
 ---
 
-*Last updated: June 2026.*
+*Last updated: July 2026 — added Decoupling Invariant (§1), corrective-action scope note (§11, §12) per Thesis Novelty Assessment; added Cross-Topology Generalization Evaluation (§2, §6, §7, §9, §10, §11, §12, §13) per cross-topology advisory review. Normalization strategy (reuse 36-bus stats, fixed) and KCL residual approach (computed from obs, no external solver) resolved — see §2, §9. `normalization_stats.pt` created; cross-topology inference script (§7) not yet written. Remaining open item: feature-builder compatibility check on non-36-bus environments (§6, §11). Added Core Claim (§0) — reframed thesis from full-loop-as-deliverable to full-loop-as-evidence-instrument for "GNN alone insufficient across topologies, shield is the necessary gate"; removed out-of-scope action-recommendation language from §1/§2; added necessity framing to §5. Corrected stale Qwen3-14B → Qwen3.6-35B-A3B and RTX 4080 Super 16GB → RTX 3090 24GB references throughout (§1, §3, §9, §10, §13, §14) to match current hardware/model state. Closed Correction Delta mechanism gap: metric existed (§11) with no defined procedure behind it, since inference was argmax-only (confirmed in code, §8). Added top-k (k=3) retention at inference and constrained-selection shield logic (§5 Correction Mechanism, validate() rewritten to accept ranked candidates); updated §7 cross-topology inference steps, §11 Correction Delta definition, §12 scope-boundary note distinguishing selection from corrective action, and Glossary (§13) accordingly.*
