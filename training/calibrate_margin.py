@@ -12,7 +12,7 @@ compared against the baseline (macro 0.7830, normal recall 0.6466, others F1 0.8
 
 Reuses gnn_checkpoint_best.pt — no model change, no reprocess.
 """
-import os, sys, json
+import os, sys, json, argparse
 import numpy as np
 import torch
 sys.path.append(".")
@@ -23,6 +23,18 @@ from torch_geometric.loader import DataLoader
 from training.train_gnn import GridGNN, compute_normalization_stats
 from training.config import DEVICE, DATA_FILE, DATA_DIR, NODE_FEATURES, EDGE_FEATURES, TRAIN_CONFIG
 from scripts.pyg_data import PreloadedGridDataset
+
+# ── CLI (Round 3): calibrate an arbitrary checkpoint to its own margin file, so an
+# experiment never clobbers the deployed gnn_logit_margin.json until it wins the bar.
+# Defaults reproduce the original hard-coded behavior exactly.
+_parser = argparse.ArgumentParser(description="Post-hoc logit-margin calibration.")
+_parser.add_argument("--checkpoint", default="gnn_checkpoint_best.pt",
+                     help="model state_dict to calibrate (default: gnn_checkpoint_best.pt)")
+_parser.add_argument("--out", default="gnn_logit_margin.json",
+                     help="where to write the chosen margin (default: gnn_logit_margin.json)")
+_parser.add_argument("--gsat", action="store_true", default=False,
+                     help="checkpoint was GSAT-trained (build a gate-matched model so state_dict loads)")
+args = _parser.parse_args()
 
 # ── Label map ────────────────────────────────────────────────────────────────
 meta_path = DATA_FILE.replace(".jsonl", "_meta.json")
@@ -51,8 +63,10 @@ model = GridGNN(
     node_features=NODE_FEATURES, edge_features=EDGE_FEATURES, n_classes=n_classes,
     hidden_channels=TRAIN_CONFIG["hidden_channels"], heads=TRAIN_CONFIG["heads"],
     dropout=TRAIN_CONFIG["dropout"],
+    gsat_enabled=args.gsat, gsat_tau=TRAIN_CONFIG.get("gsat_tau", 1.0),
 ).to(DEVICE)
-model.load_state_dict(torch.load("gnn_checkpoint_best.pt", map_location=DEVICE))
+print(f"Loading checkpoint: {args.checkpoint}")
+model.load_state_dict(torch.load(args.checkpoint, map_location=DEVICE))
 model.eval()
 
 
@@ -62,7 +76,7 @@ def collect_logits(indices):
     logits_all, labels_all = [], []
     for batch in loader:
         batch = batch.to(DEVICE)
-        logits, _ = model(batch.x, batch.edge_index, batch.edge_attr, batch.batch)
+        logits, _, _ = model(batch.x, batch.edge_index, batch.edge_attr, batch.batch)
         logits_all.append(logits.cpu().numpy())
         labels_all.append(batch.y.cpu().numpy())
     return np.concatenate(logits_all), np.concatenate(labels_all)
@@ -156,6 +170,10 @@ margin_out["tuned_on"]           = "val"
 margin_out["test_macro_f1"]      = round(float(f1_score(test_y, test_preds, average="macro", zero_division=0)), 4)
 margin_out["test_normal_recall"] = round(float(
     recall_score(test_y, test_preds, average=None, labels=list(range(n_classes)), zero_division=0)[NM]), 4)
-with open("gnn_logit_margin.json", "w") as f:
+# Per-class test F1 (all four classes) so multi-seed aggregation can apply the
+# noise-aware strict bar to every class, not just macro + normal recall.
+_per_f1 = f1_score(test_y, test_preds, average=None, labels=list(range(n_classes)), zero_division=0)
+margin_out["test_per_class_f1"] = {target_names[i]: round(float(_per_f1[i]), 4) for i in range(n_classes)}
+with open(args.out, "w") as f:
     json.dump(margin_out, f, indent=2)
-print("\nSaved chosen margin -> gnn_logit_margin.json")
+print(f"\nSaved chosen margin -> {args.out}")

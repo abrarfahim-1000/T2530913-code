@@ -29,10 +29,57 @@ from torch_geometric.nn import GATv2Conv, global_mean_pool, global_max_pool
 from torch_geometric.nn import GATv2Conv, global_mean_pool, global_max_pool, BatchNorm
 import torch.nn.functional as F
 
-class GridGNN(nn.Module):
-    def __init__(self, node_features, edge_features, n_classes, hidden_channels, heads, dropout):
+class StochasticEdgeGate(nn.Module):
+    """GSAT stochastic edge gate (Miao et al., ICML 2022).
+
+    Scores each edge from its features and emits a per-edge gate in [0, 1]. During
+    training the gate is a Gumbel-softmax relaxation (stochastic, differentiable); at
+    eval it is a plain sigmoid (deterministic). The gate multiplies edge_attr BEFORE
+    the conv stack (see GridGNN.forward), so the sparsified topology shapes the pooled
+    embeddings the classifier reads — the corrected placement from gsat_lsgat_handoff.md
+    §4 (gating after conv3 would be a no-op for the graph-level classifier).
+    """
+    def __init__(self, edge_in_dim, temp=1.0):
         super().__init__()
-        
+        self.gate_mlp = nn.Sequential(
+            nn.Linear(edge_in_dim, edge_in_dim), nn.ReLU(),
+            nn.Linear(edge_in_dim, 1),
+        )
+        self.temp = temp
+
+    def forward(self, edge_score_input, training):
+        gl = self.gate_mlp(edge_score_input)                       # [E, 1] keep-logit
+        if training:
+            # Binary-concrete / Gumbel-softmax over {keep, drop}; column 0 = keep prob.
+            gate = F.gumbel_softmax(torch.cat([gl, -gl], dim=-1), tau=self.temp, hard=False)[:, 0]
+        else:
+            gate = torch.sigmoid(gl).squeeze(-1)                   # [E] in [0, 1]
+        return gate
+
+
+def info_bottleneck_kl(gate: torch.Tensor, r: float = 0.6, eps: float = 1e-7) -> torch.Tensor:
+    """Mean KL(Bernoulli(gate) || Bernoulli(r)) over edges (GSAT information bottleneck).
+
+    Pushes the per-edge keep-probabilities toward the prior r (a minimal sufficient
+    subgraph). Non-negative; exactly 0 when every gate equals r. Weighted by `beta` in
+    the training loss. See gsat_lsgat_handoff.md §4.1.
+    """
+    g = gate.clamp(eps, 1 - eps)
+    return (g * torch.log(g / r) + (1 - g) * torch.log((1 - g) / (1 - r))).mean()
+
+
+class GridGNN(nn.Module):
+    def __init__(self, node_features, edge_features, n_classes, hidden_channels, heads, dropout,
+                 gsat_enabled=False, gsat_tau=1.0):
+        super().__init__()
+
+        # ── Round 3 GSAT: stochastic edge gate BEFORE the conv stack (default OFF). ──
+        # Built only when enabled so baseline/deployed checkpoints (which lack these
+        # params) load unchanged. A GSAT checkpoint carries edge_gate.* keys, so any
+        # loader (calibrate/eval) must construct with gsat_enabled=True to match.
+        self.gsat_enabled = gsat_enabled
+        self.edge_gate = StochasticEdgeGate(edge_features, temp=gsat_tau) if gsat_enabled else None
+
         # GATv2Conv: dynamic attention (attention computed after concat, not before)
         # Fixes rank collapse that GATConv suffers on small graphs like 36-bus grids.
         self.conv1 = GATv2Conv(node_features, hidden_channels[0], heads=heads[0], edge_dim=edge_features)
@@ -61,21 +108,29 @@ class GridGNN(nn.Module):
 
     def forward(self, x, edge_index, edge_attr, batch):
 
+        # ── Round 3 GSAT: gate edge features BEFORE the conv stack so the sparsified
+        # topology propagates into the pooled graph embedding (corrected placement,
+        # handoff §4.2). gate is returned for the IB-KL loss term; None when GSAT off.
+        gate = None
+        if self.gsat_enabled:
+            gate = self.edge_gate(edge_attr, self.training)        # [E] in [0, 1]
+            edge_attr = edge_attr * gate.unsqueeze(-1)             # gated edge features
+
         # Apply Live Normalization before activation
         x_emb = F.elu(self.bn1(self.conv1(x, edge_index, edge_attr)))
         x_emb = F.elu(self.bn2(self.conv2(x_emb, edge_index, edge_attr)))
-        x_emb = F.elu(self.bn3(self.conv3(x_emb, edge_index, edge_attr))) 
+        x_emb = F.elu(self.bn3(self.conv3(x_emb, edge_index, edge_attr)))
 
         loc_logits = self.localizer(x_emb).squeeze(-1)
 
         emb_mean = global_mean_pool(x_emb, batch)
         emb_max  = global_max_pool(x_emb, batch)
-        emb_min  = -global_max_pool(-x_emb, batch) 
+        emb_min  = -global_max_pool(-x_emb, batch)
 
         graph_emb = torch.cat([emb_mean, emb_max, emb_min], dim=1)
         class_logits = self.classifier(graph_emb)
 
-        return class_logits, loc_logits
+        return class_logits, loc_logits, gate
 
 
 class EarlyStopping:
@@ -118,6 +173,44 @@ def build_loc_targets_fast(batch):
         targets.scatter_(0, global_idx, 1.0)
 
     return targets
+
+
+def soft_f1_loss(logits: torch.Tensor, targets: torch.Tensor, n_classes: int,
+                 eps: float = 1e-7) -> torch.Tensor:
+    """Differentiable macro soft-F1 surrogate (Round 3, Phase 1).
+
+    Macro-F1 is non-differentiable (needs hard argmax TP/FP/FN counts). This uses
+    softmax probabilities as soft predictions to compute soft per-class TP/FP/FN,
+    then returns ``1 - mean(soft_f1_per_class)`` so it can be MINIMIZED.
+
+    This is an ADDITIVE regularizer on top of CE, never a replacement — see the
+    prior-evidence discussion in supplimentary_docs/round3_gsat_softf1_plan.md §3.2
+    (loss-side levers have not moved `normal` on this architecture; focal loss
+    collapsed it). Use a small weight (lambda_f1) with a CE-only warm-up.
+    """
+    probs          = F.softmax(logits, dim=1)
+    targets_onehot = F.one_hot(targets, n_classes).float()
+
+    tp = (probs * targets_onehot).sum(dim=0)
+    fp = (probs * (1 - targets_onehot)).sum(dim=0)
+    fn = ((1 - probs) * targets_onehot).sum(dim=0)
+
+    soft_f1_per_class = 2 * tp / (2 * tp + fp + fn + eps)
+    return 1.0 - soft_f1_per_class.mean()
+
+
+def f1_ramp_factor(epoch: int, warmup_epochs: int, ramp_epochs: int) -> float:
+    """Multiplier in [0, 1] applied to lambda_f1 at a given epoch (Round 3, I3).
+
+    0 during the pure-CE warm-up; then either a hard step to 1 (ramp_epochs<=0, the
+    original behavior) or a linear ramp to 1 over `ramp_epochs` epochs. A gradual ramp
+    avoids shocking this fragility-prone small model with an abrupt loss-surface change.
+    """
+    if epoch < warmup_epochs:
+        return 0.0
+    if ramp_epochs <= 0:
+        return 1.0
+    return min(1.0, (epoch - warmup_epochs + 1) / ramp_epochs)
 
 
 def compute_normalization_stats(dataset, train_indices):
@@ -179,7 +272,7 @@ def evaluate(model, loader, device, label_names=None):
         batch = batch.to(device, non_blocking=True)
         
         # FIX 3: Removed autocast for perfect precision stability
-        logits, _ = model(batch.x, batch.edge_index, batch.edge_attr, batch.batch)
+        logits, _, _ = model(batch.x, batch.edge_index, batch.edge_attr, batch.batch)
             
         all_preds.extend(logits.argmax(dim=1).cpu().numpy())
         all_labels.extend(batch.y.cpu().numpy())
@@ -201,13 +294,75 @@ def train():
     parser.add_argument('--epochs',     type=int,   default=None)
     parser.add_argument('--batch_size', type=int,   default=None)
     parser.add_argument('--lr',         type=float, default=None)
+    # Round 3 Phase 1: soft-F1 hybrid loss. Defaults None -> fall back to TRAIN_CONFIG
+    # (which defaults lambda_f1=0.0 == pure CE, current behavior).
+    parser.add_argument('--lambda_f1',      type=float, default=None,
+                        help='additive weight on the soft-macro-F1 loss term (0.0 disables)')
+    parser.add_argument('--f1_warmup_frac', type=float, default=None,
+                        help='fraction of epochs of pure-CE warm-up before blending in soft-F1')
+    parser.add_argument('--lambda_ramp_epochs', type=int, default=None,
+                        help='linearly ramp lambda_f1 from 0 to target over N epochs after warm-up '
+                             '(0 = hard step, the original behavior)')
+    # Round 3 GSAT: stochastic edge gate + information-bottleneck KL. Defaults None ->
+    # fall back to TRAIN_CONFIG (gsat_enabled=False / beta=0.0 == baseline behavior).
+    parser.add_argument('--gsat', action='store_true', default=False,
+                        help='enable the GSAT stochastic edge gate before the conv stack')
+    parser.add_argument('--beta', type=float, default=None,
+                        help='weight on the information-bottleneck KL term (0.0 disables the IB pressure)')
+    parser.add_argument('--r', type=float, default=None,
+                        help='Bernoulli prior for the IB KL (target edge-keep rate, ~0.5-0.7)')
+    parser.add_argument('--gsat_tau', type=float, default=None,
+                        help='Gumbel-softmax temperature for training-time gate sampling')
+    parser.add_argument('--beta_warmup_frac', type=float, default=None,
+                        help='fraction of epochs of pure-task warm-up before ramping beta in')
+    # I1: seed control so multi-seed (noise-aware) evaluation is possible without editing the file.
+    parser.add_argument('--seed', type=int, default=None,
+                        help=f'shared default for both seeds below (default: SEED={SEED})')
+    # Seed-stability diagnostic: separate the two sources of run-to-run variance so a collapse
+    # can be localized. init_seed = weight init + batch order; split_seed = the in-memory shuffle
+    # that repartitions train/val (val is the checkpoint-selection set). Each falls back to --seed.
+    parser.add_argument('--init_seed', type=int, default=None,
+                        help='seed for torch (weight init + batch shuffle order); default = --seed')
+    parser.add_argument('--split_seed', type=int, default=None,
+                        help='seed for the train/val in-memory repartition; default = --seed')
+    parser.add_argument('--ckpt_out', type=str, default='gnn_checkpoint_best.pt',
+                        help='where to save the best checkpoint (multi-seed runs use distinct names)')
     args = parser.parse_args()
 
     epochs     = args.epochs     if args.epochs     is not None else TRAIN_CONFIG["epochs"]
     batch_size = args.batch_size if args.batch_size is not None else TRAIN_CONFIG["batch_size"]
     lr         = args.lr         if args.lr         is not None else TRAIN_CONFIG["lr"]
+    seed       = args.seed       if args.seed       is not None else SEED
+    init_seed  = args.init_seed  if args.init_seed  is not None else seed
+    split_seed = args.split_seed if args.split_seed is not None else seed
 
-    torch.manual_seed(SEED)
+    lambda_f1         = args.lambda_f1         if args.lambda_f1         is not None else TRAIN_CONFIG.get("lambda_f1", 0.0)
+    f1_warmup_frac    = args.f1_warmup_frac    if args.f1_warmup_frac    is not None else TRAIN_CONFIG.get("f1_warmup_frac", 0.3)
+    lambda_ramp_epochs = args.lambda_ramp_epochs if args.lambda_ramp_epochs is not None else TRAIN_CONFIG.get("lambda_ramp_epochs", 0)
+    f1_warmup_epochs = int(epochs * f1_warmup_frac)
+    if lambda_f1 > 0.0:
+        ramp_desc = f"hard step" if lambda_ramp_epochs <= 0 else f"linear ramp over {lambda_ramp_epochs} epochs"
+        print(f"[soft-F1] ENABLED: lambda_f1={lambda_f1}, pure-CE warm-up for first "
+              f"{f1_warmup_epochs}/{epochs} epochs, then {ramp_desc} to CE + {lambda_f1}*soft_f1_loss.")
+    else:
+        print("[soft-F1] disabled (lambda_f1=0.0) — pure CE + loc loss (baseline behavior).")
+
+    # ── Round 3 GSAT resolution ───────────────────────────────────────────────
+    gsat_enabled = args.gsat or TRAIN_CONFIG.get("gsat_enabled", False)
+    beta         = args.beta         if args.beta         is not None else TRAIN_CONFIG.get("beta", 0.0)
+    gsat_r       = args.r            if args.r            is not None else TRAIN_CONFIG.get("r", 0.6)
+    gsat_tau     = args.gsat_tau     if args.gsat_tau     is not None else TRAIN_CONFIG.get("gsat_tau", 1.0)
+    beta_warmup_frac  = args.beta_warmup_frac if args.beta_warmup_frac is not None else TRAIN_CONFIG.get("beta_warmup_frac", 0.3)
+    beta_warmup_epochs = int(epochs * beta_warmup_frac)
+    if gsat_enabled:
+        print(f"[GSAT] ENABLED: beta={beta}, r={gsat_r}, tau={gsat_tau}, pure-task warm-up for first "
+              f"{beta_warmup_epochs}/{epochs} epochs, then + beta*KL(Bernoulli(gate)||Bernoulli(r)). "
+              f"loc_loss_weight kept at {TRAIN_CONFIG['loc_loss_weight']} (see handoff §4.3).")
+    else:
+        print("[GSAT] disabled — no edge gate (baseline behavior).")
+
+    print(f"[seed] init_seed={init_seed} split_seed={split_seed}   [ckpt_out] {args.ckpt_out}")
+    torch.manual_seed(init_seed)
     print(f"Using device : {DEVICE}")
     print(f"NODE_FEATURES: {NODE_FEATURES}  EDGE_FEATURES: {EDGE_FEATURES}")
 
@@ -241,8 +396,8 @@ def train():
     print("\n[Force Shuffle] Mixing train and val sets to eliminate chronological domain shift...\n")
     
     combined_idx = np.concatenate([train_idx, val_idx])
-    
-    np.random.seed(42)
+
+    np.random.seed(split_seed)
     np.random.shuffle(combined_idx)
     
     train_idx = combined_idx[:len(train_idx)]
@@ -300,6 +455,8 @@ def train():
         hidden_channels=TRAIN_CONFIG["hidden_channels"],
         heads=TRAIN_CONFIG["heads"],
         dropout=TRAIN_CONFIG["dropout"],
+        gsat_enabled=gsat_enabled,
+        gsat_tau=gsat_tau,
     ).to(DEVICE)
 
     optimizer   = AdamW(model.parameters(), lr=lr, weight_decay=TRAIN_CONFIG["weight_decay"])
@@ -319,7 +476,7 @@ def train():
             optimizer.zero_grad()
 
             # Clean FP32 Forward Pass
-            class_logits, loc_logits = model(
+            class_logits, loc_logits, gate = model(
                 batch.x, batch.edge_index, batch.edge_attr, batch.batch
             )
 
@@ -348,6 +505,25 @@ def train():
             loc_loss    = loc_loss_fn(loc_logits, loc_targets)
             loss        = cls_loss + TRAIN_CONFIG["loc_loss_weight"] * loc_loss
 
+            # Round 3 Phase 1: differentiable soft-macro-F1, blended in AFTER a pure-CE
+            # warm-up (early-epoch softmax is near-uniform -> noisy F1 gradients), with an
+            # optional linear ramp (I3) to avoid an abrupt loss-surface shock. Kept additive
+            # and small; lambda_f1=0.0 makes this a no-op. See soft_f1_loss / f1_ramp_factor
+            # and the kill-switch protocol in round3_gsat_softf1_plan.md §3.3.
+            if lambda_f1 > 0.0:
+                ramp = f1_ramp_factor(epoch, f1_warmup_epochs, lambda_ramp_epochs)
+                if ramp > 0.0:
+                    loss = loss + (lambda_f1 * ramp) * soft_f1_loss(class_logits, batch.y, n_classes)
+
+            # Round 3 GSAT: information-bottleneck KL on the edge gate, ramped in AFTER a
+            # pure-task warm-up (hard step, reusing f1_ramp_factor) so the gate MLP first
+            # learns useful edge scores under CE+loc before the IB pressure forces sparsity
+            # — the beta warm-up reasoned on paper in handoff §4.3. gate is None when GSAT off.
+            if gsat_enabled and beta > 0.0 and gate is not None:
+                beta_ramp = f1_ramp_factor(epoch, beta_warmup_epochs, 0)
+                if beta_ramp > 0.0:
+                    loss = loss + (beta * beta_ramp) * info_bottleneck_kl(gate, r=gsat_r)
+
             # Clean FP32 Backward Pass
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -366,8 +542,8 @@ def train():
 
         if val_f1 > best_val_f1:
             best_val_f1 = val_f1
-            torch.save(model.state_dict(), "gnn_checkpoint_best.pt")
-            print(f"  [best] New best saved ({best_val_f1:.4f})")
+            torch.save(model.state_dict(), args.ckpt_out)
+            print(f"  [best] New best saved ({best_val_f1:.4f}) -> {args.ckpt_out}")
 
         early_stopping(val_f1)
         if early_stopping.early_stop:

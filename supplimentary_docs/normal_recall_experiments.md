@@ -297,3 +297,138 @@ Keep whichever of 3a/3b beats the 0.795 reference (both if they stack and each i
   `normal` **recall** and confirm overload/line_trip/cascade F1 don't drop more than ~0.01–0.02.
 - `normal` signature to track: high precision (~0.88) + low/volatile recall = model under-commits
   to `normal`. The fix that worked (Exp 1) sharpened the normal↔overload boundary feature.
+
+---
+
+## Round 3 (2026-07-12) — soft-F1 hybrid loss ❌ REJECTED + a seed-instability discovery
+
+Full plan/rationale: `round3_gsat_softf1_plan.md`. Ran the first multi-seed evaluation this project
+has done (3 seeds), on the personal PC / XPU / small `[16,32,32]` config.
+
+| Change | Test macro F1 (mean±σ, 3 seeds) | normal recall | other 3 F1 (norm/over/lt/casc) | Verdict |
+|---|---|---|---|---|
+| baseline λ=0 (multi-seed) | **0.7362 ± 0.0768** | 0.7787 ± 0.145 | 0.7794 / 0.7789 / 0.6464 / 0.7400 | reference |
+| soft-F1 λ=0.1 (CE warm-up) | 0.7339 ± 0.0701 | 0.7961 ± 0.141 | 0.7860 / 0.7761 / 0.6470 / 0.7266 | **❌ REJECT — neutral, within noise** |
+
+Per-seed macro — baseline **0.8386 / 0.7162 / 0.6538**, soft-F1 0.8278 / 0.7146 / 0.6594.
+
+- **soft-F1 verdict:** neutral. No win beyond noise, normal recall fails the 0.88 floor, nothing
+  collapsed (kill switch not tripped), nothing regressed beyond σ. Confirms once more: *loss-side
+  levers do not move `normal` here.* Deployed Lever A untouched.
+- **⚠ Bigger finding — the baseline itself is seed-unstable.** Only seed 42 (the original hardcoded
+  seed) reproduces the good regime (0.8386 ≈ deployed 0.8277); seeds 43/44 collapse to ~0.72/0.65.
+  **The deployed 0.8277 is a favorable-seed draw, not the config's expected value (~0.74 ± 0.08).**
+  Every single-run comparison above (incl. Lever A and the ±0.02 bars) may be seed luck, not signal.
+  New tooling: `--seed` flag + `training/run_round3_multiseed.py` (noise-aware bar). `--seed` drives
+  both weight init AND the train/val repartition, so the collapse source is not yet localized.
+- **Next diagnostic (higher priority than GSAT/I6):** separate init-variance from partition-variance
+  (fix one, vary the other) to find why 2 of 3 seeds collapse. A model that only trains well on 1
+  seed in 3 makes every lever comparison untrustworthy until fixed.
+
+### Seed-stability diagnostic (2026-07-12) — it's INIT, not the data split ✅ localized
+
+`training/diagnose_seed_stability.py` (separate `--init_seed`/`--split_seed`, baseline λ=0, small).
+
+| Arm | fixed | varied | per-run macro | mean ± σ |
+|---|---|---|---|---|
+| A | partition s=42 | **init** 42/43/44 | 0.8191 / 0.7696 / 0.7251 | 0.7713 ± 0.0384 |
+| B | init=42 | **partition** 42/43/44 | 0.8191 / 0.8472 / 0.8970 | 0.8544 ± 0.0322 |
+
+- **Arm B never collapses** → the train/val split is fine; the eval is robust to partition. **Do not
+  touch the split.**
+- **Arm A degrades** (0.82→0.72) → **initialization is the sensitive knob.** Round-3's 0.65 collapses
+  were bad-init × bad-partition compounding.
+- ~0.02 residual XPU run-to-run nondeterminism (anchor 0.8191 here vs 0.8386 at same seed earlier).
+- **Corrected read of the "0.8277 is lucky" claim:** it's a lucky-**init** draw, but reproducible and
+  conservative (init=42 → 0.82–0.90 across partitions). Init is controllable ⇒ deployed Lever A is a
+  legitimate good-init result, not a favorable-split fluke.
+- **Fix (later):** treat init as a controlled hyperparam (fix seed / best-of-N via the harness);
+  optionally reduce init sensitivity (lr-warmup / more epochs / init scheme) until Arm-A σ ≈ Arm-B σ.
+  Only then are GSAT/soft-F1 comparisons trustworthy.
+
+---
+
+## Round 3 continued (2026-07-12/13) — GSAT (Graph Stochastic Attention) ❌ REJECTED — decisive collapse, kill switch tripped
+
+Full plan/rationale: `gsat_lsgat_handoff.md`. Implemented per the handoff's **corrected placement**
+(§4.2): a `StochasticEdgeGate` scores each edge from `edge_attr`, samples a Gumbel-softmax gate in
+training (sigmoid at eval), and multiplies `edge_attr` **before conv1** so the sparsified topology
+propagates into the pooled embedding the classifier reads. Loss adds `beta * KL(Bernoulli(gate) ||
+Bernoulli(r))`, ramped in after a pure-task warm-up (30% of epochs) — the §4.3 decision made on paper
+before coding: let the gate MLP learn useful edge scores under CE+loc first, then apply IB pressure,
+rather than let three competing objectives fight from epoch 0.
+
+**Init control:** fixed-init Arm-B isolation (`init_seed=42`, `split_seed ∈ {42,43,44}`), per the
+handoff's minimum bar — isolates the lever from the init-luck confound documented above.
+
+| Change | Test macro F1 (mean±σ, 3 seeds) | normal recall | other 3 F1 (norm/over/lt/casc) | Verdict |
+|---|---|---|---|---|
+| baseline_fixinit (init=42, split=42/43/44) | **0.8514 ± 0.0192** | 0.8975 ± 0.0140 | 0.8818 / 0.8396 / 0.8361 / 0.8483 | reference |
+| GSAT β=0.01, r=0.6, τ=1.0 | **0.5382 ± 0.0812** | 0.5486 ± 0.1821 | 0.5126 / 0.7175 / 0.3243 / 0.5981 | ❌ **REJECT — all 4 classes regressed beyond noise** |
+
+Per-seed macro/normal-recall (β=0.01): **0.4245/0.7799** (s42), **0.5805/0.3350** (s43),
+**0.6095/0.5308** (s44) — three different failure shapes, none close to baseline.
+
+**Noise-aware verdict (strict bar, `run_round3_multiseed.noise_aware_verdict`):** macro FAIL (0.538 vs
+0.851±0.019), normal_recall FAIL (0.549 < 0.88 floor and < baseline−σ), and **every one of the four
+per-class F1s REGRESSED beyond baseline mean−σ** — not just `normal`. This is not the narrow
+normal-recall-only failure mode seen in earlier loss-side levers; GSAT broke the model wholesale.
+
+**β=0.1 was NOT run.** Per the handoff's kill-switch discipline (§5.2): *"If beta=0.01 or 0.1
+collapses a class... STOP — do NOT escalate beta. Escalating a mechanism already trending wrong is the
+mistake the whole keep-what-works discipline forbids."* β=0.01 already collapsed all four classes in
+two distinct failure modes (seed 42: `line_trip` F1 → 0.0004, essentially never predicted; seed 43:
+`normal` recall → 0.335). A larger IB penalty (β=0.1) would only push the gate harder toward the same
+r=0.6 keep-rate prior that already produced this collapse — there is no plausible mechanism by which
+*more* sparsification pressure recovers a model that failed this badly at the smaller value. Explicit
+user decision (2026-07-13): kill the β=0.1 run, close out, defer any further GSAT tuning to a future
+session. The orchestrator process was terminated before it could auto-launch β=0.1; verified no stray
+processes remained and deployed Lever A files (`gnn_checkpoint_best.pt`, `gnn_checkpoint_leverA.pt`,
+`gnn_logit_margin.json`) were untouched (mtimes unchanged from before this session).
+
+**Reasoning — why GSAT collapsed this model:** the handoff's own honest prior (§1) called this
+correctly: *"a new mechanism ... shown fragile to upstream-of-pooling changes (Levers C/D collapsed
+it)."* GSAT is architecturally the same category of change as Round-2 Levers C (extra dispersion pool)
+and D (two-stage head) — it inserts new learned structure **upstream of / feeding into** the pooling
+operator that the small `[16,32,32]` model already turns out to be extremely fragile around. Two
+compounding mechanisms plausibly explain the severity (both consistent with the data, not
+independently verified — worth noting as such):
+1. **Stochastic edge dropout during training destabilizes an already-fragile small model.** Even with
+   the beta warm-up, the Gumbel-softmax gate injects per-edge sampling noise into the very topology the
+   3-layer GATv2 stack convolves over — on a 36-node/59-edge graph this is a large relative
+   perturbation per batch, unlike the loss-side levers (soft-F1, focal, label-smoothing) which never
+   touched the graph structure itself and only ever moved `normal` by ±0.02–0.15, never collapsed
+   *all four* classes simultaneously.
+2. **The prior r=0.6 may be a poor target for this graph.** Tripped lines are already pruned from
+   `edge_index` at construction (per CLAUDE.md); a further ~40% random-ish drop of the *remaining*
+   intact edges risks disconnecting exactly the single-edge signal (line_trip's defining feature) that
+   Round 2 already proved is the hardest thing for this architecture's pooling to preserve (see the
+   `line_trip`-magnet diagnosis and Lever-E finding that the magnet is architectural, not data-driven).
+   Seed 42's near-total `line_trip` F1 collapse (0.0004) is the most direct evidence for this reading.
+
+**Thesis value:** a third independent architecture-side mechanism (after C's readout change and D's
+head change) that collapses this model when it touches anything upstream of global pooling — while
+loss-side levers (soft-F1, focal, label-smoothing, GSAT's IB-KL) either do nothing (soft-F1) or actively
+hurt (focal) `normal` alone, never the whole model. This strengthens, not weakens, the
+"pooling-is-the-bottleneck / architecture is fragile / symbolic shield is load-bearing" thesis argument
+— GSAT joins C and D as a documented negative result, and unlike them, quantifies the failure with a
+proper multi-seed noise-aware bar rather than a single run.
+
+**Files:** GSAT implementation is on disk, default-OFF (`gsat_enabled=False`/`beta=0.0` in
+`training/config.py`), fully reversible with `--gsat` unset. `StochasticEdgeGate` / `info_bottleneck_kl`
+in `training/train_gnn.py`; `--gsat/--beta/--r/--gsat_tau/--beta_warmup_frac` CLI on `train_gnn.py`,
+`--gsat` on `calibrate_margin.py` and `evaluation/eval_cross_topology.py`; harness support
+(`--gsat/--beta/--r/--gsat_tau/--fixed_init`) in `training/run_round3_multiseed.py`; 7 unit tests in
+`tests/test_gsat.py` (KL≥0, KL=0 at gate==r, gate∈[0,1] train+eval, differentiable) — all passing.
+Deployed Lever A untouched. Cross-topology (14-bus) OOD check (handoff §5.1) was **not run** — moot
+given the in-distribution collapse; no plausible transfer benefit survives a broken 36-bus base model.
+
+**If picking GSAT up again:** do not simply retune beta/r on this same architecture — the failure
+pattern (all 4 classes, seed-dependent shape) suggests the stochastic edge-dropping mechanism itself is
+incompatible with the small `[16,32,32]` model's already-thin margins, not a hyperparameter-tuning
+problem. Higher-value directions: (a) test GSAT on a model that has first been stabilized against
+Round-3's init-sensitivity (see the seed-stability section above) in case part of the collapse is
+init×GSAT interaction, not GSAT alone; (b) try a much gentler gate (e.g. r closer to 0.9, minimal
+dropout) as a diagnostic rather than a real lever, purely to see if the collapse is graded or a cliff;
+(c) deprioritize GSAT — three independent architecture-side experiments (C, D, GSAT) have now failed,
+which is itself a strong, already-documented thesis result.

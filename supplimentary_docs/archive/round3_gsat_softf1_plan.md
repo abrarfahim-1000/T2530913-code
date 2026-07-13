@@ -1,10 +1,30 @@
 # Round 3 candidate levers — GSAT/attention-gating + soft-F1 hybrid loss
 
-**Status: PLAN ONLY. Nothing in this document has been implemented or run.** Written 2026-07-06
-after a professor consult suggested (a) trying "LSGAT and GSAT variants" of the GNN and (b) feeding
-F1 into a hybrid loss function instead of standard CE. This is the pre-flight dissection + runbook
-for whoever picks this up next; execution deliberately deferred (not enough time in the session that
-produced this doc).
+**Status (updated 2026-07-12): Phase 0 (config-pin guardrails) + Phase 1 (soft-F1 hybrid loss)
+are now IMPLEMENTED and unit-tested, default-OFF. No training RUN has been executed yet — the
+research-PC run is still deferred. Phase 2 (GSAT) and Phase 3 (LSGAT) remain unimplemented; this
+doc is now the handoff for those.** Originally written 2026-07-06 after a professor consult
+suggested (a) trying "LSGAT and GSAT variants" of the GNN and (b) feeding F1 into a hybrid loss
+function instead of standard CE.
+
+> **What changed on 2026-07-12 (code, not runs):**
+> - **Config question (§3.4) RESOLVED.** Inspected `gnn_checkpoint_best.pt` tensor shapes
+>   (`conv1.att (1,4,16)`, `classifier.0` in-dim `96 = 32*3`): the deployed Lever A checkpoint was
+>   trained on the **SMALL config `[16,32,32]`/`[4,4,1]`**, NOT the CUDA `[64,128,128]` branch. So
+>   ALL Round 1/2 fragility evidence transfers directly, and Round 3 runs must use the small config.
+> - **`training/config.py`** now splits into named `SMALL_CONFIG`/`CUDA_CONFIG` with a `GRID_CONFIG`
+>   env override (`GRID_CONFIG=small` forces the baseline config even on a CUDA machine — closes the
+>   Risk R1 footgun where a research-PC run would silently train the unvalidated big config).
+> - **`training/train_gnn.py`** gained `soft_f1_loss()` (§3.1) + a CE-warm-up blend gated behind
+>   `lambda_f1` (default `0.0` = pure-CE baseline; `--lambda_f1`/`--f1_warmup_frac` CLI flags).
+> - **`training/calibrate_margin.py`** now takes `--checkpoint`/`--out` so an experiment calibrates
+>   its own margin file without clobbering the deployed `gnn_logit_margin.json` (Risk R4).
+> - **`tests/test_soft_f1_loss.py`** (4 tests, all passing): soft-F1 matches sklearn macro-F1 at hard
+>   predictions, is 0 at perfect prediction, bounded [0,1], and differentiable.
+> - **LSGAT (§2) DOWNGRADED to parked.** Professor confirmed it was a generic "latest GNN tech"
+>   Google result, not a specific paper — intent was exploratory ("try modern attention variants and
+>   see if `normal` recall improves"). No canonical technique exists to implement; GSAT carries that
+>   exploratory intent concretely. Do not chase an LSGAT acronym.
 
 **Companion files:** `normal_recall_experiments.md` (Round 1/2 lever log — read this first),
 `lever_A_recommendation_dissertation.md` (why Lever A was kept and what "strict bar" means),
@@ -76,8 +96,27 @@ actually help the exact failure mode diagnosed), real downside risk (another dim
 change on a model already shown to be fragile to exactly this kind of change), unproven either way.
 
 ### 1.4 Implementation sketch (when picked up)
+
+> **CORRECTION 2026-07-12 (I2) — the original sketch below has a placement bug; read this first.**
+> The sketch computes the gate from "the final GAT layer" and applies it "before the final pooling
+> stage." But `GridGNN.forward` is `conv1 → conv2 → conv3 → pool(x_emb)` (`train_gnn.py:62-78`):
+> `conv3` is the **last** conv and pooling operates on the **node** embeddings `x_emb`, which are
+> already computed by the time you'd gate. Gating edges after conv3 therefore changes **nothing that
+> reaches the classifier** — it would be a near no-op for the classification head. Testing it as-is
+> would burn ~1–2 days validating a gate that does nothing.
+>
+> **Correct placement: the stochastic edge mask must feed the conv stack, so the gated topology
+> shapes the node embeddings that get pooled** (`gate → convs → pool`). Recommended shape: derive
+> per-edge gate logits from a first cheap attention pass (or a small MLP on `edge_attr`), sample the
+> gate, then run the MAIN conv stack on the gated edges — e.g. pass `edge_attr * gate.unsqueeze(-1)`
+> (or hard-mask `edge_index`) into conv1/2/3 so pooling sees the sparsified graph. The IB-KL term then
+> regularizes that gate. When you pick this up, replace the `return gate` comment and the "before
+> final pooling stage" wording in the code below accordingly, and judge it with the multi-seed harness
+> (§3.5), not a single seed.
+
 No PyG-native module exists. Port from the [official GSAT repo](https://github.com/Graph-COM/GSAT)
-(PyTorch/PyG-based, MIT-style research code). Rough shape, targeting `training/train_gnn.py`:
+(PyTorch/PyG-based, MIT-style research code). Rough shape (placement per the correction above),
+targeting `training/train_gnn.py`:
 
 ```python
 # New: an edge-attention extractor + stochastic gate sitting between conv layers and pooling.
@@ -123,10 +162,18 @@ and should be thought through before writing code.
 
 ---
 
-## 2. LSGAT — blocked on citation
+## 2. LSGAT — PARKED (no canonical technique; professor's suggestion was exploratory)
 
-No implementation plan until the professor's reference is confirmed. Candidates considered and why
-each is a weak guess:
+**Resolution 2026-07-12:** asked whether the professor had a specific LSGAT citation. He did not —
+the name came from a general Google search for "latest technologies in GNN," offered as an
+exploratory pointer ("experiment with these and see whether the `normal`-class issue gets solved"),
+not a specific paper to reproduce. There is therefore nothing concrete to implement under "LSGAT."
+GSAT (§1) already carries the same exploratory intent — "try a modern attention-mechanism variant to
+improve the neural layer" — and unlike LSGAT it maps to a specific, citable, PyG-portable technique.
+**Action: do NOT implement an LSGAT acronym from a guess. Treat GSAT as the concrete realization of
+this suggestion.** The original candidate analysis is retained below for the record.
+
+Candidates considered and why each is a weak guess:
 - **"Long Short-term Graph ATtention Network"** (traffic-forecasting literature, GAT + LSTM/GRU over
   time): doesn't fit — this project's records are independent snapshots (each JSONL row is one grid
   state), not a time series per node. Retrofitting temporal modeling would require restructuring the
@@ -221,7 +268,16 @@ Follow the exact Round-2 discipline — one lever, isolated, strict bar, cheap t
    showed this class of intervention fails hard, not gradually; escalating weight on a mechanism that's
    already trending wrong is the same mistake Exp 2 (smoothing tune) avoided by not chasing sunk cost.
 
-### 3.4 Pre-flight open question: which config/device
+### 3.4 Pre-flight open question: which config/device — RESOLVED 2026-07-12
+
+**RESOLVED: the deployed baseline is the SMALL `[16,32,32]`/`[4,4,1]` config.** Verified by
+inspecting `gnn_checkpoint_best.pt` tensor shapes (`conv1.att (1,4,16)` → heads=4, hidden[0]=16;
+`classifier.0.weight (128,96)` → `96 = 32*3` → hidden[2]=32). `gnn_logit_margin.json` confirms this
+checkpoint yields the baseline (test macro 0.8277, normal recall 0.8806). Consequences: (1) all
+Round 1/2 fragility evidence in §3.2 transfers, it was measured on this exact config; (2) Round 3
+runs MUST use the small config — now enforceable on any machine via `GRID_CONFIG=small`
+(`training/config.py`). The stale/self-contradictory CUDA-branch comment noted below has been
+superseded by the named `SMALL_CONFIG`/`CUDA_CONFIG` split. Original reasoning retained:
 `training/config.py` currently has two divergent hyperparameter sets: the CUDA (research-PC,
 production) config uses `hidden_channels=[64,128,128]`, 50 epochs, batch 256, lr 5e-4; the
 non-CUDA/personal-PC config uses the proven `[16,32,32]`, 10 epochs, batch 512, lr 1e-4 — the one all
@@ -231,22 +287,148 @@ experiment on the other one — the fragility evidence above may not transfer be
 (Quick check: `training/config.py` DEVICE branch + whichever machine `gnn_checkpoint_best.pt` was last
 written on.)
 
+### 3.5 Multi-seed, noise-aware evaluation (I1/I4/I5) — added 2026-07-12
+
+**Why:** Round 1/2 (and the `0.8277` baseline) are single-run point estimates on a `[16,32,32]`,
+10-epoch model the doc repeatedly calls fragile. A lever reading `0.831` could be seed noise; a real
+win could be hidden by an unlucky seed. Judging any Round 3 lever on one run is statistically weak —
+exactly the kind of shaky inference this project's discipline is meant to avoid.
+
+**Protocol (now tooled):** `training/run_round3_multiseed.py` forces `GRID_CONFIG=small`, trains a
+lever across ≥3 seeds (each via `--seed`, now a real flag — previously `SEED` was hardcoded so
+multi-seed was impossible without editing the file), calibrates each run to its own margin file, and
+aggregates test metrics as **mean ± std**.
+
+1. **Establish the noise floor first (I4):**
+   `python training/run_round3_multiseed.py --tag baseline --lambda_f1 0.0 --seeds 42 43 44`
+   The baseline σ this produces *is* the bar every lever must clear.
+2. **Run the lever against it:**
+   `python training/run_round3_multiseed.py --tag softf1_0p1 --lambda_f1 0.1 --seeds 42 43 44
+   --compare_to round3_runs/agg_baseline.json`
+3. **Noise-aware strict bar (the win condition):** a lever is KEPT only if
+   - mean macro-F1 beats baseline mean by **more than baseline σ**, AND
+   - mean normal recall ≥ 0.88 floor AND ≥ baseline mean − σ, AND
+   - **no** class's mean F1 drops below its baseline mean − σ.
+   Otherwise REJECT and revert. (Implemented in `noise_aware_verdict()`.)
+4. **Keep-what-works tree (I5):** `baseline(3 seeds) → soft-F1(3 seeds)`; keep soft-F1 only if it
+   clears the bar; then GSAT (§1) is judged **on whichever base is currently best-kept**, never
+   stacked on an unproven change.
+5. **Kill switch still applies:** if `lambda_f1=0.1` *collapses* a class (focal-style), STOP — do not
+   escalate to `0.2` or the ramp. Only escalate if `0.1` is neutral/promising (§3.3 step 6).
+
+Caveat worth recording: `soft_f1_loss` is computed **per batch**, a slightly biased estimator of
+dataset-level soft-F1. At `batch_size=512` with ~20% per class each batch has ~100 examples/class, so
+the bias is small — acceptable, but note it when interpreting a marginal result.
+
+### 3.6 Optional fallback probe (I6) — only if plain soft-F1 is NEUTRAL, never if it collapses
+
+Plain macro soft-F1 weights all four classes equally. If it comes back *neutral* (clears no bar but
+does not collapse any class), one cheap follow-up is a **class-targeted soft-F1** that up-weights the
+diagnosed problem classes `{normal, line_trip}` in the mean instead of averaging all four equally —
+i.e. `sum(w_c * soft_f1_c) / sum(w_c)` with larger `w` on those two. This is a *different knob* from
+`lambda_f1` (which scales the whole term); it reshapes *within* the term. **Respect the kill switch:**
+do NOT run this if plain soft-F1 *collapses* a class — that would be escalating a mechanism already
+trending wrong, the exact mistake §3.3 step 6 forbids. Keep this documented as an option, not a
+default next step; decide only after seeing the plain-soft-F1 aggregate.
+
 ---
 
-## 4. Runbook checklist (for the follow-up session)
+## 4. Runbook checklist
 
-- [ ] Confirm which `TRAIN_CONFIG` branch (CUDA vs personal-PC) produced the current
-      `gnn_checkpoint_best.pt` / Lever A numbers.
-- [ ] Get the professor's actual LSGAT citation. Do not implement from a guess.
-- [ ] Soft-F1 (§3): implement as a flagged additive term, CE warm-up, `lambda_f1 ∈ {0.1, 0.2}`, fresh
-      calibration, strict-bar comparison against 0.8272. Expect a negative result given prior evidence
-      — that's still a usable finding, document it either way.
-- [ ] GSAT (§1): only after soft-F1 is resolved (cheaper, faster probe first). Port the edge-gate +
-      IB-KL term from the official repo, budget ~1–2 days including a first tuning pass on `r`/`beta`.
-      Think through interaction with `loc_loss` before writing code (§1.5).
-- [ ] Whatever the outcome, append results to `normal_recall_experiments.md` in the same
-      lever-table format (Change / Test macro F1 / normal recall / other 3 F1 / Verdict) so the
-      Round 2 record stays the single source of truth for "what's been tried."
+**Done (2026-07-12, code only — no runs):**
+- [x] Confirm which `TRAIN_CONFIG` branch produced `gnn_checkpoint_best.pt` / Lever A — **SMALL
+      `[16,32,32]`/`[4,4,1]`** (verified from checkpoint tensor shapes). §3.4 resolved.
+- [x] Resolve LSGAT — **parked**, no canonical technique (§2). GSAT is the concrete realization.
+- [x] Soft-F1 (§3): implemented as a flagged additive term with CE warm-up, `lambda_f1` default 0.0
+      (`training/train_gnn.py:soft_f1_loss` + blend). Unit-tested (`tests/test_soft_f1_loss.py`).
+- [x] Config-pin guardrail: `GRID_CONFIG=small` override (`training/config.py`, Risk R1).
+- [x] Calibration isolation: `calibrate_margin.py --checkpoint/--out` (Risk R4).
+
+**RUN the soft-F1 experiment — now tooled via the multi-seed harness (§3.5):**
+1. Baseline noise floor: `python training/run_round3_multiseed.py --tag baseline --lambda_f1 0.0
+      --seeds 42 43 44`  (forces `GRID_CONFIG=small`, writes `round3_runs/agg_baseline.json`).
+2. Soft-F1 lever vs the floor: `python training/run_round3_multiseed.py --tag softf1_0p1
+      --lambda_f1 0.1 --seeds 42 43 44 --compare_to round3_runs/agg_baseline.json`.
+3. Read the printed **noise-aware VERDICT** (KEEP/REJECT). Kill switch: if `0.1` *collapses* a class,
+      STOP — do not escalate to `0.2`/ramp (§3.3 step 6, §3.5 step 5).
+4. If KEEP: promote the best-seed checkpoint to `gnn_checkpoint_best.pt` and its margin to
+      `gnn_logit_margin.json`. If REJECT: leave the deployed Lever A files untouched.
+5. Either way append the aggregate (mean±σ) to `normal_recall_experiments.md` in the lever-table
+      format so the Round 2 record stays the single source of truth.
+
+**Results (2026-07-12, personal PC / XPU / small config, seeds 42/43/44):**
+
+| Lever | macro-F1 (mean±σ) | normal recall (mean±σ) | normal F1 | overload F1 | line_trip F1 | cascade F1 |
+|---|---|---|---|---|---|---|
+| baseline (λ=0) | 0.7362 ± 0.0768 | 0.7787 ± 0.1450 | 0.7794 | 0.7789 | 0.6464 | 0.7400 |
+| soft-F1 (λ=0.1) | 0.7339 ± 0.0701 | 0.7961 ± 0.1408 | 0.7860 | 0.7761 | 0.6470 | 0.7266 |
+
+Per-seed macro — baseline: **0.8386 / 0.7162 / 0.6538**; soft-F1: 0.8278 / 0.7146 / 0.6594.
+
+**VERDICT on soft-F1: REJECT (neutral).** macro 0.7339 vs 0.7362 is well within noise; normal recall
+0.7961 fails the 0.88 floor; no class improves *or* regresses beyond baseline σ. This is the predicted
+negative result (§3.2) — soft-F1 did NOT collapse anything (kill switch not tripped), it simply did not
+move the needle. Loss-side lever confirms the architectural-diagnosis thesis once more. Deployed Lever A
+files left untouched.
+
+**BIGGER FINDING — the baseline is seed-unstable, and this is the real headline.** Only seed 42 (the
+original hardcoded seed) reproduces the good regime (macro 0.8386 ≈ deployed 0.8277). Seeds 43 and 44
+**collapse** to 0.7162 and 0.6538 (σ ≈ 0.077 on macro — enormous). **The deployed "0.8277" is a
+favorable-seed draw, not the expected value of this config (~0.74 ± 0.08).** Implication: every
+single-run comparison in Round 1/2 — including Lever A itself and the ±0.02 strict bars — may reflect
+seed luck rather than signal. The multi-seed harness (I1) surfaced this on its first use; without it we
+would still be treating 0.8277 as ground truth. This dominates the soft-F1 question: **with a noise
+floor this high, no lever can be distinguished from noise at 3 seeds** — the priority shifts from
+"which lever wins" to "why does this model train stably on 1 seed in 3."
+
+Note: `--seed` drives BOTH weight init AND the in-memory shuffle that repartitions train/val (val =
+checkpoint-selection set). So the collapse could be init instability, an "unlucky" val partition, or
+both. Recommended next diagnostic — separate the two: vary init with a FIXED partition vs vary the
+partition with FIXED init, to localize the instability before spending effort on GSAT or I6.
+
+### Seed-stability diagnostic RESULT (2026-07-12) — it's INIT, not partition
+
+Ran `training/diagnose_seed_stability.py` (separate `--init_seed`/`--split_seed`; baseline λ=0, small
+config; anchor i42/s42, 5 unique runs):
+
+| Arm | held fixed | varied | per-run macro | mean ± σ |
+|---|---|---|---|---|
+| **A** | partition (s=42) | **init** (42/43/44) | 0.8191 / 0.7696 / 0.7251 | 0.7713 ± 0.0384 |
+| **B** | init (42) | **partition** (42/43/44) | 0.8191 / 0.8472 / 0.8970 | 0.8544 ± 0.0322 |
+
+**Localization — the structure matters more than the raw σ (0.038 vs 0.032):**
+- **Arm B never collapses.** With a good init fixed, *every* train/val partition lands strong
+  (0.82 / 0.85 / 0.90). → **Partition luck is NOT the problem; the eval is robust to the split.**
+- **Arm A degrades** (0.82 → 0.77 → 0.72). Even with the good partition, a different init underperforms.
+  → **Initialization is the sensitive knob.**
+- The Round-3 catastrophic collapses (0.65) were **bad-init × bad-partition compounding**; neither
+  factor alone produces them.
+- Underneath everything: ~0.02 of pure XPU run-to-run nondeterminism (anchor read 0.8191 here vs 0.8386
+  at the same seed in the multi-seed run).
+
+**Corrected headline:** 0.8277 is a lucky-**init** draw — but a *reproducible and conservative* one
+(init=42 gives 0.82–0.90 across partitions). The fragility is in initialization, which is
+**controllable** (fix the seed / best-of-N), unlike partition luck which would have undermined the
+whole evaluation and does not. This partially **rehabilitates** the deployed Lever A: it is a
+legitimately good, reproducible init, not a favorable-split fluke.
+
+**Recommended fixes (for a later session — no more compute this session):**
+1. **Treat init as a controlled hyperparameter.** Keep init=42 for deployment (justified), and/or use
+   the multi-seed harness for explicit **best-of-N init** selection — honest and cheap.
+2. **Reduce init sensitivity** so results don't depend on a lucky seed: try lr-warmup, more epochs, or
+   a different init scheme (tiny model + 10 epochs ⇒ different inits settle in different basins).
+   Re-measure Arm A σ after each — success = Arm A σ shrinks toward Arm B's.
+3. **Leave the split alone** — Arm B says it's fine. Do NOT spend effort on chronic-split changes for
+   this instability.
+4. Only after the baseline is init-stable does comparing GSAT / soft-F1 variants become trustworthy.
+
+**After soft-F1 is resolved — Phase 2 (GSAT), still to be written:**
+- [ ] Paper-first note on IB-gate ↔ `loc_loss` interaction (§1.5) BEFORE any code.
+- [ ] Port `StochasticEdgeGate` + `info_bottleneck_kl` from the official repo (§1.4). Expose
+      `conv3` attention via `return_attention_weights=True` (currently discarded, `train_gnn.py:44,67`).
+      New knobs (`beta`, `r`, `tau`) go in `SMALL_CONFIG`/`CUDA_CONFIG` alongside `lambda_f1`.
+      Budget ~1–2 days incl. a first `r`/`beta` pass. Validate on the strict bar AND on 14-bus
+      cross-topology (baseline uncalibrated macro 0.6258) — that OOD number is GSAT's actual claim.
 
 ---
 
