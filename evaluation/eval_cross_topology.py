@@ -33,8 +33,6 @@ def main():
     ap.add_argument("--tag", default="case14", help="dataset tag → data/grid_dataset_<tag>.jsonl")
     ap.add_argument("--checkpoint", default=CKPT, help=f"model state_dict (default: {CKPT})")
     ap.add_argument("--margin", default=MARGIN_FILE, help=f"logit-margin json (default: {MARGIN_FILE})")
-    ap.add_argument("--gsat", action="store_true", default=False,
-                    help="checkpoint was GSAT-trained (build a gate-matched model so state_dict loads)")
     args = ap.parse_args()
 
     idx_to_label = {v: k for k, v in LABEL_MAP.items()}
@@ -73,7 +71,6 @@ def main():
         node_features=NODE_FEATURES, edge_features=EDGE_FEATURES, n_classes=n_classes,
         hidden_channels=TRAIN_CONFIG["hidden_channels"], heads=TRAIN_CONFIG["heads"],
         dropout=TRAIN_CONFIG["dropout"],
-        gsat_enabled=args.gsat, gsat_tau=TRAIN_CONFIG.get("gsat_tau", 1.0),
     ).to(DEVICE)
     model.load_state_dict(torch.load(args.checkpoint, map_location=DEVICE))
     model.eval()
@@ -85,7 +82,7 @@ def main():
             batch = batch.to(DEVICE)
             batch.x         = (batch.x         - node_mean) / node_std
             batch.edge_attr = (batch.edge_attr - edge_mean) / edge_std
-            logits, _, _ = model(batch.x, batch.edge_index, batch.edge_attr, batch.batch)
+            logits, _ = model(batch.x, batch.edge_index, batch.edge_attr, batch.batch)
             logits_all.append(logits.cpu())
             y_all.append(batch.y.cpu())
     logits = torch.cat(logits_all)

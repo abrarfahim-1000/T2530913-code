@@ -21,7 +21,7 @@ result is **Lever A** (post-hoc per-class logit-margin calibration): calibrated 
 **0.8277**, `normal` recall **0.8806** (36-bus, in-distribution). Three rounds of architecture/loss/
 attention experiments (data regeneration, resampling, alternate pooling, a two-stage head, soft-F1
 loss, GSAT stochastic edge gating) were all tried and rejected — full index in
-[`supplimentary_docs/gnn_experimentation_closure.md`](supplimentary_docs/gnn_experimentation_closure.md),
+[`supplimentary_docs/gnn_final_results.md`](supplimentary_docs/gnn_final_results.md),
 which is written to double as the thesis negative-results section. Deployed artifacts
 (`gnn_checkpoint_best.pt`, `gnn_checkpoint_leverA.pt`, `gnn_logit_margin.json`,
 `data/normalization_stats.pt`) are frozen — do not retrain or recalibrate against them without a new,
@@ -154,16 +154,12 @@ scripts/
   inspect_data.py, audit_datasets.py, chk_split.py, diag.py   # ad hoc inspection utilities
 
 training/
-  train_gnn.py                     # Main training script (GridGNN, GSAT gate, soft-F1 loss — see closure doc)
-  config.py                        # SMALL_CONFIG (deployed) / CUDA_CONFIG, GRID_CONFIG override
+  train_gnn.py                     # Main training script (GridGNN) — reverted to pre-Round-3 state; GSAT/soft-F1 removed, see closure doc
+  config.py                        # TRAIN_CONFIG, auto-selected by device (cuda vs personal-PC)
   calibrate_margin.py              # Lever A post-hoc logit-margin calibration/report tool
-  run_round3_multiseed.py          # multi-seed noise-aware lever-evaluation harness
-  diagnose_seed_stability.py       # init-vs-partition variance decomposition
 
 evaluation/
   eval_cross_topology.py           # GNN-only classification metrics on unseen topologies (no shield yet)
-
-tests/                             # pytest — test_soft_f1_loss.py, test_gsat.py
 ```
 
 ---
@@ -189,7 +185,7 @@ Localizer MLP   →  (n_nodes,) per-bus fault probability  [DISABLED for cross-t
 Lever A: argmax(class_logits + per-class_margin)   [inference-time only, see below]
 ```
 `(h0,h1,h2)` and head counts `(k0,k1,k2)` come from `TRAIN_CONFIG` — see **Training Configuration**
-below; the DEPLOYED checkpoint uses the SMALL config `[16,32,32]`/`heads=[4,4,1]`, not the CUDA config.
+below; the DEPLOYED checkpoint uses `[16,32,32]`/`heads=[4,4,1]` (the personal-PC/non-CUDA branch).
 
 **Critical implementation notes:**
 - **GATv2Conv, not GATConv.** GATConv's static attention (scored before concatenation) rank-collapses
@@ -197,15 +193,17 @@ below; the DEPLOYED checkpoint uses the SMALL config `[16,32,32]`/`heads=[4,4,1]
   expressiveness. This is load-bearing, confirmed by `supplimentary_docs/archive/gnn_upgrade_assessment.md`.
 - `BatchNorm(track_running_stats=False)` — live batch stats, not running stats. Running stats flatten overload spikes (rho > 1.0) during eval mode.
 - **No dropout** — dropout severs attention edges and creates train/eval scaling gaps on power flow features.
-- **Triple pooling** — max captures overload spikes, min captures connectivity drops, mean captures baseline state. This pooling operator is also the diagnosed bottleneck for `normal`/`line_trip` confusion — see `supplimentary_docs/gnn_experimentation_closure.md` §3.
+- **Triple pooling** — max captures overload spikes, min captures connectivity drops, mean captures baseline state. This pooling operator is also the diagnosed bottleneck for `normal`/`line_trip` confusion — see `supplimentary_docs/gnn_final_results.md` §3.
 - **Tripped lines are pruned from `edge_index`** using `line_status` boolean mask at graph construction. Without pruning, line_trip states are structurally identical to normal states.
 - **Lever A (deployed, inference-time only):** a fixed per-class logit offset (`normal +0.30`,
   `line_trip −0.10`, others `0`, in `gnn_logit_margin.json`) is added to the raw logits before argmax.
   This is what takes macro F1 from 0.7830 → 0.8277 and `normal` recall from 0.65 → 0.88 — see
   `training/calibrate_margin.py` and the closure doc for why this, and not an architecture change, is
   the thing that worked. **Does not transfer cross-topology** — apply only to 36-bus in-distribution eval.
-- **GSAT (stochastic edge gating) exists in the code but is disabled by default** (`gsat_enabled=False`)
-  and was rejected after evaluation — see the closure doc. Do not enable it without a new hypothesis.
+- **GSAT (stochastic edge gating) and a soft-F1 loss term were tried and rejected in Round 3** — the
+  code has since been removed from `train_gnn.py`/`config.py` (reverted to pre-Round-3 state) now that
+  the results doc has captured the results. Retrieve from git history before revisiting; see
+  `supplimentary_docs/gnn_final_results.md`.
 
 ### Node Features (5 per bus)
 
@@ -224,9 +222,12 @@ below; the DEPLOYED checkpoint uses the SMALL config `[16,32,32]`/`heads=[4,4,1]
 `[rho, p_or, q_or, near_limit]` — `near_limit = (rho >= 1.0)`, a boolean overload flag (this superseded
 a `>= 0.9` threshold; see Exp 1 in the closure doc, the one Round-1 lever that was kept).
 
-### Training Configuration — two named configs, deployed = SMALL
+### Training Configuration — auto-selected by device in `training/config.py`
 
-| Parameter | `SMALL_CONFIG` (**deployed**) | `CUDA_CONFIG` (unvalidated) |
+`TRAIN_CONFIG` is picked automatically: `DEVICE.type == "cuda"` gets the "Research PC" branch, anything
+else (the personal-PC XPU/CPU dev machine) gets the smaller, **deployed** branch below.
+
+| Parameter | Personal-PC branch (**deployed config**) | CUDA branch (untested at scale — see note) |
 |---|---|---|
 | `hidden_channels` | `[16, 32, 32]` | `[64, 128, 128]` |
 | `heads` | `[4, 4, 1]` | `[2, 2, 1]` |
@@ -239,18 +240,20 @@ a `>= 0.9` threshold; see Exp 1 in the closure doc, the one Round-1 lever that w
 | Primary metric | **Macro F1** (not accuracy — dataset is imbalanced) | same |
 | Normalization | Z-score from training split only → saved to `data/normalization_stats.pt` | same |
 
-**The deployed `gnn_checkpoint_best.pt` was trained on `SMALL_CONFIG`** — verified from checkpoint
-tensor shapes, not assumed (see `supplimentary_docs/archive/round3_gsat_softf1_plan.md` §3.4). The
-`CUDA_CONFIG` scale-up (`[64,128,128]`) was tried and **overfits/collapses** under this schedule — do
-not treat it as the "real" config on a CUDA machine. Force the validated config explicitly:
-`GRID_CONFIG=small python training/train_gnn.py` (works on any device, not just non-CUDA).
+**The deployed `gnn_checkpoint_best.pt` was trained on the small `[16,32,32]`/`heads=[4,4,1]` config**
+— verified from checkpoint tensor shapes, not assumed. The `[64,128,128]` CUDA-branch scale-up was
+tried (Round 1) and **overfits/collapses** under its schedule (train loss falls while val F1 falls;
+`normal`+`cascade` go to 0.0) — it is *not* a validated alternative, just what auto-selects on a CUDA
+machine. If training on a CUDA (research) machine, be aware the auto-selected config there has never
+produced a working checkpoint; the small config is what's proven.
 
 **`normalization_stats.pt` must be saved after training.** It is loaded at inference time for all topologies (including 14-bus and 118-bus). Foreign topologies are normalized with 36-bus stats — intentional, physical quantities have the same scale.
 
-**Seed sensitivity:** the deployed init (`seed=42`) is a good, reproducible init (0.82–0.90 macro F1
-across different train/val partitions) — but a *different* init can degrade to ~0.72–0.82. This was
-diagnosed and localized to initialization, not the data split; see the closure doc §5. Do not change
-`SEED` without re-verifying against this.
+**Seed sensitivity (diagnosed in Round 3, tooling since removed):** the deployed init (`seed=42`) is a
+good, reproducible init (0.82–0.90 macro F1 across different train/val partitions) — but a *different*
+init can degrade to ~0.72–0.82. Localized to initialization, not the data split; full data in
+`supplimentary_docs/gnn_final_results.md` §5. Do not change `SEED` (still hardcoded to `42` in
+`training/config.py`) without being aware of this.
 
 **In-memory shuffle required** before training to eliminate chronological domain shift:
 ```python

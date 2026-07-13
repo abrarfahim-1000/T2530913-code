@@ -884,6 +884,70 @@ plot_line(
 
 
 # ===========================================================================
+# SECTION F: LEGACY EDA_sf.py ANALYSES (ported for completeness)
+# ===========================================================================
+# These four plots originated in the earlier EDA_sf.py exploration script and are
+# ported here verbatim in intent (seaborn styling, percentage annotations, the
+# thermal-limit reference line) so this file is the single complete EDA script.
+import seaborn as sns
+sns.set_theme(style="whitegrid", palette="muted")
+
+# EDA SF-1: CLASS DISTRIBUTION WITH PERCENTAGE ANNOTATIONS
+plt.figure(figsize=(10, 6))
+sf_counts = df["label"].astype(str).value_counts()
+sf_percentages = (sf_counts / len(df)) * 100
+ax = sns.barplot(x=sf_counts.index, y=sf_counts.values, hue=sf_counts.index, legend=False)
+plt.title("Distribution of Grid States (Class Imbalance)", fontsize=14, pad=15)
+plt.xlabel("Grid State (Label)", fontsize=12)
+plt.ylabel("Number of Snapshots", fontsize=12)
+for i, p in enumerate(ax.patches):
+    ax.annotate(f"{sf_percentages.iloc[i]:.1f}%",
+                (p.get_x() + p.get_width() / 2., p.get_height()),
+                ha="center", va="bottom", fontsize=11, xytext=(0, 5),
+                textcoords="offset points")
+plt.tight_layout()
+plt.show()
+
+
+# EDA SF-2: MAX-RHO BY CLASS WITH THERMAL-LIMIT REFERENCE LINE
+plt.figure(figsize=(10, 6))
+sns.boxplot(data=df, x="label", y="max_rho", hue="label", legend=False, showfliers=False)
+plt.axhline(y=1.0, color="r", linestyle="--", linewidth=2, label="100% Thermal Limit")
+plt.title("Maximum Line Loading (Rho) by Grid State", fontsize=14, pad=15)
+plt.xlabel("Grid State (Label)", fontsize=12)
+plt.ylabel("Max Rho (Line Loading Proportion)", fontsize=12)
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+
+# EDA SF-3: TOTAL GENERATION VS TOTAL LOAD, COLOURED BY CLASS
+plt.figure(figsize=(10, 6))
+sns.scatterplot(data=df, x="total_load", y="total_gen", hue="label", alpha=0.7, palette="deep")
+plt.title("Total Active Generation vs. Total Active Load", fontsize=14, pad=15)
+plt.xlabel("Total Active Load (MW)", fontsize=12)
+plt.ylabel("Total Active Generation (MW)", fontsize=12)
+plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+plt.tight_layout()
+plt.show()
+
+
+# EDA SF-4: CRITICAL-LINES HISTOGRAM FOR STRESSED (NON-NORMAL) STATES
+fig, axes = plt.subplots(1, 2, figsize=(15, 5))
+stressed_df = df[df["label"].astype(str) != "normal"]
+sns.histplot(data=stressed_df, x="rho_above_90_pct", bins=15, ax=axes[0], color="orange", kde=True)
+axes[0].set_title("Frequency of Lines > 90% Capacity (Stressed States)", fontsize=12)
+axes[0].set_xlabel("Number of Lines")
+axes[0].set_ylabel("Frequency")
+sns.histplot(data=stressed_df, x="rho_above_100_pct", bins=15, ax=axes[1], color="red", kde=True)
+axes[1].set_title("Frequency of Lines >= 100% Capacity (Stressed States)", fontsize=12)
+axes[1].set_xlabel("Number of Lines")
+axes[1].set_ylabel("Frequency")
+plt.tight_layout()
+plt.show()
+
+
+# ===========================================================================
 # FINAL SUMMARY
 # ===========================================================================
 print("\n" + "=" * 70)

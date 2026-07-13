@@ -24,16 +24,14 @@ from training.train_gnn import GridGNN, compute_normalization_stats
 from training.config import DEVICE, DATA_FILE, DATA_DIR, NODE_FEATURES, EDGE_FEATURES, TRAIN_CONFIG
 from scripts.pyg_data import PreloadedGridDataset
 
-# ── CLI (Round 3): calibrate an arbitrary checkpoint to its own margin file, so an
-# experiment never clobbers the deployed gnn_logit_margin.json until it wins the bar.
-# Defaults reproduce the original hard-coded behavior exactly.
+# ── CLI: calibrate an arbitrary checkpoint to its own margin file, so a future
+# experiment never clobbers the deployed gnn_logit_margin.json. Defaults reproduce
+# the original hard-coded behavior exactly.
 _parser = argparse.ArgumentParser(description="Post-hoc logit-margin calibration.")
 _parser.add_argument("--checkpoint", default="gnn_checkpoint_best.pt",
                      help="model state_dict to calibrate (default: gnn_checkpoint_best.pt)")
 _parser.add_argument("--out", default="gnn_logit_margin.json",
                      help="where to write the chosen margin (default: gnn_logit_margin.json)")
-_parser.add_argument("--gsat", action="store_true", default=False,
-                     help="checkpoint was GSAT-trained (build a gate-matched model so state_dict loads)")
 args = _parser.parse_args()
 
 # ── Label map ────────────────────────────────────────────────────────────────
@@ -63,7 +61,6 @@ model = GridGNN(
     node_features=NODE_FEATURES, edge_features=EDGE_FEATURES, n_classes=n_classes,
     hidden_channels=TRAIN_CONFIG["hidden_channels"], heads=TRAIN_CONFIG["heads"],
     dropout=TRAIN_CONFIG["dropout"],
-    gsat_enabled=args.gsat, gsat_tau=TRAIN_CONFIG.get("gsat_tau", 1.0),
 ).to(DEVICE)
 print(f"Loading checkpoint: {args.checkpoint}")
 model.load_state_dict(torch.load(args.checkpoint, map_location=DEVICE))
@@ -76,7 +73,7 @@ def collect_logits(indices):
     logits_all, labels_all = [], []
     for batch in loader:
         batch = batch.to(DEVICE)
-        logits, _, _ = model(batch.x, batch.edge_index, batch.edge_attr, batch.batch)
+        logits, _ = model(batch.x, batch.edge_index, batch.edge_attr, batch.batch)
         logits_all.append(logits.cpu().numpy())
         labels_all.append(batch.y.cpu().numpy())
     return np.concatenate(logits_all), np.concatenate(labels_all)

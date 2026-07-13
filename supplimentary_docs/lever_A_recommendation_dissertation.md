@@ -4,9 +4,8 @@
 **Date:** 2026-06-25.
 **Scope:** the GridGNN classifier head (Component A) on the NeurIPS-2020 36-bus topology, and its
 behaviour under cross-topology transfer to the 14-bus `l2rpn_case14_sandbox` environment.
-**Companion files:** `normal_recall_experiments.md` (full lever-by-lever log),
-`lever_E_datagen_handoff.md` (deferred data-generation fix), `training/calibrate_margin.py`,
-`evaluation/eval_cross_topology.py`.
+**Companion files:** `gnn_final_results.md` (consolidated log of all rounds, incl. this decision),
+`training/calibrate_margin.py`, `evaluation/eval_cross_topology.py`.
 
 ---
 
