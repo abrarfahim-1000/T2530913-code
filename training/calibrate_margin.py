@@ -1,7 +1,7 @@
 """
 Lever A — post-hoc per-class logit-margin calibration (no retraining).
 
-Diagnosis (see supplimentary_docs/normal_recall_experiments.md, round 2): `line_trip` is an
+Diagnosis (see supplimentary_docs/gnn_final_results.md, round 2): `line_trip` is an
 over-predicted "magnet" class (precision 0.648, recall 0.915). Pure argmax over-commits to it and
 absorbs 3,043 of 9,128 normals. This script searches a fixed additive offset vector `b` applied to
 the logits at inference (`pred = argmax(logits + b)`), tuned on the VAL split, then reports on TEST.

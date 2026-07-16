@@ -250,6 +250,22 @@ def main():
         log.error("Run extract.py first.")
         sys.exit(1)
 
+    # Stale-output guard: deduplicate_rules() merges every *_confirmed.jsonl in the
+    # out dir, so confirmed files left over from an earlier run would silently mix
+    # old rules into all_rules_deduped.jsonl.
+    newest_candidate_mtime = max(f.stat().st_mtime for f in candidate_files)
+    stale = [f for f in out_dir.glob("*_confirmed.jsonl")
+             if f.stat().st_mtime < newest_candidate_mtime]
+    if stale:
+        log.warning(f"Found {len(stale)} *_confirmed.jsonl file(s) older than the newest "
+                    f"candidates file — these will be merged into all_rules_deduped.jsonl!")
+        for f in stale:
+            log.warning(f"  stale: {f.name}")
+        log.warning("If these are from a previous extraction run, move them out "
+                    "(e.g. to a v1_archive/ subfolder) before continuing.")
+        if input("Continue anyway? [y/N] ").strip().lower() != "y":
+            sys.exit(1)
+
     log.info(f"Found {len(candidate_files)} candidate file(s)")
     log.info(f"Validator model : {VALIDATOR_MODEL}")
     log.info(f"Output          : {out_dir}/")

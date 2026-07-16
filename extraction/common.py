@@ -3,6 +3,7 @@ common.py — Shared constants, schemas, and utilities for the two-stage pipelin
 Both extract.py and validate.py import from here.
 """
 
+import ast
 import json
 import logging
 import re
@@ -31,23 +32,57 @@ ACTION_VALUES = {
     "RECONNECT", "RESPOND_WITHIN_2S", "SHED_LOAD", "OTHER",
 }
 
+# ── CONDITION VOCABULARY ──────────────────────────────────────────────────────
+# The ONLY variables allowed in a rule condition. Every one is directly derivable
+# from a Grid2Op observation / dataset record (rho, v_or, line_status) — conditions
+# written against this vocabulary are machine-evaluable by the symbolic shield.
+# Single source of truth: rendered into both prompts AND enforced by the AST linter.
+CONDITION_VOCABULARY = {
+    "voltage_pu_min":  "lowest per-unit voltage across all energized lines (1.0 = nominal)",
+    "voltage_pu_max":  "highest per-unit voltage across all energized lines (1.0 = nominal)",
+    "loading_pct":     "maximum line loading as percent of thermal limit (100 = at limit)",
+    "rho_max":         "maximum line loading ratio (1.0 = at thermal limit)",
+    "n_tripped_lines": "number of disconnected transmission lines (integer, 0 = all in service)",
+    "any_line_tripped": "boolean, True if at least one line is disconnected",
+}
+
+def _vocabulary_block() -> str:
+    return "\n".join(f"- {name} : {desc}" for name, desc in CONDITION_VOCABULARY.items())
+
+
 # ── PROMPTS ───────────────────────────────────────────────────────────────────
 EXTRACT_PROMPT = """/no_think
 You are a power systems engineer extracting operational safety rules from grid documentation.
-From the text below, extract ALL constraints, thresholds, and operational limits as a JSON array.
+From the text below, extract constraints, thresholds, and operational limits as a JSON array.
 
 Each rule MUST have exactly these keys:
 - rule_id   : string, format "R_001" (sequential, unique within this response)
 - source    : string, e.g. "IEEE Std 1547-2018, Section 7.4"
 - entity    : string, one of: Bus, Line, Transformer, Generator, Load, ProtectionDevice, Grid
-- condition : string, logical expression using grid variable names, e.g. "voltage_pu > 1.05 OR voltage_pu < 0.95"
+- condition : string, a Python boolean expression (see CONDITION RULES below)
 - action    : string, one of: BLOCK, DISCONNECT, ALERT, REDISPATCH, RECONNECT, RESPOND_WITHIN_2S, SHED_LOAD, OTHER
 - severity  : string, one of: critical, high, medium, low
 - explanation : string, plain-English reason for the rule (one sentence)
 
-Rules:
-- condition fields MUST use variable names (voltage_pu, loading_pct, rho, p_mw, etc.), NOT prose
-- If no rule is present in the text, return an empty array: []
+CONDITION RULES (strict):
+1. The condition may use ONLY these variables — no other variable names exist:
+{vocabulary}
+2. Allowed syntax: the variables above, numeric literals, comparison operators
+   (< <= > >= == !=), the keywords and / or / not, and parentheses. Nothing else.
+   FORBIDDEN: BETWEEN, units inside the expression, time windows or durations,
+   function calls, prose, and any variable not listed above.
+3. VIOLATION POLARITY: the condition must describe the UNSAFE / VIOLATING state —
+   it must evaluate TRUE when the rule is violated. If the source text states a
+   required or normal operating range, INVERT it.
+   Example: "voltage shall remain within 0.95-1.05 pu"
+   -> condition: "voltage_pu_min < 0.95 or voltage_pu_max > 1.05"
+4. If a constraint CANNOT be expressed with the variables above (e.g. it concerns
+   frequency, droop, power factor, ramp rates, timing/duration requirements, or
+   administrative/testing/verification obligations), DO NOT emit a rule for it.
+   Emitting fewer, evaluable rules is correct; inventing variables is not.
+
+Other rules:
+- If no expressible rule is present in the text, return an empty array: []
 - Output ONLY a valid JSON array. No preamble, no markdown, no explanation.
 
 Text:
@@ -60,6 +95,15 @@ For each rule below, verify:
 1. Is this constraint actually stated in the source text?
 2. Is the condition boundary (threshold value) correctly parsed?
 3. Is the entity type correct?
+4. Does the condition use ONLY these variables, with Python syntax
+   (comparisons, and/or/not, parentheses — no BETWEEN, no units, no prose)?
+{vocabulary}
+   If the condition uses any other variable or cannot be expressed with these, REJECT.
+5. VIOLATION POLARITY: the condition must evaluate TRUE in the UNSAFE / VIOLATING
+   state. If it instead describes the normal/required operating range, return
+   verdict CORRECT with the logically inverted condition in corrected_fields.
+   Example: "voltage_pu_min >= 0.95 and voltage_pu_max <= 1.05" (a healthy band)
+   must be corrected to "voltage_pu_min < 0.95 or voltage_pu_max > 1.05".
 
 Output ONLY a JSON array. Each item must have:
 - rule_id  : matching the input rule
@@ -76,6 +120,11 @@ Extracted rules:
 {rules}
 """
 
+# Pre-render the vocabulary so extract.py / validate.py keep calling
+# .format(chunk=...) / .format(chunk=..., rules=...) unchanged.
+EXTRACT_PROMPT  = EXTRACT_PROMPT.replace("{vocabulary}", _vocabulary_block())
+VALIDATE_PROMPT = VALIDATE_PROMPT.replace("{vocabulary}", _vocabulary_block())
+
 # ── LOGGING ───────────────────────────────────────────────────────────────────
 def get_logger(name: str) -> logging.Logger:
     logging.basicConfig(
@@ -84,6 +133,65 @@ def get_logger(name: str) -> logging.Logger:
         datefmt="%H:%M:%S",
     )
     return logging.getLogger(name)
+
+
+# ── CONDITION LINTER ──────────────────────────────────────────────────────────
+# Deterministic, LLM-independent guarantee that every rule reaching the KG is
+# machine-evaluable: valid Python boolean expression over CONDITION_VOCABULARY only.
+
+_ALLOWED_AST_NODES = (
+    ast.Expression, ast.BoolOp, ast.And, ast.Or,
+    ast.UnaryOp, ast.Not, ast.USub,          # USub: negative numeric literals
+    ast.Compare, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Eq, ast.NotEq,
+    ast.Name, ast.Load, ast.Constant,
+)
+
+# Dummy namespace for the smoke-eval — values are arbitrary but type-correct.
+_SMOKE_NAMESPACE = {
+    "voltage_pu_min": 1.0, "voltage_pu_max": 1.0,
+    "loading_pct": 50.0, "rho_max": 0.5,
+    "n_tripped_lines": 0, "any_line_tripped": False,
+}
+
+
+def lint_condition(condition: str) -> str:
+    """
+    Validate that `condition` is a machine-evaluable boolean expression over
+    CONDITION_VOCABULARY. Returns the (stripped) condition, or raises ValueError.
+    """
+    condition = condition.strip()
+    if not condition:
+        raise ValueError("Empty condition")
+
+    try:
+        tree = ast.parse(condition, mode="eval")
+    except SyntaxError as exc:
+        raise ValueError(f"Condition is not valid Python: {condition!r} ({exc.msg})")
+
+    for node in ast.walk(tree):
+        if not isinstance(node, _ALLOWED_AST_NODES):
+            raise ValueError(
+                f"Disallowed syntax {type(node).__name__} in condition: {condition!r}"
+            )
+        if isinstance(node, ast.Name) and node.id not in CONDITION_VOCABULARY:
+            raise ValueError(
+                f"Unknown variable {node.id!r} in condition: {condition!r} "
+                f"(allowed: {', '.join(CONDITION_VOCABULARY)})"
+            )
+        if isinstance(node, ast.Constant) and not isinstance(node.value, (int, float)):
+            raise ValueError(
+                f"Non-numeric literal {node.value!r} in condition: {condition!r}"
+            )
+
+    # Smoke-eval: catches anything the AST walk missed at runtime.
+    try:
+        result = eval(condition, {"__builtins__": {}}, dict(_SMOKE_NAMESPACE))
+    except Exception as exc:
+        raise ValueError(f"Condition failed smoke evaluation: {condition!r} ({exc})")
+    if not isinstance(result, bool):
+        raise ValueError(f"Condition does not evaluate to a boolean: {condition!r}")
+
+    return condition
 
 
 # ── PYDANTIC SCHEMAS ──────────────────────────────────────────────────────────
@@ -116,6 +224,11 @@ class Rule(BaseModel):
         if v.upper() not in ACTION_VALUES:
             return "OTHER"
         return v.upper()
+
+    @field_validator("condition")
+    @classmethod
+    def check_condition(cls, v):
+        return lint_condition(v)
 
 
 class Verdict(BaseModel):

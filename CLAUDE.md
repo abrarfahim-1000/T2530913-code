@@ -14,7 +14,7 @@ The GNN is trained on one topology (36-bus) and evaluated on unseen topologies (
 
 ---
 
-## Current Status (2026-07-13)
+## Current Status (2026-07-16)
 
 **Component A (GNN) — CLOSED.** No further training-side experimentation is planned. The deployed
 result is **Lever A** (post-hoc per-class logit-margin calibration): calibrated test macro F1
@@ -24,24 +24,35 @@ loss, GSAT stochastic edge gating) were all tried and rejected — full index in
 [`supplimentary_docs/gnn_final_results.md`](supplimentary_docs/gnn_final_results.md),
 which is written to double as the thesis negative-results section. Deployed artifacts
 (`gnn_checkpoint_best.pt`, `gnn_checkpoint_leverA.pt`, `gnn_logit_margin.json`,
-`data/normalization_stats.pt`) are frozen — do not retrain or recalibrate against them without a new,
-previously-untried hypothesis.
+`normalization_stats.pt` — all at repo root) are frozen — do not retrain or recalibrate against
+them without a new, previously-untried hypothesis.
 
-**Component B (LLM extraction) — DONE.** 469 deduplicated rules in `rules/all_rules_deduped.jsonl`
-(see §Component B for the extraction pipeline stats). Not being revisited.
+**Component B (LLM extraction) — REOPENED for re-extraction (2026-07-16).** The v1 ruleset
+(469 rules) turned out to be largely non-operationalizable: only ~64 conditions used
+Grid2Op-observable variables, and some had inverted polarity (condition described the *healthy*
+state). Root causes and fixes are documented in
+[`supplimentary_docs/component_d_handoff.md`](supplimentary_docs/component_d_handoff.md).
+The extraction prompts now enforce a closed 6-variable condition vocabulary
+(`CONDITION_VOCABULARY` in `extraction/common.py`), Python-only condition syntax, and
+violation-when-true polarity; a deterministic AST linter (`lint_condition`) drops anything else
+at schema time. The v1 outputs are archived at `rules/v1_archive/` (retained as a thesis
+negative result). **The user re-runs extraction on the research PC** — until then there is no
+current `rules/all_rules_deduped.jsonl`.
 
-**Component C (Knowledge Graph) — DONE.** Built from the 469 rules; artifact is `kg/knowledge_graph.pkl`.
+**Component C (Knowledge Graph) — STALE.** `kg/knowledge_graph.pkl` is still built from the v1
+rules; rebuild it after re-extraction:
+`python extraction/build_kg.py --rules rules/all_rules_deduped.jsonl --out-dir kg/`.
 
-**Component D (Symbolic Shield) — NOT YET STARTED. This is the active next phase.** No `shield.py` or
-equivalent validation module exists anywhere in this repo yet — the shield pseudocode in this file and
-the worked examples in `supplimentary_docs/inference.md` are design references, not implemented code.
-`evaluation/eval_cross_topology.py` currently only runs GNN classification metrics on foreign
-topologies; it does not call a shield, and the `failures_<topo>.jsonl` BLOCK logs described later in
-this file do not exist yet either. Design blueprint: `supplimentary_docs/study3(integration).md`
-(full walkthrough — observation→GNN→shield wiring, KG rule retrieval, condition evaluation) and
-`supplimentary_docs/shield_necessity_analysis_report.md` (the cross-topology generalization framing
-for why this phase matters to the thesis). Build this against the frozen GNN (Component A) and the
-existing KG (Component C) — neither should need to change to support it.
+**Component D (Symbolic Shield) — NOT STARTED; blocked on B re-extraction + C rebuild.** No
+`shield.py` or equivalent exists yet. **The build brief is
+[`supplimentary_docs/component_d_handoff.md`](supplimentary_docs/component_d_handoff.md)** —
+it contains the shield package plan, the test-harness plan, the binding voltage contract
+(per-line base kV from `data/grid_dataset_<tag>_basekv.json`, energized-line masking — the flat
+`v_or/150.0` conversion in `study3(integration).md` §4.5 is superseded; even the 36-bus grid has
+7 lines at ~365 kV), verification gates, and the thesis result framing (headline = GNN-only vs
+GNN+shield delta; no binding external benchmark). Older design references:
+`supplimentary_docs/study3(integration).md` and
+`supplimentary_docs/shield_necessity_analysis_report.md`.
 
 ---
 
@@ -81,8 +92,16 @@ python extraction/validate.py --candidates rules/
 # Build knowledge graph from validated rules (writes into --out-dir, default "kg")
 python extraction/build_kg.py --rules rules/all_rules_deduped.jsonl --out-dir kg/
 ```
-Already run once — outputs are the committed `rules/all_rules_deduped.jsonl` (469 rules) and
-`kg/knowledge_graph.pkl`. Not being re-run unless new source documents are added.
+Being re-run with the fixed prompts (see Current Status). The v1 outputs (469 rules) are archived
+at `rules/v1_archive/`; `kg/knowledge_graph.pkl` must be rebuilt once the new
+`rules/all_rules_deduped.jsonl` exists. Note: `deduplicate_rules` merges every `*_confirmed.jsonl`
+in the out dir — keep old outputs out of `rules/` (validate.py warns if stale files are present).
+
+```bash
+# Per-line base kV sidecar (needed by the shield's voltage_pu conversion)
+python scripts/dump_base_kv.py --tag case14              # backend method (research PC)
+python scripts/dump_base_kv.py --tag case14 --empirical  # from existing JSONL (any machine)
+```
 
 ### Model Training
 ```bash
@@ -127,8 +146,11 @@ data/
   grid_dataset_*_meta.json         # per-environment metadata (n_sub, n_line, ...)
   processed_grid_data.pt           # preprocessed PyG tensors (scripts/preprocess.py)
   split_neurips2020_{train,val,test}_idx.npy   # chronic-level split indices
-  normalization_stats.pt           # z-score stats from 36-bus training split — required at inference
+  grid_dataset_*_basekv.json       # per-line base kV sidecars (scripts/dump_base_kv.py) — shield voltage_pu conversion
   documents/                       # IEEE/NERC/FERC/AEMO PDFs for LLM extraction (not present on every machine)
+
+# NOTE: normalization_stats.pt (z-score stats from the 36-bus training split, required at
+# inference) lives at the REPO ROOT, not in data/ — see training/save_normalization_stats.py.
 
 extraction/                        # Component B — LLM rule extraction pipeline
   extract.py                       # Qwen3-14B extraction pass → rules/*_candidates.jsonl
@@ -238,7 +260,7 @@ else (the personal-PC XPU/CPU dev machine) gets the smaller, **deployed** branch
 | Dropout | 0.0 (determinism) | 0.0 |
 | Loss | Weighted CrossEntropy (ICF, sqrt-smoothed) + label_smoothing 0.1 + 0.5×loc_loss | same |
 | Primary metric | **Macro F1** (not accuracy — dataset is imbalanced) | same |
-| Normalization | Z-score from training split only → saved to `data/normalization_stats.pt` | same |
+| Normalization | Z-score from training split only → saved to `normalization_stats.pt` (repo root) | same |
 
 **The deployed `gnn_checkpoint_best.pt` was trained on the small `[16,32,32]`/`heads=[4,4,1]` config**
 — verified from checkpoint tensor shapes, not assumed. The `[64,128,128]` CUDA-branch scale-up was
@@ -483,7 +505,7 @@ def get_state_label(obs, env):
 | Random seed | `42` | Model init + in-memory shuffle before training — deployed init is seed-sensitive, see Component A |
 | Checkpoint filename | `gnn_checkpoint_best.pt` (deployed, == `gnn_checkpoint_leverA.pt`) | Saved on best macro F1 |
 | Logit margin | `gnn_logit_margin.json` | Lever A per-class calibration offsets, applied at inference only |
-| Normalization stats | `data/normalization_stats.pt` | Must exist before cross-topology eval |
+| Normalization stats | `normalization_stats.pt` (repo root) | Must exist before cross-topology eval |
 
 ---
 
