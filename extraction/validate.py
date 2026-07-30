@@ -1,15 +1,15 @@
 """
-validate.py — Stage 2: LLM Validation (nemotron-mini)
+validate.py — Stage 3: LLM Validation (nemotron-mini)
 ======================================================
-Reads *_candidates.jsonl files produced by extract.py, calls the
+Reads *_translated.jsonl files produced by translate.py, calls the
 validator model per candidate, and writes confirmed/flagged output.
 
 Each candidate record already contains the source chunk, so this
 script is fully independent of the original PDFs.
 
 Usage:
-    python validate.py --candidates rules/
-    python validate.py --candidates rules/ --out rules/
+    python extraction/validate.py --candidates rules/
+    python extraction/validate.py --candidates rules/ --out rules/
 
 Output (in --out folder):
     <pdf_stem>_confirmed.jsonl      — rules the validator confirmed
@@ -165,9 +165,9 @@ def validate_batch(
 
 # ── FILE PROCESSOR ────────────────────────────────────────────────────────────
 def process_candidates_file(candidates_file: Path, out_dir: Path) -> dict:
-    """Reads one *_candidates.jsonl, groups records by chunk, calls validator
+    """Reads one *_translated.jsonl, groups records by chunk, calls validator
     per chunk, writes confirmed + flagged output files."""
-    stem = candidates_file.stem.replace("_candidates", "")
+    stem = candidates_file.stem.replace("_translated", "")
     log.info(f"{'=' * 60}")
     log.info(f"Validating: {candidates_file.name}")
 
@@ -243,8 +243,8 @@ def process_candidates_file(candidates_file: Path, out_dir: Path) -> dict:
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 def main():
-    parser = argparse.ArgumentParser(description="Stage 2: LLM rule validation")
-    parser.add_argument("--candidates", required=True, help="Folder with *_candidates.jsonl files")
+    parser = argparse.ArgumentParser(description="Stage 3: LLM rule validation")
+    parser.add_argument("--candidates", required=True, help="Folder with *_translated.jsonl files")
     parser.add_argument("--out",        default=None,  help="Output folder (default: same as --candidates)")
     args = parser.parse_args()
 
@@ -252,10 +252,10 @@ def main():
     out_dir        = Path(args.out) if args.out else candidates_dir
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    candidate_files = sorted(candidates_dir.glob("*_candidates.jsonl"))
+    candidate_files = sorted(candidates_dir.glob("*_translated.jsonl"))
     if not candidate_files:
-        log.error(f"No *_candidates.jsonl files in {candidates_dir}")
-        log.error("Run extract.py first.")
+        log.error(f"No *_translated.jsonl files in {candidates_dir}")
+        log.error("Run extraction/translate.py first.")
         sys.exit(1)
 
     # Stale-output guard: deduplicate_rules() merges every *_confirmed.jsonl in the

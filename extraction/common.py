@@ -14,8 +14,9 @@ import pdfplumber
 from pydantic import BaseModel, ValidationError, field_validator
 
 # ── MODEL CONFIG ──────────────────────────────────────────────────────────────
-EXTRACTOR_MODEL = "qwen3:14b"
-VALIDATOR_MODEL = "nemotron-3-nano:latest"   # update tag if yours differs
+EXTRACTOR_MODEL  = "qwen3:14b"
+VALIDATOR_MODEL  = "nemotron-3-nano:latest"   # update tag if yours differs
+TRANSLATOR_MODEL = EXTRACTOR_MODEL            # same model, re-used after extraction
 
 # ── CHUNKING CONFIG ───────────────────────────────────────────────────────────
 CHUNK_SIZE    = 1200   # chars — ~300–400 tokens for dense IEEE prose
@@ -65,24 +66,21 @@ Each rule MUST have exactly these keys:
 - explanation : string, plain-English reason for the rule (one sentence)
 
 CONDITION RULES (strict):
-1. The condition may use ONLY these variables — no other variable names exist:
-{vocabulary}
-2. Allowed syntax: the variables above, numeric literals, comparison operators
-   (< <= > >= == !=), the keywords and / or / not, and parentheses. Nothing else.
-   FORBIDDEN: BETWEEN, units inside the expression, time windows or durations,
-   function calls, prose, and any variable not listed above.
+1. The condition must be a valid Python boolean expression. Allowed syntax:
+   variable names, numeric literals, comparison operators (< <= > >= == !=),
+   the keywords and / or / not, and parentheses. Nothing else.
+   FORBIDDEN: BETWEEN, WITHIN, FOR, function calls, units inside the expression, prose.
+2. Use variable names that naturally describe the engineering quantities in the
+   standard — e.g. frequency_hz, voltage_pu, time_seconds, power_factor, loading_pct.
+   There is no pre-defined variable list.
 3. VIOLATION POLARITY: the condition must describe the UNSAFE / VIOLATING state —
    it must evaluate TRUE when the rule is violated. If the source text states a
    required or normal operating range, INVERT it.
    Example: "voltage shall remain within 0.95-1.05 pu"
    -> condition: "voltage_pu_min < 0.95 or voltage_pu_max > 1.05"
-4. If a constraint CANNOT be expressed with the variables above (e.g. it concerns
-   frequency, droop, power factor, ramp rates, timing/duration requirements, or
-   administrative/testing/verification obligations), DO NOT emit a rule for it.
-   Emitting fewer, evaluable rules is correct; inventing variables is not.
+4. If no safety constraint is present in the text, return an empty array: []
 
 Other rules:
-- If no expressible rule is present in the text, return an empty array: []
 - Output ONLY a valid JSON array. No preamble, no markdown, no explanation.
 
 Text:
@@ -120,10 +118,39 @@ Extracted rules:
 {rules}
 """
 
-# Pre-render the vocabulary so extract.py / validate.py keep calling
+TRANSLATE_PROMPT = """You are a power systems engineer translating operational safety rules into a machine-evaluable format.
+
+Each rule below was extracted from a grid code standard. Its "condition" field describes when the rule is violated (the UNSAFE state).
+
+Your task: translate the condition to use ONLY these Grid2Op-observable variables:
+{vocabulary}
+
+For each rule, decide:
+- If the condition CAN be expressed using the variables above:
+  Return {{"translatable": true, "condition": "translated condition", "reason": null}}
+  The translated condition must be a valid Python boolean expression using ONLY:
+  comparisons (< <= > >= == !=), and/or/not, parentheses, numeric literals, and the variables listed above.
+  VIOLATION POLARITY: the condition must evaluate TRUE when the rule is VIOLATED.
+  If the original condition describes the normal/healthy state, INVERT it.
+
+- If the condition CANNOT be expressed (uses frequency, time durations, power factor, droop,
+  ramp rates, or any variable not in the vocabulary):
+  Return {{"translatable": false, "condition": null, "reason": "category: detail"}}
+
+Output ONLY a JSON array of translation results. No preamble, no markdown.
+
+Source text:
+{chunk}
+
+Rules to translate:
+{rules}
+"""
+
+# Pre-render the vocabulary so extract.py / validate.py / translate.py keep calling
 # .format(chunk=...) / .format(chunk=..., rules=...) unchanged.
-EXTRACT_PROMPT  = EXTRACT_PROMPT.replace("{vocabulary}", _vocabulary_block())
-VALIDATE_PROMPT = VALIDATE_PROMPT.replace("{vocabulary}", _vocabulary_block())
+EXTRACT_PROMPT   = EXTRACT_PROMPT.replace("{vocabulary}", _vocabulary_block())
+VALIDATE_PROMPT  = VALIDATE_PROMPT.replace("{vocabulary}", _vocabulary_block())
+TRANSLATE_PROMPT = TRANSLATE_PROMPT.replace("{vocabulary}", _vocabulary_block())
 
 # ── LOGGING ───────────────────────────────────────────────────────────────────
 def get_logger(name: str) -> logging.Logger:
@@ -194,6 +221,29 @@ def lint_condition(condition: str) -> str:
     return condition
 
 
+def lint_condition_raw(condition: str) -> str:
+    """Validate that condition is valid Python syntax, without checking vocabulary.
+    Used by RawRule during Stage 1 extraction — accepts any variable name.
+    """
+    condition = condition.strip()
+    if not condition:
+        raise ValueError("Empty condition")
+    try:
+        tree = ast.parse(condition, mode="eval")
+    except SyntaxError as exc:
+        raise ValueError(f"Condition is not valid Python: {condition!r} ({exc.msg})")
+    for node in ast.walk(tree):
+        if not isinstance(node, _ALLOWED_AST_NODES):
+            raise ValueError(
+                f"Disallowed syntax {type(node).__name__} in condition: {condition!r}"
+            )
+        if isinstance(node, ast.Constant) and not isinstance(node.value, (int, float)):
+            raise ValueError(
+                f"Non-numeric literal {node.value!r} in condition: {condition!r}"
+            )
+    return condition
+
+
 # ── PYDANTIC SCHEMAS ──────────────────────────────────────────────────────────
 class Rule(BaseModel):
     rule_id: str
@@ -231,6 +281,45 @@ class Rule(BaseModel):
         return lint_condition(v)
 
 
+class RawRule(BaseModel):
+    """Rule with syntax-only condition validation (no vocabulary check).
+    Used during Stage 1 extraction before conditions are translated to Grid2Op vars.
+    """
+    rule_id: str
+    source: str
+    entity: str
+    condition: str
+    action: str
+    severity: str
+    explanation: str
+
+    @field_validator("entity")
+    @classmethod
+    def check_entity(cls, v):
+        if v.lower() not in ENTITY_VALUES:
+            raise ValueError(f"Invalid entity: {v}")
+        return v
+
+    @field_validator("severity")
+    @classmethod
+    def check_severity(cls, v):
+        if v.lower() not in SEVERITY_VALUES:
+            raise ValueError(f"Invalid severity: {v}")
+        return v.lower()
+
+    @field_validator("action")
+    @classmethod
+    def check_action(cls, v):
+        if v.upper() not in ACTION_VALUES:
+            return "OTHER"
+        return v.upper()
+
+    @field_validator("condition")
+    @classmethod
+    def check_condition(cls, v):
+        return lint_condition_raw(v)
+
+
 class Verdict(BaseModel):
     rule_id: str
     verdict: str   # CONFIRM | REJECT | CORRECT
@@ -244,6 +333,13 @@ class Verdict(BaseModel):
         if v not in {"CONFIRM", "REJECT", "CORRECT"}:
             raise ValueError(f"Invalid verdict: {v}")
         return v
+
+
+class TranslationResult(BaseModel):
+    rule_id: str
+    translatable: bool
+    condition: Optional[str] = None
+    reason: Optional[str] = None
 
 
 # ── PDF + CHUNKING ────────────────────────────────────────────────────────────
@@ -277,7 +373,7 @@ def chunk_text(text: str, size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP) 
 
 # ── JSON PARSING ──────────────────────────────────────────────────────────────
 def _strip_think(text: str) -> str:
-    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+    return re.sub(r" thinking.*? response", "", text, flags=re.DOTALL).strip()
 
 
 def extract_json_array(text: str) -> list:

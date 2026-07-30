@@ -10,7 +10,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "extraction"))
 
-from common import CONDITION_VOCABULARY, EXTRACT_PROMPT, VALIDATE_PROMPT, Rule, lint_condition
+from extraction.common import CONDITION_VOCABULARY, EXTRACT_PROMPT, VALIDATE_PROMPT, Rule, RawRule, lint_condition, lint_condition_raw
 from pydantic import ValidationError
 
 
@@ -86,11 +86,59 @@ def test_rule_schema_drops_unlintable_condition():
 # ── PROMPT RENDERING ──────────────────────────────────────────────────────────
 
 def test_prompts_contain_rendered_vocabulary():
+    # VALIDATE_PROMPT and TRANSLATE_PROMPT contain the vocabulary (EXTRACT_PROMPT is raw)
     for name in CONDITION_VOCABULARY:
-        assert name in EXTRACT_PROMPT
         assert name in VALIDATE_PROMPT
-    assert "{vocabulary}" not in EXTRACT_PROMPT
     assert "{vocabulary}" not in VALIDATE_PROMPT
     # runtime placeholders must survive the pre-render
     assert "{chunk}" in EXTRACT_PROMPT
     assert "{chunk}" in VALIDATE_PROMPT and "{rules}" in VALIDATE_PROMPT
+
+
+# ── RAW RULE / lint_condition_raw ─────────────────────────────────────────────
+
+@pytest.mark.parametrize("cond", [
+    # Variables outside CONDITION_VOCABULARY are accepted by lint_condition_raw
+    "frequency_hz < 49",
+    "frequency_hz > 51.5",
+    "power_factor < 0.9",
+    "droop_pct > 5",
+    "time_seconds > 0.16",
+    "voltage_pu > 1.05",                   # old name — no _min/_max suffix needed in raw
+    "n_tripped_lines >= 1 and voltage_pu_min < 0.95",  # mixed vocab + raw
+])
+def test_lint_condition_raw_accepts_any_variable(cond):
+    """lint_condition_raw must accept any variable name (syntax-only check)."""
+    assert lint_condition_raw(cond) == cond.strip()
+
+
+@pytest.mark.parametrize("cond", [
+    "voltage_pu BETWEEN 0.2 AND 0.3",      # non-Python syntax
+    "max(rho_max, 1.0) > 1.0",             # function call
+    "manual verification required",         # prose
+    "",                                     # empty
+])
+def test_lint_condition_raw_rejects_bad_syntax(cond):
+    with pytest.raises(ValueError):
+        lint_condition_raw(cond)
+
+
+def test_raw_rule_schema_accepts_out_of_vocab():
+    """RawRule must accept conditions with variables outside Grid2Op vocabulary."""
+    r = RawRule(**_rule("frequency_hz < 49"))
+    assert r.condition == "frequency_hz < 49"
+
+
+def test_raw_rule_schema_rejects_bad_syntax():
+    """RawRule must still reject non-Python syntax."""
+    with pytest.raises(ValidationError):
+        RawRule(**_rule("voltage_pu BETWEEN 0.2 AND 0.3"))
+
+
+def test_raw_rule_and_rule_differ_on_condition():
+    """The same condition should pass RawRule but fail Rule when it uses
+    out-of-vocabulary variables."""
+    condition = "frequency_hz < 49"
+    RawRule(**_rule(condition))             # should pass
+    with pytest.raises(ValidationError):
+        Rule(**_rule(condition))            # should fail

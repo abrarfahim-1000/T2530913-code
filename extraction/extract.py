@@ -16,7 +16,7 @@ Output (in --out folder):
                                       { "rule": {...}, "chunk": "..." }
     extraction_run_summary.json     — stats + metadata for this run
 
-Run validate.py on the candidates folder next.
+Run extraction/translate.py on the candidates folder next.
 """
 
 import argparse
@@ -35,7 +35,7 @@ from common import (
     EXTRACTOR_MODEL,
     CHUNK_SIZE, CHUNK_OVERLAP,
     EXTRACT_PROMPT,
-    Rule,
+    RawRule,
     get_logger,
     extract_text_from_pdf,
     chunk_text,
@@ -107,7 +107,7 @@ def process_chunk(chunk: str, chunk_idx: int, rule_id_base: int) -> ChunkResult:
     valid_rules = []
     for r in raw_rules:
         try:
-            valid_rules.append(Rule(**r).model_dump())
+            valid_rules.append(RawRule(**r).model_dump())
         except ValidationError as exc:
             log.debug(f"  [chunk {chunk_idx}] Schema drop: {exc}")
     n_valid = len(valid_rules)
@@ -255,7 +255,7 @@ def main():
     log.info(f"  Total candidates : {run_stats['total_candidates']}")
     log.info(f"  Time             : {run_stats['total_time_sec']}s")
     log.info(f"  Summary          : {summary_path}")
-    log.info(f"\nNext step: python validate.py --candidates {out_dir}/")
+    log.info(f"\nNext step: python extraction/translate.py --candidates {out_dir}/")
 
 
 if __name__ == "__main__":
