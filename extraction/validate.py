@@ -43,6 +43,20 @@ from common import (
 log = get_logger("validate")
 
 
+def unload_model(model_name: str):
+    """Unload a model from Ollama to free VRAM."""
+    try:
+        ollama.generate(
+            model=model_name,
+            prompt="",
+            options=ollama.Options(num_predict=0),
+            keep_alive=0,
+        )
+        log.info(f"Unloaded model {model_name}")
+    except Exception as e:
+        log.warning(f"Failed to unload model {model_name}: {e}")
+
+
 # ── PER-RECORD RESULT ─────────────────────────────────────────────────────────
 @dataclass
 class ValidationResult:
@@ -55,10 +69,8 @@ class ValidationResult:
 
 # ── OLLAMA CALL ───────────────────────────────────────────────────────────────
 def run_validator(chunk: str, candidates: list[dict]) -> list[dict]:
-    """
-    Uses ollama.chat() with think=False — required for nemotron-mini
-    to suppress chain-of-thought before JSON output.
-    """
+    """Uses ollama.chat() with think=False — required for nemotron-mini
+    to suppress chain-of-thought before JSON output."""
     resp = ollama.chat(
         model=VALIDATOR_MODEL,
         messages=[
@@ -75,7 +87,7 @@ def run_validator(chunk: str, candidates: list[dict]) -> list[dict]:
             },
         ],
         options=ollama.Options(temperature=0.0, num_predict=2048, num_ctx=8192),
-        keep_alive=0,
+        keep_alive=-1,  # Keep model loaded indefinitely to avoid reload overhead
         think=False,
         stream=False,
     )
@@ -88,10 +100,8 @@ def validate_batch(
     rules: list[dict],
     chunk_label: str,
 ) -> list[ValidationResult]:
-    """
-    Sends all rules from one chunk to the validator in a single call.
-    Returns one ValidationResult per rule.
-    """
+    """Sends all rules from one chunk to the validator in a single call.
+    Returns one ValidationResult per rule."""
     results = []
 
     try:
@@ -155,10 +165,8 @@ def validate_batch(
 
 # ── FILE PROCESSOR ────────────────────────────────────────────────────────────
 def process_candidates_file(candidates_file: Path, out_dir: Path) -> dict:
-    """
-    Reads one *_candidates.jsonl, groups records by chunk, calls validator
-    per chunk, writes confirmed + flagged output files.
-    """
+    """Reads one *_candidates.jsonl, groups records by chunk, calls validator
+    per chunk, writes confirmed + flagged output files."""
     stem = candidates_file.stem.replace("_candidates", "")
     log.info(f"{'=' * 60}")
     log.info(f"Validating: {candidates_file.name}")
@@ -285,10 +293,14 @@ def main():
         "files":           [],
     }
 
-    t0 = time.perf_counter()
-    for cf in candidate_files:
-        file_stats = process_candidates_file(cf, out_dir)
-        run_stats["files"].append(file_stats)
+    try:
+        t0 = time.perf_counter()
+        for cf in candidate_files:
+            file_stats = process_candidates_file(cf, out_dir)
+            run_stats["files"].append(file_stats)
+    finally:
+        # Unload the validator model to free VRAM (if not dry run - but validate.py doesn't have dry-run)
+        unload_model(VALIDATOR_MODEL)
 
     # Deduplication across all confirmed files
     n_unique = deduplicate_rules(out_dir, log)

@@ -46,6 +46,20 @@ from common import (
 log = get_logger("extract")
 
 
+def unload_model(model_name: str):
+    """Unload a model from Ollama to free VRAM."""
+    try:
+        ollama.generate(
+            model=model_name,
+            prompt="",
+            options=ollama.Options(num_predict=0),
+            keep_alive=0,
+        )
+        log.info(f"Unloaded model {model_name}")
+    except Exception as e:
+        log.warning(f"Failed to unload model {model_name}: {e}")
+
+
 # ── PER-CHUNK RESULT ──────────────────────────────────────────────────────────
 @dataclass
 class ChunkResult:
@@ -64,7 +78,7 @@ def run_extractor(chunk: str) -> list[dict]:
         model=EXTRACTOR_MODEL,
         prompt=EXTRACT_PROMPT.format(chunk=chunk),
         options=ollama.Options(temperature=0.0, num_predict=2048, num_ctx=4096),
-        keep_alive=0,
+        keep_alive=-1,  # Keep model loaded indefinitely to avoid reload overhead
         stream=False,
     )
     return extract_json_array(resp["response"])
@@ -217,10 +231,15 @@ def main():
         "files":           [],
     }
 
-    t0 = time.perf_counter()
-    for pdf_path in pdf_files:
-        file_stats = process_pdf(pdf_path, out_dir, rule_id_counter, dry_run=args.dry_run)
-        run_stats["files"].append(file_stats)
+    try:
+        t0 = time.perf_counter()
+        for pdf_path in pdf_files:
+            file_stats = process_pdf(pdf_path, out_dir, rule_id_counter, dry_run=args.dry_run)
+            run_stats["files"].append(file_stats)
+    finally:
+        # Unload the extractor model to free VRAM for the validator (if not dry run)
+        if not args.dry_run:
+            unload_model(EXTRACTOR_MODEL)
 
     run_stats["run_end"]        = datetime.now().isoformat()
     run_stats["total_time_sec"] = round(time.perf_counter() - t0, 1)
