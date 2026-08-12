@@ -61,7 +61,26 @@ voltage contract in §5 below.
 
 | File | Change |
 |---|---|
-| `extraction/common.py` | `CONDITION_VOCABULARY` (6 variables, single source of truth); rewritten `EXTRACT_PROMPT` (closed vocabulary, Python-only syntax, violation polarity with worked example, skip-instruction for inexpressible constraints); rewritten `VALIDATE_PROMPT` (checks 4: vocabulary/syntax, 5: polarity — corrects inverted conditions); `lint_condition()` AST linter + smoke-eval; `Rule.check_condition` field validator wired to it |
+| `extraction/common.py` | `CONDITION_VOCABULARY` (6 variables, single source of truth); rewritten `EXTRACT_PROMPT` (Python-only syntax, violation polarity with worked example); rewritten `VALIDATE_PROMPT` (checks 4: vocabulary/syntax, 5: polarity — corrects inverted conditions); `lint_condition()` AST linter + smoke-eval; `Rule.check_condition` field validator wired to it |
+
+> **Superseded (2026-08-10).** This section originally described a **2-stage** pipeline in which
+> `EXTRACT_PROMPT` itself enforced the closed vocabulary and instructed the model to skip
+> inexpressible constraints. That was tried and **failed**: on frequency/timing-heavy standards
+> (PRC-006, PRC-024, PRC-025, PRC-029) the model correctly answered `[]` for almost every chunk
+> and extraction yielded **zero rules**. The pipeline is now **3 stages** — see below.
+
+### The three-stage pipeline (current)
+
+| Stage | Script | Schema | Job |
+|---|---|---|---|
+| 1 | `extraction/extract.py` | `RawRule` / `lint_condition_raw` — Python syntax only, **any** variable name | cast a wide net; write `*_candidates.jsonl` |
+| 2 | `extraction/translate.py` | `Rule` / `lint_condition` | map arbitrary engineering variables → the 6 Grid2Op variables; write `*_translated.jsonl` + `*_untranslatable.jsonl` |
+| 3 | `extraction/validate.py` | `Rule` | verify against source text, correct polarity; write `*_confirmed.jsonl` + `*_flagged.jsonl`, then dedup |
+
+The closed vocabulary is enforced at **Stage 2 and 3 only**. Keeping Stage 1 open is load-bearing:
+it is what makes `*_untranslatable.jsonl` a meaningful audit trail (and the thesis negative result
+— "most grid-code content is not Grid2Op-observable") rather than an empty file.
+`tests/test_condition_lint.py::test_extract_prompt_stays_open_vocabulary` guards this.
 | `extraction/validate.py` | Startup guard: warns + prompts if stale `*_confirmed.jsonl` files (older than newest candidates) would be merged into the dedup |
 | `tests/test_condition_lint.py` | 27 tests covering accept/reject cases, `Rule`-schema integration, prompt rendering — all passing |
 | `scripts/dump_base_kv.py` | New: writes per-line base kV sidecar per env tag (backend method on the research PC, `--empirical` from JSONL normal-frame medians anywhere) |
@@ -87,15 +106,24 @@ must be `bool`).
 
 ## 4. Manual steps before the build (user, research PC)
 
-1. **Re-run extraction** (Ollama models live there; sequential, never both loaded):
+1. **Re-run extraction** — all three stages, in order (Ollama models live there; sequential,
+   never both loaded):
    ```bash
-   python extraction/extract.py --docs data/documents/ --out rules/
-   python extraction/validate.py --candidates rules/
+   python extraction/extract.py   --docs data/documents/ --out rules/
+   python extraction/translate.py --candidates rules/
+   python extraction/validate.py  --candidates rules/
    ```
-   Expected artifacts: fresh `rules/*_candidates.jsonl`, `*_confirmed.jsonl`, `*_flagged.jsonl`,
+   Expected artifacts: fresh `rules/*_candidates.jsonl`, `*_translated.jsonl`,
+   `*_untranslatable.jsonl`, `*_confirmed.jsonl`, `*_flagged.jsonl`,
    `rules/all_rules_deduped.jsonl`, run summaries. Expect a much smaller but ~100% evaluable
-   ruleset (the linter + skip-instruction cut everything inexpressible). Keep `rules/v1_archive/`
-   untouched — if the stale-output guard fires, something from v1 leaked back into `rules/`.
+   ruleset (Stage 2 + the linter cut everything inexpressible, into `*_untranslatable.jsonl`).
+   Keep `rules/v1_archive/` untouched — if the stale-output guard fires, something from v1
+   leaked back into `rules/`.
+
+   If Stage 1 reports `raw=0 valid=0` across the board, `EXTRACT_PROMPT` has been re-closed
+   against `CONDITION_VOCABULARY` — see the superseded note in §3. If it reports
+   `Extractor failed: No JSON array found`, reasoning traces are leaking into the parser;
+   re-run with `--debug-raw` to dump full responses to `rules/_raw/`.
 2. **Rebuild the KG** from the new ruleset (overwrites `kg/knowledge_graph.pkl`, which is still
    the v1-based graph until this runs):
    ```bash

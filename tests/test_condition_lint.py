@@ -10,7 +10,11 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "extraction"))
 
-from extraction.common import CONDITION_VOCABULARY, EXTRACT_PROMPT, VALIDATE_PROMPT, Rule, RawRule, lint_condition, lint_condition_raw
+from extraction.common import (
+    CONDITION_VOCABULARY, EXTRACT_PROMPT, TRANSLATE_PROMPT, VALIDATE_PROMPT,
+    Rule, RawRule, _strip_think, _vocabulary_block, extract_json_array,
+    lint_condition, lint_condition_raw,
+)
 from pydantic import ValidationError
 
 
@@ -89,10 +93,57 @@ def test_prompts_contain_rendered_vocabulary():
     # VALIDATE_PROMPT and TRANSLATE_PROMPT contain the vocabulary (EXTRACT_PROMPT is raw)
     for name in CONDITION_VOCABULARY:
         assert name in VALIDATE_PROMPT
+        assert name in TRANSLATE_PROMPT
     assert "{vocabulary}" not in VALIDATE_PROMPT
+    assert "{vocabulary}" not in TRANSLATE_PROMPT
     # runtime placeholders must survive the pre-render
     assert "{chunk}" in EXTRACT_PROMPT
     assert "{chunk}" in VALIDATE_PROMPT and "{rules}" in VALIDATE_PROMPT
+
+
+def test_extract_prompt_stays_open_vocabulary():
+    """Stage 1 must NOT constrain the model to CONDITION_VOCABULARY.
+
+    Regression guard: closing the vocabulary at extraction time makes the model
+    answer '[]' for almost every chunk of frequency/timing-heavy standards
+    (PRC-024, PRC-006, ...), starving translate.py — the stage that actually
+    owns the vocabulary mapping. Assert on the rendered block, not on variable
+    names: 'voltage_pu_min' legitimately appears in the rule-3 polarity example.
+    """
+    assert _vocabulary_block() not in EXTRACT_PROMPT
+    assert "There is no pre-defined variable list." in EXTRACT_PROMPT
+
+
+# ── THINK-TAG STRIPPING ───────────────────────────────────────────────────────
+
+def test_strip_think_removes_well_formed_block():
+    assert _strip_think("<think>reasoning here</think>[{\"a\": 1}]") == '[{"a": 1}]'
+
+
+def test_strip_think_handles_multiline_block():
+    raw = "<think>\nline one\nline two\n</think>\n[]"
+    assert _strip_think(raw) == "[]"
+
+
+def test_strip_think_drops_unclosed_block():
+    """num_predict exhausted mid-reasoning — nothing after the tag is usable."""
+    assert _strip_think("some preamble\n<think>cut off mid rea") == "some preamble"
+
+
+def test_strip_think_leaves_think_free_text_alone():
+    assert _strip_think('  [{"rule_id": "R_001"}]  ') == '[{"rule_id": "R_001"}]'
+
+
+def test_extract_json_array_ignores_brackets_inside_think():
+    """The exact shape that produced 'No JSON array found': a '[' inside the
+    reasoning trace hijacks the find('[') slice unless the block is stripped."""
+    raw = (
+        "<think>The text mentions [Page 4] and a range [0.95, 1.05], so...</think>\n"
+        '[{"rule_id": "R_001", "condition": "frequency_hz < 49"}]'
+    )
+    assert extract_json_array(raw) == [
+        {"rule_id": "R_001", "condition": "frequency_hz < 49"}
+    ]
 
 
 # ── RAW RULE / lint_condition_raw ─────────────────────────────────────────────

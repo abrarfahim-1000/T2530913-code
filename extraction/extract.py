@@ -36,6 +36,7 @@ from common import (
     CHUNK_SIZE, CHUNK_OVERLAP,
     EXTRACT_PROMPT,
     RawRule,
+    generate_no_think,
     get_logger,
     extract_text_from_pdf,
     chunk_text,
@@ -70,18 +71,13 @@ class ChunkResult:
     ids_consumed: int
     extract_ms:  float
     parse_error: Optional[str] = None
+    raw_response: str = ""   # kept for --debug-raw when parsing fails
 
 
 # ── OLLAMA CALL ───────────────────────────────────────────────────────────────
-def run_extractor(chunk: str) -> list[dict]:
-    resp = ollama.generate(
-        model=EXTRACTOR_MODEL,
-        prompt=EXTRACT_PROMPT.format(chunk=chunk),
-        options=ollama.Options(temperature=0.0, num_predict=2048, num_ctx=4096),
-        keep_alive=-1,  # Keep model loaded indefinitely to avoid reload overhead
-        stream=False,
-    )
-    return extract_json_array(resp["response"])
+def run_extractor(chunk: str) -> str:
+    """Returns the raw model response for `chunk` (unparsed)."""
+    return generate_no_think(EXTRACTOR_MODEL, EXTRACT_PROMPT.format(chunk=chunk))
 
 
 # ── CHUNK PROCESSOR ───────────────────────────────────────────────────────────
@@ -90,15 +86,17 @@ def process_chunk(chunk: str, chunk_idx: int, rule_id_base: int) -> ChunkResult:
     extract_ms = 0.0
     parse_error = None
     candidates = []
+    raw_response = ""
 
     try:
         t0 = time.perf_counter()
-        raw_rules = run_extractor(chunk)
+        raw_response = run_extractor(chunk)
+        raw_rules = extract_json_array(raw_response)
         extract_ms = (time.perf_counter() - t0) * 1000
         n_raw = len(raw_rules)
     except Exception as exc:
         log.warning(f"  [chunk {chunk_idx}] Extractor failed: {exc}")
-        return ChunkResult(chunk_idx, [], 0, 0, 0, 0.0, str(exc))
+        return ChunkResult(chunk_idx, [], 0, 0, 0, 0.0, str(exc), raw_response)
 
     if not raw_rules:
         return ChunkResult(chunk_idx, [], 0, 0, 0, extract_ms)
@@ -132,6 +130,7 @@ def process_pdf(
     out_dir: Path,
     rule_id_counter: list,   # [int] — mutable single-element counter
     dry_run: bool = False,
+    debug_raw: bool = False,
 ) -> dict:
     log.info(f"{'=' * 60}")
     log.info(f"Extracting: {pdf_path.name}")
@@ -178,6 +177,17 @@ def process_pdf(
             stats["total_extract_ms"] += result.extract_ms
             if result.parse_error:
                 stats["n_parse_errors"] += 1
+                if debug_raw:
+                    raw_dir = out_dir / "_raw"
+                    raw_dir.mkdir(parents=True, exist_ok=True)
+                    raw_path = raw_dir / f"{pdf_path.stem}_chunk{i:03d}.txt"
+                    raw_path.write_text(
+                        f"# parse_error: {result.parse_error}\n"
+                        f"# chunk {i} of {pdf_path.name}\n"
+                        f"# ---- raw model response ----\n{result.raw_response}",
+                        encoding="utf-8",
+                    )
+                    log.info(f"    [debug-raw] {raw_path}")
 
             log.info(
                 f"    raw={result.n_raw}  valid={result.n_valid}  "
@@ -194,6 +204,8 @@ def main():
     parser.add_argument("--docs",          required=True,       help="Folder with PDFs")
     parser.add_argument("--out",           default="rules",     help="Output folder")
     parser.add_argument("--dry-run",       action="store_true", help="No LLM calls")
+    parser.add_argument("--debug-raw",     action="store_true",
+                        help="On parse failure, dump the full raw response to <out>/_raw/")
     parser.add_argument("--chunk-size",    type=int, default=CHUNK_SIZE)
     parser.add_argument("--chunk-overlap", type=int, default=CHUNK_OVERLAP)
     args = parser.parse_args()
@@ -234,7 +246,10 @@ def main():
     try:
         t0 = time.perf_counter()
         for pdf_path in pdf_files:
-            file_stats = process_pdf(pdf_path, out_dir, rule_id_counter, dry_run=args.dry_run)
+            file_stats = process_pdf(
+                pdf_path, out_dir, rule_id_counter,
+                dry_run=args.dry_run, debug_raw=args.debug_raw,
+            )
             run_stats["files"].append(file_stats)
     finally:
         # Unload the extractor model to free VRAM for the validator (if not dry run)

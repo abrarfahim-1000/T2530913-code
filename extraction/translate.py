@@ -38,6 +38,7 @@ from common import (
     TRANSLATE_PROMPT,
     Rule,
     TranslationResult,
+    generate_no_think,
     get_logger,
     extract_json_array,
 )
@@ -72,17 +73,11 @@ class TranslationBatchResult:
 
 # ── OLLAMA CALL ───────────────────────────────────────────────────────────────
 def run_translator(chunk: str, rules: list[dict]) -> list[dict]:
-    resp = ollama.generate(
-        model=TRANSLATOR_MODEL,
-        prompt=TRANSLATE_PROMPT.format(
-            chunk=chunk,
-            rules=json.dumps(rules, indent=2),
-        ),
-        options=ollama.Options(temperature=0.0, num_predict=2048, num_ctx=4096),
-        keep_alive=-1,  # Keep model loaded indefinitely
-        stream=False,
+    raw = generate_no_think(
+        TRANSLATOR_MODEL,
+        TRANSLATE_PROMPT.format(chunk=chunk, rules=json.dumps(rules, indent=2)),
     )
-    return extract_json_array(resp["response"])
+    return extract_json_array(raw)
 
 
 # ── BATCH TRANSLATOR ──────────────────────────────────────────────────────────

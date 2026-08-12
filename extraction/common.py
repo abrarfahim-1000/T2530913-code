@@ -1,8 +1,11 @@
 """
-common.py — Shared constants, schemas, and utilities for the two-stage pipeline.
-Both extract.py and validate.py import from here.
+common.py — Shared constants, schemas, and utilities for the three-stage pipeline.
+extract.py (raw) → translate.py (→ CONDITION_VOCABULARY) → validate.py all import from here.
 """
+import os
+import sys
 
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import ast
 import json
 import logging
@@ -10,11 +13,19 @@ import re
 from pathlib import Path
 from typing import Optional
 
+import ollama
 import pdfplumber
 from pydantic import BaseModel, ValidationError, field_validator
+from training.config import DEVICE
 
 # ── MODEL CONFIG ──────────────────────────────────────────────────────────────
-EXTRACTOR_MODEL  = "qwen3:14b"
+# DEVICE is a torch.device — compare .type, never the object against a string
+# (torch.device("cuda") == "cuda" is False, which silently selected the small model).
+# Research PC (24GB VRAM) gets the 35B; personal PC runs the 9B for testing.
+EXTRACTOR_MODEL  = os.environ.get(
+    "EXTRACTOR_MODEL",
+    "qwen3.6:35b" if DEVICE.type == "cuda" else "qwen3.5:9b",
+)
 VALIDATOR_MODEL  = "nemotron-3-nano:latest"   # update tag if yours differs
 TRANSLATOR_MODEL = EXTRACTOR_MODEL            # same model, re-used after extraction
 
@@ -26,6 +37,9 @@ CHUNK_OVERLAP = 200
 ENTITY_VALUES = {
     "bus", "line", "transformer", "generator",
     "load", "protectiondevice", "grid",
+    "powergeneratingmodule", "module", "facility",
+    "powergeneratingfacility", "powersystemfacility",
+    "offshorepowerparkmodule", "parkmodule",
 }
 SEVERITY_VALUES = {"critical", "high", "medium", "low"}
 ACTION_VALUES = {
@@ -53,13 +67,14 @@ def _vocabulary_block() -> str:
 
 # ── PROMPTS ───────────────────────────────────────────────────────────────────
 EXTRACT_PROMPT = """/no_think
-You are a power systems engineer extracting operational safety rules from grid documentation.
-From the text below, extract constraints, thresholds, and operational limits as a JSON array.
+You are a power systems engineer extracting operational constraints, thresholds, and
+technical requirements from grid codes, network codes, and technical standards.
+From the text below, extract all constraints, limits, and requirements as a JSON array.
 
 Each rule MUST have exactly these keys:
 - rule_id   : string, format "R_001" (sequential, unique within this response)
-- source    : string, e.g. "IEEE Std 1547-2018, Section 7.4"
-- entity    : string, one of: Bus, Line, Transformer, Generator, Load, ProtectionDevice, Grid
+- source    : string, e.g. "ENTSO-E NC RfG, Article 10(2)(a), Table 2"
+- entity    : string, one of: Bus, Line, Transformer, Generator, Load, ProtectionDevice, Grid, PowerGeneratingModule, Module, Facility, PowerGeneratingFacility, PowerSystemFacility, OffshorePowerParkModule, ParkModule
 - condition : string, a Python boolean expression (see CONDITION RULES below)
 - action    : string, one of: BLOCK, DISCONNECT, ALERT, REDISPATCH, RECONNECT, RESPOND_WITHIN_2S, SHED_LOAD, OTHER
 - severity  : string, one of: critical, high, medium, low
@@ -78,7 +93,13 @@ CONDITION RULES (strict):
    required or normal operating range, INVERT it.
    Example: "voltage shall remain within 0.95-1.05 pu"
    -> condition: "voltage_pu_min < 0.95 or voltage_pu_max > 1.05"
-4. If no safety constraint is present in the text, return an empty array: []
+4. Extract every numeric limit, range, or threshold the text states. Be exhaustive — do not
+   skip a constraint because it seems minor, or because it is hard to express.
+   Return an empty array [] only when the text states no constraint at all: front-matter
+   (title pages, tables of contents, address blocks), or purely administrative clauses about
+   record-keeping, notification, or compliance reporting.
+   Do not emit a condition whose bounds overlap (e.g. "x < 49.8 or x > 49.5") — that is
+   always true. Inverting a range [a, b] gives "x < a or x > b" with a <= b.
 
 Other rules:
 - Output ONLY a valid JSON array. No preamble, no markdown, no explanation.
@@ -160,6 +181,45 @@ def get_logger(name: str) -> logging.Logger:
         datefmt="%H:%M:%S",
     )
     return logging.getLogger(name)
+
+
+# ── OLLAMA GENERATION ─────────────────────────────────────────────────────────
+# Budgets: reasoning traces can eat the whole num_predict before any JSON is
+# emitted. 4096/8192 leaves headroom for anything that slips past think=False.
+GEN_NUM_PREDICT = 6144   # rule-dense chunks hit the 4096 ceiling mid-array (truncated JSON)
+GEN_NUM_CTX     = 8192   # prompt+chunk is ~1.3k tokens, so this leaves predict full headroom
+
+
+def generate_no_think(
+    model: str,
+    prompt: str,
+    *,
+    num_predict: int = GEN_NUM_PREDICT,
+    num_ctx: int = GEN_NUM_CTX,
+    keep_alive: int = -1,
+) -> str:
+    """ollama.generate with thinking suppressed at the API level.
+
+    The `/no_think` prompt prefix is a Qwen3-specific convention that newer
+    builds do not necessarily honour — `think=False` is the reliable switch
+    (validate.py already uses it via ollama.chat). Falls back for older
+    clients and models that reject the kwarg.
+    """
+    kwargs = dict(
+        model=model,
+        prompt=prompt,
+        options=ollama.Options(temperature=0.0, num_predict=num_predict, num_ctx=num_ctx),
+        keep_alive=keep_alive,
+        stream=False,
+    )
+    try:
+        return ollama.generate(**kwargs, think=False)["response"]
+    except TypeError:
+        # ollama client predates the `think` kwarg
+        return ollama.generate(**kwargs)["response"]
+    except ollama.ResponseError:
+        # model does not support thinking toggles
+        return ollama.generate(**kwargs)["response"]
 
 
 # ── CONDITION LINTER ──────────────────────────────────────────────────────────
@@ -372,8 +432,21 @@ def chunk_text(text: str, size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP) 
 
 
 # ── JSON PARSING ──────────────────────────────────────────────────────────────
+_THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
+
+
 def _strip_think(text: str) -> str:
-    return re.sub(r" thinking.*? response", "", text, flags=re.DOTALL).strip()
+    """Remove reasoning traces before JSON parsing.
+
+    Thinking models emit <think>...</think>; if the block survives, the JSON
+    slicer in extract_json_array() latches onto a '[' inside the reasoning.
+    """
+    text = _THINK_RE.sub("", text)
+    # Unclosed <think>: generation was cut off mid-reasoning (num_predict
+    # exhausted) — nothing from the tag onward is usable output.
+    if "<think>" in text:
+        text = text.split("<think>", 1)[0]
+    return text.strip()
 
 
 def extract_json_array(text: str) -> list:
