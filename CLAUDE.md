@@ -32,10 +32,19 @@ them without a new, previously-untried hypothesis.
 Grid2Op-observable variables, and some had inverted polarity (condition described the *healthy*
 state). Root causes and fixes are documented in
 [`supplimentary_docs/component_d_handoff.md`](supplimentary_docs/component_d_handoff.md).
-The extraction prompts now enforce a closed 6-variable condition vocabulary
-(`CONDITION_VOCABULARY` in `extraction/common.py`), Python-only condition syntax, and
-violation-when-true polarity; a deterministic AST linter (`lint_condition`) drops anything else
-at schema time. The v1 outputs are archived at `rules/v1_archive/` (retained as a thesis
+The pipeline is now **three stages** — `extract.py` (open vocabulary, `RawRule`, syntax-lint only)
+→ `translate.py` (maps engineering variables onto the closed 6-variable `CONDITION_VOCABULARY`,
+emits `*_untranslatable.jsonl`) → `validate.py` (verify + polarity correction). The closed
+vocabulary and the `lint_condition` AST linter are enforced at stages 2–3 **only**.
+
+⚠️ **Do not re-close `EXTRACT_PROMPT` against `CONDITION_VOCABULARY`.** It was tried
+(2026-08-10) and extraction returned *zero* rules: on frequency/timing-heavy standards the model
+correctly answers `[]` for nearly every chunk, starving stage 2. Guarded by
+`tests/test_condition_lint.py::test_extract_prompt_stays_open_vocabulary`. Related: thinking must
+be suppressed via `generate_no_think()` (API-level `think=False`), not the `/no_think` prefix
+alone — newer Qwen builds ignore the prefix and the reasoning trace breaks JSON parsing.
+
+The v1 outputs are archived at `rules/v1_archive/` (retained as a thesis
 negative result). **The user re-runs extraction on the research PC** — until then there is no
 current `rules/all_rules_deduped.jsonl`.
 
@@ -83,10 +92,15 @@ python scripts/generate_dataset.py --env wcci
 
 ### LLM Rule Extraction
 ```bash
-# Phase 1: Extract candidate rules (Qwen3-14B) — writes *_candidates.jsonl to --out (default "rules")
+# Stage 1: Extract candidate rules (Qwen3 extractor) — open vocabulary; writes *_candidates.jsonl
+# Add --debug-raw to dump full model responses to <out>/_raw/ whenever JSON parsing fails
 python extraction/extract.py --docs data/documents/ --out rules/
 
-# Phase 2: Validate candidates (Nemotron-3 Nano 30B) — run after extraction completes
+# Stage 2: Translate conditions onto CONDITION_VOCABULARY (same model, reloaded)
+#          → *_translated.jsonl + *_untranslatable.jsonl
+python extraction/translate.py --candidates rules/
+
+# Stage 3: Validate translated rules (Nemotron-3 Nano 30B) — reads *_translated.jsonl
 python extraction/validate.py --candidates rules/
 
 # Build knowledge graph from validated rules (writes into --out-dir, default "kg")
@@ -294,7 +308,10 @@ The classification head runs unchanged on foreign topologies (global pooling is 
 
 ### Models
 
-- **Extractor:** Qwen3-14B via Ollama — `/no_think` prefix enforced, outputs JSON rule arrays
+- **Extractor / Translator:** Qwen3 via Ollama, auto-selected by device in `extraction/common.py`
+  — `qwen3.6:35b` when `DEVICE.type == "cuda"` (research PC), else `qwen3.5:9b` (personal PC
+  testing). Override with the `EXTRACTOR_MODEL` env var. Thinking is suppressed via
+  `generate_no_think()` (`think=False`), with `/no_think` kept only as belt-and-braces.
 - **Validator:** Nemotron-3 Nano 30B (A3B MoE) via Ollama — `think=False` enforced, confirms/corrects/rejects each candidate
 
 Sequential only — never load both models simultaneously. `keep_alive=0` on every Ollama call to release VRAM immediately.
