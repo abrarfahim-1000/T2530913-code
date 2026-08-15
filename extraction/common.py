@@ -15,7 +15,7 @@ from typing import Optional
 
 import ollama
 import pdfplumber
-from pydantic import BaseModel, ValidationError, field_validator
+from pydantic import BaseModel, ValidationError, field_validator, model_validator
 from training.config import DEVICE
 
 # ── MODEL CONFIG ──────────────────────────────────────────────────────────────
@@ -42,6 +42,22 @@ ENTITY_VALUES = {
     "offshorepowerparkmodule", "parkmodule",
 }
 SEVERITY_VALUES = {"critical", "high", "medium", "low"}
+
+# ── RULE ROLE ─────────────────────────────────────────────────────────────────
+# A rule is not necessarily a prohibition. The shield cannot read the corpus at
+# inference, so the KG must carry both directions of evidence:
+#
+#   CONSTRAINT  — condition TRUE means the grid state violates the standard.
+#                 The shield BLOCKs.
+#   AFFIRMATION — condition TRUE means the telemetry is consistent with the
+#                 predicted class named in `affirms`. Supporting evidence, never a
+#                 block on its own (Option A semantics, component_d_handoff.md).
+#
+# Forcing every rule into CONSTRAINT polarity is what mangled healthy-band clauses
+# in v1 and v2: "voltage shall remain within 0.95-1.05" is an AFFIRMATION of
+# `normal`, and inverting it produced predicates that fire at nominal.
+ROLE_VALUES = {"CONSTRAINT", "AFFIRMATION"}
+FAULT_CLASSES = {"normal", "overload", "line_trip", "cascade"}
 ACTION_VALUES = {
     "BLOCK", "DISCONNECT", "ALERT", "REDISPATCH",
     "RECONNECT", "RESPOND_WITHIN_2S", "SHED_LOAD", "OTHER",
@@ -53,12 +69,24 @@ ACTION_VALUES = {
 # written against this vocabulary are machine-evaluable by the symbolic shield.
 # Single source of truth: rendered into both prompts AND enforced by the AST linter.
 CONDITION_VOCABULARY = {
+    # ── voltage / loading / topology (the original six) ────────────────────────
     "voltage_pu_min":  "lowest per-unit voltage across all energized lines (1.0 = nominal)",
     "voltage_pu_max":  "highest per-unit voltage across all energized lines (1.0 = nominal)",
     "loading_pct":     "maximum line loading as percent of thermal limit (100 = at limit)",
     "rho_max":         "maximum line loading ratio (1.0 = at thermal limit)",
     "n_tripped_lines": "number of disconnected transmission lines (integer, 0 = all in service)",
     "any_line_tripped": "boolean, True if at least one line is disconnected",
+    # ── power flow (from p_or / q_or, present in every record) ─────────────────
+    "active_power_mw_max":      "largest active power flow on any energized line, MW",
+    "reactive_power_mvar_max":  "largest reactive power flow on any energized line, MVAr",
+    "apparent_power_mva_max":   "largest apparent power flow on any energized line, MVA",
+    "power_factor_at_max_load": "power factor on the most heavily loaded line (1.0 = unity)",
+    "current_a_max":            "largest line current, amperes",
+    # ── system balance (from gen_p / load_p) ───────────────────────────────────
+    "total_generation_mw":      "total active generation across all generators, MW",
+    "total_load_mw":            "total active demand across all loads, MW",
+    "generation_load_imbalance_pct":
+        "(generation - load) / load * 100; positive means surplus generation",
 }
 
 def _vocabulary_block() -> str:
@@ -118,11 +146,30 @@ For each rule below, verify:
    (comparisons, and/or/not, parentheses — no BETWEEN, no units, no prose)?
 {vocabulary}
    If the condition uses any other variable or cannot be expressed with these, REJECT.
-5. VIOLATION POLARITY: the condition must evaluate TRUE in the UNSAFE / VIOLATING
-   state. If it instead describes the normal/required operating range, return
-   verdict CORRECT with the logically inverted condition in corrected_fields.
-   Example: "voltage_pu_min >= 0.95 and voltage_pu_max <= 1.05" (a healthy band)
-   must be corrected to "voltage_pu_min < 0.95 or voltage_pu_max > 1.05".
+5. ROLE CORRECTNESS. Each rule carries a `role`:
+   - CONSTRAINT  : condition TRUE means the standard is VIOLATED.
+   - AFFIRMATION : condition TRUE means the state is consistent with the class named
+                   in `affirms` (one of: normal, overload, line_trip, cascade).
+   Check the role matches what the source text asserts. "Voltage shall remain within
+   0.95-1.05 pu" is an AFFIRMATION of `normal`, NOT a constraint to be inverted.
+   "Loading shall not exceed the thermal rating" is a CONSTRAINT. If the role is
+   wrong, return CORRECT with the right `role` (and `affirms`) in corrected_fields.
+   Do NOT rewrite an affirmation into a violation predicate — both directions of
+   evidence are wanted.
+6. RIDE-THROUGH RANGES ARE NEITHER ROLE. If the source describes a
+   fault-ride-through band, a "no trip zone", or any abnormal-but-must-survive
+   range (e.g. "shall remain connected between 0.7 and 0.9 pu for 3 s"), the
+   requirement is about *not tripping* during the excursion, which needs protection
+   status and duration — neither is observable here. As a CONSTRAINT it fires at
+   nominal; as an AFFIRMATION of `normal` it is false. REJECT such rules. A
+   tell-tale sign is an upper bound below 0.95 or a lower bound above 1.0, e.g.
+   "voltage_pu_min < 0.7 or voltage_pu_max > 0.9".
+7. HEALTHY-GRID SELF-CHECK: substitute voltage_pu_min = 1.0, voltage_pu_max = 1.0,
+   loading_pct = 40, rho_max = 0.4, n_tripped_lines = 0, any_line_tripped = False,
+   power_factor_at_max_load = 0.93.
+   - a CONSTRAINT that is TRUE for those values is wrong (a healthy grid violates
+     nothing). REJECT, or CORRECT if the intended threshold is unambiguous.
+   - an AFFIRMATION of `normal` that is FALSE for those values is wrong. Same remedy.
 
 Output ONLY a JSON array. Each item must have:
 - rule_id  : matching the input rule
@@ -148,15 +195,96 @@ Your task: translate the condition to use ONLY these Grid2Op-observable variable
 
 For each rule, decide:
 - If the condition CAN be expressed using the variables above:
-  Return {{"translatable": true, "condition": "translated condition", "reason": null}}
+  Return {{"translatable": true, "condition": "translated condition",
+           "role": "CONSTRAINT" or "AFFIRMATION", "affirms": <class or null>, "reason": null}}
   The translated condition must be a valid Python boolean expression using ONLY:
   comparisons (< <= > >= == !=), and/or/not, parentheses, numeric literals, and the variables listed above.
-  VIOLATION POLARITY: the condition must evaluate TRUE when the rule is VIOLATED.
-  If the original condition describes the normal/healthy state, INVERT it.
 
-- If the condition CANNOT be expressed (uses frequency, time durations, power factor, droop,
-  ramp rates, or any variable not in the vocabulary):
+  ROLE — decide which of these the rule is. Do NOT force everything into one shape.
+
+  (a) CONSTRAINT — the condition describes a state that VIOLATES the standard.
+      TRUE means something is wrong and the prediction should be blocked.
+      "line loading shall not exceed its thermal rating"
+      -> {{"role": "CONSTRAINT", "condition": "loading_pct > 100", "affirms": null}}
+
+  (b) AFFIRMATION — the condition describes a state that CONFIRMS the grid is in a
+      particular operating class. TRUE means the telemetry is consistent with that
+      class. Set "affirms" to exactly one of: normal, overload, line_trip, cascade.
+      "voltage shall remain within 0.95-1.05 pu" describes healthy operation:
+      -> {{"role": "AFFIRMATION", "affirms": "normal",
+           "condition": "voltage_pu_min >= 0.95 and voltage_pu_max <= 1.05"}}
+      Do NOT invert this into a violation predicate. Both directions of evidence
+      are wanted: what proves something is wrong, AND what proves it is fine.
+
+  Choose by what the source text asserts, not by which shape is easier. Grid codes
+  are written predominantly as "shall remain within" / "shall be capable of", which
+  is AFFIRMATION-shaped. Expect many of them.
+
+  RIDE-THROUGH RANGES ARE NEITHER. "the module shall remain connected for voltages
+  between 0.7 and 0.9 pu for 3 seconds" and "shall not trip within the no trip zone"
+  describe an abnormal-but-survivable band. The requirement is about *not tripping*
+  during it, which needs protection status and duration — neither is observable here.
+  As a CONSTRAINT it fires at nominal; as an AFFIRMATION of `normal` it is false.
+  -> return {{"translatable": false, "condition": null,
+             "reason": "ride-through: requires trip status and duration"}}
+
+  TRANSLATION CASES. These are the transformations you ARE expected to perform:
+
+  1. SYNONYM. The source variable names an observable quantity under a different
+     name. Map it.
+     "current_amps > 1200"        -> "current_a_max > 1200"
+     "line_loading_percent > 95"  -> "loading_pct > 95"
+
+  2. UNIT CONVERSION. Convert to the units the vocabulary uses.
+     "voltage_kv < 130" on a 138 kV line   -> "voltage_pu_min < 0.94"
+     "flow > 0.5 GW"                       -> "active_power_mw_max > 500"
+     Only convert when the conversion is unambiguous from the source text. If the
+     rule states an absolute kV threshold with no stated nominal, you cannot
+     convert it to per-unit - mark it untranslatable.
+
+  3. AGGREGATION BINDING. The standard speaks of "the voltage" or "the loading" as
+     a scalar; the grid has many lines. Bind it to the right aggregate:
+     an UNDER-limit becomes the minimum, an OVER-limit becomes the maximum.
+     "voltage shall not fall below 0.9"  -> "voltage_pu_min < 0.9"
+     "voltage shall not exceed 1.1"      -> "voltage_pu_max > 1.1"
+     Never bind an under-limit to the maximum, or vice versa.
+
+  4. PROXY SUBSTITUTION. A quantity expressed against an equipment rating is the
+     loading ratio in disguise.
+     "flow shall not exceed 100% of the continuous rating" -> "loading_pct > 100"
+     "loaded beyond its emergency rating"                  -> "rho_max > 1.0"
+
+  5. SCOPE vs PREDICATE. Many clauses combine WHICH equipment the rule covers with
+     WHAT it requires. The scope half is NOT part of the condition.
+     "Modules above 50 MW shall keep voltage within 0.95-1.05"
+     The "above 50 MW" selects which modules are governed; it is not a violation.
+     Translate ONLY the requirement:
+     -> {{"role": "AFFIRMATION", "affirms": "normal",
+          "condition": "voltage_pu_min >= 0.95 and voltage_pu_max <= 1.05"}}
+     Never emit "active_power_mw_max > 50 and ..." - that would make the rule fire
+     on the basis of equipment size rather than grid condition.
+
+  COMPOUND CONDITIONS ARE DISCARDED, NOT TRIMMED. If a condition joins a measurable
+  clause to an unmeasurable one, you must NOT keep the measurable half.
+  "voltage_pu_min < 0.9 and time_seconds > 3" must NOT become "voltage_pu_min < 0.9":
+  the standard tolerates a brief dip, so the trimmed rule would flag states the
+  standard permits, while still citing that standard as its source.
+  -> return {{"translatable": false, "condition": null,
+             "reason": "compound: requires time_seconds, not observable in Grid2Op"}}
+  Name the unmeasurable variable in the reason.
+
+  SELF-CHECK before returning. Substitute a healthy grid: voltage_pu_min = 1.0,
+  voltage_pu_max = 1.0, loading_pct = 40, rho_max = 0.4, n_tripped_lines = 0,
+  any_line_tripped = False, power_factor_at_max_load = 0.93.
+  - a CONSTRAINT must be FALSE for those values (a healthy grid violates nothing)
+  - an AFFIRMATION of `normal` must be TRUE for those values
+  If yours comes out the other way, fix it or mark it untranslatable.
+
+- If the condition CANNOT be expressed (uses frequency, ROCOF, droop, protection relay
+  settings, sub-second timing, or any variable not in the vocabulary):
   Return {{"translatable": false, "condition": null, "reason": "category: detail"}}
+  Note that Grid2Op simulates NO frequency at all, so any frequency-dependent rule is
+  untranslatable regardless of how it is worded.
 
 Output ONLY a JSON array of translation results. No preamble, no markdown.
 
@@ -238,6 +366,11 @@ _SMOKE_NAMESPACE = {
     "voltage_pu_min": 1.0, "voltage_pu_max": 1.0,
     "loading_pct": 50.0, "rho_max": 0.5,
     "n_tripped_lines": 0, "any_line_tripped": False,
+    "active_power_mw_max": 80.0, "reactive_power_mvar_max": 20.0,
+    "apparent_power_mva_max": 82.5, "power_factor_at_max_load": 0.93,
+    "current_a_max": 320.0,
+    "total_generation_mw": 250.0, "total_load_mw": 248.0,
+    "generation_load_imbalance_pct": 0.8,
 }
 
 
@@ -313,6 +446,36 @@ class Rule(BaseModel):
     action: str
     severity: str
     explanation: str
+    # Defaults keep every pre-role artifact loadable: an unlabelled rule is a
+    # CONSTRAINT, which is what the v1/v2 prompts forced it to be.
+    role: str = "CONSTRAINT"
+    affirms: Optional[str] = None
+
+    @field_validator("role")
+    @classmethod
+    def check_role(cls, v):
+        if v.upper() not in ROLE_VALUES:
+            raise ValueError(f"Invalid role: {v} (expected one of {sorted(ROLE_VALUES)})")
+        return v.upper()
+
+    @field_validator("affirms")
+    @classmethod
+    def check_affirms(cls, v):
+        if v is None:
+            return v
+        if v.lower() not in FAULT_CLASSES:
+            raise ValueError(f"Invalid affirms class: {v} (expected one of {sorted(FAULT_CLASSES)})")
+        return v.lower()
+
+    @model_validator(mode="after")
+    def check_role_class_pairing(self):
+        """An affirmation with no class is meaningless — 'voltage in band' supports
+        `normal` and refutes `cascade`, so the class is what makes it evaluable."""
+        if self.role == "AFFIRMATION" and not self.affirms:
+            raise ValueError("An AFFIRMATION rule must name the class it affirms")
+        if self.role == "CONSTRAINT" and self.affirms:
+            raise ValueError("A CONSTRAINT rule must not set `affirms`")
+        return self
 
     @field_validator("entity")
     @classmethod
@@ -400,6 +563,8 @@ class TranslationResult(BaseModel):
     translatable: bool
     condition: Optional[str] = None
     reason: Optional[str] = None
+    role: Optional[str] = None      # CONSTRAINT | AFFIRMATION (defaults applied by Rule)
+    affirms: Optional[str] = None   # required when role == AFFIRMATION
 
 
 # ── PDF + CHUNKING ────────────────────────────────────────────────────────────

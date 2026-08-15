@@ -124,8 +124,14 @@ def translate_batch(
         tr = result_map.get(rid)
 
         if tr is not None and tr.translatable and tr.condition:
-            # Validate the translated condition with the strict Rule schema
+            # Validate the translated condition with the strict Rule schema.
+            # Role/affirms come from the translator; Rule defaults an unset role to
+            # CONSTRAINT and rejects an AFFIRMATION that names no class.
             merged = {**rule, "condition": tr.condition}
+            if tr.role:
+                merged["role"] = tr.role
+            if tr.affirms:
+                merged["affirms"] = tr.affirms
             try:
                 validated = Rule(**merged).model_dump()
                 translated.append({"rule": validated, "chunk": chunk})
