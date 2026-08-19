@@ -1,0 +1,139 @@
+{
+  "run_start": "2026-08-19T14:47:30.180810",
+  "translator_model": "qwen3.6:35b-a3b",
+  "files": [
+    {
+      "file": "130308_Final_Version_NC_RfG_candidates.jsonl",
+      "n_candidates": 218,
+      "n_translatable": 0,
+      "n_untranslatable": 218,
+      "n_schema_valid": 0,
+      "total_translate_ms": 190947.12860000436
+    },
+    {
+      "file": "8589935310-Complete Grid Code_candidates.jsonl",
+      "n_candidates": 571,
+      "n_translatable": 2,
+      "n_untranslatable": 569,
+      "n_schema_valid": 2,
+      "total_translate_ms": 453504.290900004
+    },
+    {
+      "file": "Bangladesh_Electricity-Grid-Code-regulations_candidates.jsonl",
+      "n_candidates": 228,
+      "n_translatable": 2,
+      "n_untranslatable": 226,
+      "n_schema_valid": 2,
+      "total_translate_ms": 167675.2637999889
+    },
+    {
+      "file": "guideline-ieee_1547-2018_bps_perspectives_clean-1_candidates.jsonl",
+      "n_candidates": 90,
+      "n_translatable": 0,
+      "n_untranslatable": 90,
+      "n_schema_valid": 0,
+      "total_translate_ms": 63701.94729999639
+    },
+    {
+      "file": "inverter-based_resource_performance_guideline_candidates.jsonl",
+      "n_candidates": 237,
+      "n_translatable": 1,
+      "n_untranslatable": 236,
+      "n_schema_valid": 1,
+      "total_translate_ms": 165431.04920002224
+    },
+    {
+      "file": "NERC FAC-008-5 \u2014 Facility Ratings_candidates.jsonl",
+      "n_candidates": 4,
+      "n_translatable": 0,
+      "n_untranslatable": 4,
+      "n_schema_valid": 0,
+      "total_translate_ms": 3297.1250000118744
+    },
+    {
+      "file": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)_candidates.jsonl",
+      "n_candidates": 707,
+      "n_translatable": 0,
+      "n_untranslatable": 707,
+      "n_schema_valid": 0,
+      "total_translate_ms": 531143.8459000201
+    },
+    {
+      "file": "order-842_candidates.jsonl",
+      "n_candidates": 109,
+      "n_translatable": 0,
+      "n_untranslatable": 109,
+      "n_schema_valid": 0,
+      "total_translate_ms": 88545.71449998184
+    },
+    {
+      "file": "power-system-requirements_candidates.jsonl",
+      "n_candidates": 11,
+      "n_translatable": 0,
+      "n_untranslatable": 11,
+      "n_schema_valid": 0,
+      "total_translate_ms": 8522.266299987677
+    },
+    {
+      "file": "prc-006-5_candidates.jsonl",
+      "n_candidates": 40,
+      "n_translatable": 0,
+      "n_untranslatable": 40,
+      "n_schema_valid": 0,
+      "total_translate_ms": 31061.749600004987
+    },
+    {
+      "file": "prc-023-6_candidates.jsonl",
+      "n_candidates": 16,
+      "n_translatable": 0,
+      "n_untranslatable": 16,
+      "n_schema_valid": 0,
+      "total_translate_ms": 10991.766000006464
+    },
+    {
+      "file": "prc-024-4_candidates.jsonl",
+      "n_candidates": 60,
+      "n_translatable": 0,
+      "n_untranslatable": 60,
+      "n_schema_valid": 0,
+      "total_translate_ms": 33149.27270000044
+    },
+    {
+      "file": "prc-025-2_candidates.jsonl",
+      "n_candidates": 76,
+      "n_translatable": 1,
+      "n_untranslatable": 75,
+      "n_schema_valid": 1,
+      "total_translate_ms": 67986.77980001958
+    },
+    {
+      "file": "prc-029-1_candidates.jsonl",
+      "n_candidates": 46,
+      "n_translatable": 0,
+      "n_untranslatable": 46,
+      "n_schema_valid": 0,
+      "total_translate_ms": 28602.376599999843
+    },
+    {
+      "file": "RM16-1-000_candidates.jsonl",
+      "n_candidates": 39,
+      "n_translatable": 0,
+      "n_untranslatable": 39,
+      "n_schema_valid": 0,
+      "total_translate_ms": 30645.28490000521
+    },
+    {
+      "file": "TPL-001-5.1 \u2014 Transmission System Planning Performance Requirements_candidates.jsonl",
+      "n_candidates": 11,
+      "n_translatable": 0,
+      "n_untranslatable": 11,
+      "n_schema_valid": 0,
+      "total_translate_ms": 10101.72030000831
+    }
+  ],
+  "run_end": "2026-08-19T15:19:40.128744",
+  "total_time_sec": 1929.9,
+  "total_translatable": 6,
+  "total_untranslatable": 2457,
+  "total_schema_valid": 6
+}

@@ -311,6 +311,63 @@ must not become `voltage_pu_min < 0.9` — the standard tolerates a brief dip, s
 would flag states the standard permits while still citing that standard. The reason field names
 the unmeasurable variable.
 
+### 3.5 STAGE 2 RUN 1 — a parsing bug that presented as a corpus property (2026-08-19)
+
+Stage 2 ran to completion on all 16 documents (32 min, `qwen3.6:35b-a3b`) and reported **6
+translatable of 2,463 — 0.24%**, against a measured expressible share of 693 (28.1%). Output is
+preserved at `translated_rules/` as evidence. **The run is void; do not read a yield from it.**
+
+| outcome | count | share |
+|---|---:|---:|
+| `NO_VERDICT` — rule never assessed | 2,190 | 88.9% |
+| `TRANSLATOR_FAIL` — response was an object, parser wanted an array | 40 | 1.6% |
+| **actual model verdict** | **233** | **9.5%** |
+| └ translated | 6 | — |
+
+**Cause.** Every worked example in `TRANSLATE_PROMPT` showed the return shape *without*
+`rule_id` — `{"translatable": true, "condition": ..., "role": ...}` — while `TranslationResult`
+declares `rule_id` required and `translate_batch` keyed its `result_map` on it. The model complied
+with its instructions; every entry then failed Pydantic validation and was discarded by a bare
+`except ValidationError: pass`. `result_map` came back empty, so every rule in the chunk fell
+through to `NO_VERDICT`. Reproduced directly: feeding the prompt's own examples to the parser
+yields `missing ('rule_id',)` on each.
+
+The 233 verdicts that did land look correct — `unobservable` 79, `ride-through` 36, `compound` 30,
+`frequency` 29, naming specific missing variables (`rocof_hz_per_sec`, `time_seconds`). The model
+was doing the job; the pipeline was throwing the answers away.
+
+**The failure was invisible in the totals.** A void run and a genuinely inexpressible corpus
+produce the same summary JSON. That is the property worth remembering: it would have been reported
+as the §7 failure mode — a pipeline artifact presented as a finding about standards.
+
+**Fixed.**
+- `common.py` — `rule_id` in all 7 worked examples, plus an explicit output contract (one entry per
+  rule, same order, `rule_id` copied verbatim, never skip a hard rule).
+- `translate.py::build_result_map()` — keys on `rule_id`; falls back to **positional** zip when
+  entries omit it *and* the array length matches the rules sent *and* nothing was keyed. Refuses to
+  guess on a partial or mixed response, because attaching a translated condition to the wrong
+  standard is worse than a NO_VERDICT.
+- No silent drops: malformed entries are logged and counted (`n_unparseable`), and a chunk where
+  *no* rule got a verdict logs ERROR naming it a parsing failure.
+- Per-file and per-run `n_no_verdict` in the summary JSON; ERROR above a 20% file-level rate.
+- `--debug-raw` dumps unparseable responses to `<out>/_raw/`.
+- `tests/test_translate_mapping.py` — 8 tests, including one asserting every prompt example carries
+  `rule_id`, so prompt and parser cannot drift apart again.
+
+**Deliberately NOT changed:** the translation semantics. The strict clauses (compound-discard,
+ride-through-is-neither, scope-vs-predicate) stay exactly as they were. Run 2 changes one thing, so
+its yield is a clean measurement of what this prompt actually produces. Only then is there evidence
+about whether the prompt is too strict — run 1 provides none, since 90% of the corpus was never
+assessed.
+
+**Quality signal from the 6 survivors** (all that run 1 supports): two fail the prompt's *own*
+self-check, firing on the healthy grid it defines —
+`power_factor_at_max_load < 0.95 or ... > 1.0` and `... < -0.95 or ... > 0.90` (the second is
+"0.90 lagging to 0.95 leading" with the sign convention lost). Both would be caught by the stage
+2.5 guard at fire rate 1.0, which is the guard doing its job. Separately, R_746's source chunk is
+unreadable OCR and the model tagged its own source *"Reconstructed from garbled text"* — a stage-1
+PDF-extraction concern, tracked separately from this one.
+
 ---
 
 ## 4. The polarity guard (stage 2.5)
@@ -337,6 +394,44 @@ cutoff.
 Outputs carry per-rule `fire_rate_<tag>` metadata — this *is* the rule's false block rate, so it
 predicts the shield's overall false block rate before the shield runs. Rejects go to
 `*_polarity_rejected.jsonl` (audit trail, enables the filtered-vs-unfiltered counterfactual).
+
+### 4.1 The guard reads the N-1 sets, and defaults to all three topologies — 2026-08-19
+
+`--tag` defaulted to `neurips2020 case14`, and `sample_contexts` resolved `grid_dataset_<tag>.jsonl`
+— the classify-era filename. **wcci2022 has no classify set** (never generated; the classify
+generator was removed 2026-08-16), so passing `--tag wcci2022` hit the skip-on-missing branch and
+logged a warning. The default silently excluded the largest and most structurally distant grid from
+a measurement whose entire purpose is cross-topology.
+
+No wcci2022 classify set is needed. The guard reads *observations* plus the ground-truth `label` to
+bucket frames by class; it never reads the task target. The N-1 records carry both — `label` and
+`label_int` are still written by the N-1 generator alongside `n1_violation` — as well as every field
+`build_context` consumes (`rho`, `v_or`, `p_or`, `q_or`, `line_status`, `load_p`, `gen_p`).
+
+Changed: `resolve_dataset_path()` prefers `grid_dataset_<tag>_n1.jsonl` and falls back to the
+classify file; `DEFAULT_TAGS` is all three. Same precedence `dump_base_kv.py` already uses for its
+meta path (§5.1), for the same reason.
+
+Preferring `_n1` **uniformly**, not just for wcci2022, is the load-bearing half. Classify generation
+applied per-class keep-probability quotas (`NORMAL_KEEP_PROB`, `LINE_TRIP_KEEP_PROB`); N-1 does not
+subsample by class. A fire rate is a claim about how often a rule fires in normal operation, so it
+wants the natural class distribution — and mixing quota-subsampled rates for two grids with a
+natural rate for the third would put three non-comparable numbers in one comparison table.
+
+The context cache is now keyed on the source filename as well as the sampling parameters, so a
+cache written under one source is not silently reused under the other.
+
+⚠️ **Minority-class resolution.** The N-1 sets are 12k / 6k / 4k records, well under the
+`--sample-size` default of 5,000 per class. Measured availability: `normal` 8,129 / 4,815 / 2,781,
+but `overload` only 250 / 138 / 251 (neurips2020 / case14 / wcci2022). Constraint fire rates are
+scored on `normal` and are fine. **AFFIRMATION support figures for `overload` rest on ~150–250
+frames** — report them as such, and do not read their trailing digits as comparable in precision to
+a constraint's. If affirmations turn out to be a large share of what survives translation, raise
+`--n1-stride` density or generate more frames before trusting those rates.
+
+Verified end-to-end on all three topologies (300-frame probe): all four classes sample, and
+`voltage_pu_max > 1` fires at **1.00 on every topology** — the ~6% above-nominal operating point
+from §5.1, now visible on wcci2022 too.
 
 ---
 
@@ -671,8 +766,9 @@ python extraction/translate.py --candidates rules_35b/ --out rules/
 python extraction/validate.py  --candidates rules/guarded/
 
 # 3. personal PC — guard (--report first to choose the cutoff, then apply)
-python extraction/polarity_guard.py --translated rules/ --tag neurips2020 --tag case14 --report
-python extraction/polarity_guard.py --translated rules/ --tag neurips2020 --tag case14
+#    Defaults to all three tags; reads the _n1 sets (§5.2).
+python extraction/polarity_guard.py --translated rules/ --report
+python extraction/polarity_guard.py --translated rules/
 
 # 4. base kV — backend method, DONE for all three tags on the personal PC (§5.1).
 #    Re-run only if an environment is reinstalled. Never pass --empirical again.

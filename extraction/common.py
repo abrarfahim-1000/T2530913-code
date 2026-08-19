@@ -193,9 +193,17 @@ Each rule below was extracted from a grid code standard. Its "condition" field d
 Your task: translate the condition to use ONLY these Grid2Op-observable variables:
 {vocabulary}
 
+OUTPUT CONTRACT — read this first, it is not negotiable:
+Return a JSON ARRAY with EXACTLY ONE entry per rule given to you, in the same
+order, and EVERY entry must carry the "rule_id" of the rule it answers, copied
+verbatim from the input. An entry without its "rule_id" is discarded and the rule
+is lost. Never merge two rules into one entry, never skip a rule you find hard —
+if you cannot translate it, answer it with "translatable": false.
+
 For each rule, decide:
 - If the condition CAN be expressed using the variables above:
-  Return {{"translatable": true, "condition": "translated condition",
+  Return {{"rule_id": "<the rule's rule_id>", "translatable": true,
+           "condition": "translated condition",
            "role": "CONSTRAINT" or "AFFIRMATION", "affirms": <class or null>, "reason": null}}
   The translated condition must be a valid Python boolean expression using ONLY:
   comparisons (< <= > >= == !=), and/or/not, parentheses, numeric literals, and the variables listed above.
@@ -205,13 +213,15 @@ For each rule, decide:
   (a) CONSTRAINT — the condition describes a state that VIOLATES the standard.
       TRUE means something is wrong and the prediction should be blocked.
       "line loading shall not exceed its thermal rating"
-      -> {{"role": "CONSTRAINT", "condition": "loading_pct > 100", "affirms": null}}
+      -> {{"rule_id": "R_042", "translatable": true, "role": "CONSTRAINT",
+           "condition": "loading_pct > 100", "affirms": null}}
 
   (b) AFFIRMATION — the condition describes a state that CONFIRMS the grid is in a
       particular operating class. TRUE means the telemetry is consistent with that
       class. Set "affirms" to exactly one of: normal, overload, line_trip, cascade.
       "voltage shall remain within 0.95-1.05 pu" describes healthy operation:
-      -> {{"role": "AFFIRMATION", "affirms": "normal",
+      -> {{"rule_id": "R_043", "translatable": true, "role": "AFFIRMATION",
+           "affirms": "normal",
            "condition": "voltage_pu_min >= 0.95 and voltage_pu_max <= 1.05"}}
       Do NOT invert this into a violation predicate. Both directions of evidence
       are wanted: what proves something is wrong, AND what proves it is fine.
@@ -225,7 +235,7 @@ For each rule, decide:
   describe an abnormal-but-survivable band. The requirement is about *not tripping*
   during it, which needs protection status and duration — neither is observable here.
   As a CONSTRAINT it fires at nominal; as an AFFIRMATION of `normal` it is false.
-  -> return {{"translatable": false, "condition": null,
+  -> return {{"rule_id": "R_044", "translatable": false, "condition": null,
              "reason": "ride-through: requires trip status and duration"}}
 
   TRANSLATION CASES. These are the transformations you ARE expected to perform:
@@ -259,7 +269,8 @@ For each rule, decide:
      "Modules above 50 MW shall keep voltage within 0.95-1.05"
      The "above 50 MW" selects which modules are governed; it is not a violation.
      Translate ONLY the requirement:
-     -> {{"role": "AFFIRMATION", "affirms": "normal",
+     -> {{"rule_id": "R_045", "translatable": true, "role": "AFFIRMATION",
+          "affirms": "normal",
           "condition": "voltage_pu_min >= 0.95 and voltage_pu_max <= 1.05"}}
      Never emit "active_power_mw_max > 50 and ..." - that would make the rule fire
      on the basis of equipment size rather than grid condition.
@@ -269,7 +280,7 @@ For each rule, decide:
   "voltage_pu_min < 0.9 and time_seconds > 3" must NOT become "voltage_pu_min < 0.9":
   the standard tolerates a brief dip, so the trimmed rule would flag states the
   standard permits, while still citing that standard as its source.
-  -> return {{"translatable": false, "condition": null,
+  -> return {{"rule_id": "R_046", "translatable": false, "condition": null,
              "reason": "compound: requires time_seconds, not observable in Grid2Op"}}
   Name the unmeasurable variable in the reason.
 
@@ -282,11 +293,14 @@ For each rule, decide:
 
 - If the condition CANNOT be expressed (uses frequency, ROCOF, droop, protection relay
   settings, sub-second timing, or any variable not in the vocabulary):
-  Return {{"translatable": false, "condition": null, "reason": "category: detail"}}
+  Return {{"rule_id": "<the rule's rule_id>", "translatable": false,
+           "condition": null, "reason": "category: detail"}}
   Note that Grid2Op simulates NO frequency at all, so any frequency-dependent rule is
   untranslatable regardless of how it is worded.
 
-Output ONLY a JSON array of translation results. No preamble, no markdown.
+Output ONLY a JSON array of translation results — one entry per rule, each with
+its "rule_id". No preamble, no markdown, no single bare object even when only one
+rule was given.
 
 Source text:
 {chunk}

@@ -16,6 +16,7 @@ import pytest
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from extraction.polarity_guard import (
+    DEFAULT_TAGS,
     RuleAssessment,
     is_affirmation,
     probe_label,
@@ -25,6 +26,7 @@ from extraction.polarity_guard import (
     first_firing_context,
     partition,
     process_file,
+    resolve_dataset_path,
 )
 
 # Stand-ins for simulator-labelled `normal` frames. Voltages sit a hair either
@@ -278,3 +280,45 @@ def test_rule_with_no_measurable_class_is_kept():
     rule = _rule("R_CAS", "n_tripped_lines >= 3", role="AFFIRMATION", affirms="cascade")
     kept, rejected = partition(assess_rules([rule], {"case14": {"normal": HEALTHY_FRAMES}}))
     assert len(kept) == 1 and not rejected
+
+
+# ── DATASET RESOLUTION ────────────────────────────────────────────────────────
+# wcci2022 has no classify set and never will (the classify generator was removed
+# on 2026-08-16), so preferring `_n1.jsonl` is what lets the largest unseen
+# topology be guarded at all. Preferring it uniformly also keeps the three fire
+# rates measured on like-for-like samples.
+
+def _touch(path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("", encoding="utf-8")
+    return path
+
+
+def test_n1_dataset_is_preferred_over_classify(tmp_path):
+    _touch(tmp_path / "grid_dataset_case14.jsonl")
+    n1 = _touch(tmp_path / "grid_dataset_case14_n1.jsonl")
+    assert resolve_dataset_path("case14", data_dir=str(tmp_path)) == n1
+
+
+def test_classify_dataset_is_the_fallback(tmp_path):
+    classify = _touch(tmp_path / "grid_dataset_neurips2020.jsonl")
+    assert resolve_dataset_path("neurips2020", data_dir=str(tmp_path)) == classify
+
+
+def test_tag_with_only_an_n1_set_resolves(tmp_path):
+    """The wcci2022 case: no classify file exists, and the guard must still run."""
+    n1 = _touch(tmp_path / "grid_dataset_wcci2022_n1.jsonl")
+    assert resolve_dataset_path("wcci2022", data_dir=str(tmp_path)) == n1
+
+
+def test_missing_dataset_names_both_paths_it_tried(tmp_path):
+    with pytest.raises(FileNotFoundError) as exc:
+        resolve_dataset_path("nosuchgrid", data_dir=str(tmp_path))
+    assert "grid_dataset_nosuchgrid_n1.jsonl" in str(exc.value)
+    assert "grid_dataset_nosuchgrid.jsonl" in str(exc.value)
+
+
+def test_all_three_topologies_are_guarded_by_default():
+    """A fire rate is a cross-topology claim; defaulting to the two grids we
+    already know leaves the transfer blind spot unmeasured."""
+    assert set(DEFAULT_TAGS) == {"neurips2020", "case14", "wcci2022"}

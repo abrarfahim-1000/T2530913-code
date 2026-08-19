@@ -23,10 +23,13 @@ that drive it.
 
 Usage:
     # report the distribution, choose the cutoff from its shape, write nothing
-    python extraction/polarity_guard.py --translated rules/ --tag case14 --report
+    python extraction/polarity_guard.py --translated rules/ --report
 
     # partition into *_translated_clean.jsonl + *_polarity_rejected.jsonl
-    python extraction/polarity_guard.py --translated rules/ --tag neurips2020 --tag case14
+    python extraction/polarity_guard.py --translated rules/
+
+Both default to all three topologies. Narrow with repeated --tag when a dataset
+is missing or a single-grid sensitivity run is wanted.
 """
 from __future__ import annotations
 
@@ -58,6 +61,10 @@ DEFAULT_SAMPLE_SIZE = 5000
 DEFAULT_MAX_SCAN = 400_000
 SEED = 42
 LABELS = ("normal", "overload", "line_trip", "cascade")
+# All three topologies by default: a fire rate is a cross-topology claim, and
+# guarding against only the grids we already trained on is the blind spot the
+# thesis is measuring. See resolve_dataset_path for why wcci2022 works here.
+DEFAULT_TAGS = ("neurips2020", "case14", "wcci2022")
 
 
 # ── THE CRITERION ─────────────────────────────────────────────────────────────
@@ -123,6 +130,37 @@ def assert_no_rule_fires(rules: Iterable[dict], contexts: Sequence[dict]) -> Non
 
 # ── HEALTHY-FRAME CORPUS ──────────────────────────────────────────────────────
 
+def resolve_dataset_path(tag: str, data_dir: str = "data") -> Path:
+    """Locate the JSONL to sample frames from, preferring the N-1 set.
+
+    The guard reads observations and the ground-truth `label`, never the task
+    target, so an N-1 file serves it exactly as well as a classify file — and
+    better in two respects:
+
+      - wcci2022 has no classify set (never generated, and the classify
+        generator was removed on 2026-08-16), so preferring `_n1` is what lets
+        the largest and most structurally distant topology be guarded at all.
+      - classify generation applied per-class keep-probability quotas; N-1 does
+        not subsample by class. A fire rate is a claim about how often a rule
+        fires in normal operation, which wants the natural class distribution.
+
+    Preferring `_n1` uniformly also keeps the three topologies' fire rates
+    measured on like-for-like samples, which is the point of putting them in one
+    table. `dump_base_kv.py` resolves its meta path by the same precedence.
+    """
+    candidates = (
+        Path(data_dir) / f"grid_dataset_{tag}_n1.jsonl",
+        Path(data_dir) / f"grid_dataset_{tag}.jsonl",
+    )
+    for path in candidates:
+        if path.exists():
+            return path
+    raise FileNotFoundError(
+        f"No dataset for tag `{tag}`: tried {', '.join(str(c) for c in candidates)}. "
+        f"Generate one with scripts/generate_dataset.py first."
+    )
+
+
 def sample_contexts(
     tag: str,
     labels: Sequence[str] = LABELS,
@@ -140,24 +178,32 @@ def sample_contexts(
     prefix would sample only the earliest chronics and miss the seasonal spread of
     loading conditions the fire rate is supposed to average over.
 
-    Results are cached — grid_dataset_neurips2020.jsonl is 3.4 GB and a scan costs
-    minutes, while the derived contexts are a few hundred kilobytes.
+    Results are cached, keyed on the source filename as well as the sampling
+    parameters. The cache mattered more under the classify sets (3.4 GB for
+    neurips2020, minutes per scan) than under the N-1 sets, which are 4k-12k
+    records and scan in seconds.
+
+    ⚠️ The N-1 sets are small enough that `n` is not always reached: the rarer
+    classes top out around 250 `overload` frames per topology. A fire rate over
+    250 frames has a coarser resolution than one over 5,000 — do not read the
+    trailing digits of a minority-class rate as if it were the `normal` rate.
     """
+    jsonl = resolve_dataset_path(tag, data_dir=data_dir)
+
     cache_path = Path(data_dir) / f"label_contexts_{tag}.json"
     if cache and cache_path.exists():
         with cache_path.open() as f:
             cached = json.load(f)
+        # `source` guards against reusing contexts sampled from a different file
+        # under the same tag - a cache written before _n1 became the preferred
+        # source describes a differently-subsampled population.
         if (cached.get("n_requested") == n and cached.get("max_scan") == max_scan
+                and cached.get("source") == jsonl.name
                 and set(cached.get("contexts", {})) >= set(labels)):
             counts = {k: len(v) for k, v in cached["contexts"].items()}
             log.info(f"[{tag}] contexts from cache: {counts}")
             return cached["contexts"]
 
-    jsonl = Path(data_dir) / f"grid_dataset_{tag}.jsonl"
-    if not jsonl.exists():
-        raise FileNotFoundError(
-            f"{jsonl} not found. Generate it with scripts/generate_dataset.py first."
-        )
     base_kv = load_base_kv(tag, data_dir=data_dir)
 
     rng = random.Random(SEED)
@@ -165,7 +211,8 @@ def sample_contexts(
     seen_counts: dict[str, int] = {lab: 0 for lab in labels}
     n_scanned = 0
 
-    log.info(f"[{tag}] scanning up to {max_scan:,} records for {list(labels)} frames...")
+    log.info(f"[{tag}] scanning up to {max_scan:,} records of {jsonl.name} "
+             f"for {list(labels)} frames...")
     with jsonl.open(encoding="utf-8") as f:
         for line in f:
             if n_scanned >= max_scan:
@@ -207,8 +254,9 @@ def sample_contexts(
     if cache:
         with cache_path.open("w") as f:
             json.dump(
-                {"tag": tag, "n_requested": n, "max_scan": max_scan,
-                 "n_seen": seen_counts, "contexts": reservoirs},
+                {"tag": tag, "source": jsonl.name, "n_requested": n,
+                 "max_scan": max_scan, "n_seen": seen_counts,
+                 "contexts": reservoirs},
                 f,
             )
         log.info(f"[{tag}] cached -> {cache_path}")
@@ -473,7 +521,7 @@ def main() -> None:
                          "input so the unfiltered ruleset survives for the counterfactual.")
     ap.add_argument("--tag", action="append", dest="tags", default=None,
                     help="Dataset tag to measure against; repeat for several "
-                         "(default: neurips2020 case14)")
+                         f"(default: {' '.join(DEFAULT_TAGS)})")
     ap.add_argument("--max-fire-rate", type=float, default=DEFAULT_MAX_FIRE_RATE,
                     help=f"Reject above this rate (default {DEFAULT_MAX_FIRE_RATE}). "
                          f"Choose it from --report, not by guessing.")
@@ -502,7 +550,7 @@ def main() -> None:
         log.error("Run extraction/translate.py first.")
         sys.exit(1)
 
-    tags = args.tags or ["neurips2020", "case14"]
+    tags = args.tags or list(DEFAULT_TAGS)
     contexts_by_tag: dict[str, list[dict]] = {}
     for tag in tags:
         try:

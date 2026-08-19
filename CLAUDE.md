@@ -84,6 +84,17 @@ experiments are documented in
 [`supplimentary_docs/gnn_final_results.md`](supplimentary_docs/gnn_final_results.md) — they pertain
 to the retired classify task.
 
+> **2026-08-19 — stage 2 ran and FAILED on a parsing bug; the fix is in, the re-run is pending.**
+> 2,190 of 2,463 rules (88.9%) came back `NO_VERDICT` and only **6 translated**. Cause: every
+> worked example in `TRANSLATE_PROMPT` omitted `rule_id` while `TranslationResult` requires it, so
+> every entry failed validation and was dropped by a bare `except ValidationError: pass`. The model
+> was answering correctly and the answers were being discarded. **The 0.24% yield says nothing
+> about the corpus** — only 233 rules (9.5%) ever received a verdict. Fixed in
+> `common.py` (rule_id in every example) and `translate.py` (`build_result_map`, positional
+> fallback, no silent drops, `--debug-raw`, NO_VERDICT tripwire). Guarded by
+> `tests/test_translate_mapping.py`. Full account: `component_d_plan.md` §3.5.
+> ⚠️ `translated_rules/` on disk is the FAILED run — evidence only, do not feed it to stage 2.5.
+
 **Component B (LLM extraction) — stage 1 DONE, stages 2–3 pending.** 2,463 candidates across 16
 documents in `rules_35b/` (kept pristine as the stage-1 archive). The pipeline is now **four
 stages**: `extract.py` (open vocabulary) → `translate.py` → `polarity_guard.py` (stage 2.5,
@@ -191,11 +202,18 @@ python extraction/extract.py --docs data/documents/ --out rules/     # DONE - do
 
 # Stage 2: Translate conditions onto CONDITION_VOCABULARY (same model, reloaded)
 #          → *_translated.jsonl + *_untranslatable.jsonl
+# Add --debug-raw to dump responses that fail to parse to <out>/_raw/.
+# ⚠️ Check `total_no_verdict` in translation_run_summary.json before believing the
+#    yield: NO_VERDICT means the rule was never assessed (a parsing failure), which
+#    is a different claim from "not expressible" and looks identical in the totals.
+#    The run logs an ERROR above 20%. See component_d_plan.md §3.5.
 python extraction/translate.py --candidates rules_35b/ --out rules/
 
 # Stage 2.5: polarity guard (deterministic, no LLM/GPU) — --report first to pick the cutoff
-python extraction/polarity_guard.py --translated rules/ --tag neurips2020 --tag case14 --report
-python extraction/polarity_guard.py --translated rules/ --tag neurips2020 --tag case14
+# Defaults to ALL THREE topologies, reading grid_dataset_<tag>_n1.jsonl (falling back
+# to the classify set). Narrow with repeated --tag only for a sensitivity run.
+python extraction/polarity_guard.py --translated rules/ --report
+python extraction/polarity_guard.py --translated rules/
 
 # Stage 3: Validate guarded rules (Nemotron-3 Nano 30B) — reads guarded/*_translated.jsonl
 python extraction/validate.py --candidates rules/guarded/
