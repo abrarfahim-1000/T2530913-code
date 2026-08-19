@@ -1,0 +1,6 @@
+{
+  "rule_id": "R_467",
+  "translatable": false,
+  "condition": null,
+  "reason": "ride-through: requires trip status and duration"
+}

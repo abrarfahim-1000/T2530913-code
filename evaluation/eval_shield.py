@@ -1,6 +1,13 @@
 """
 eval_shield.py — GNN-only vs GNN+shield, per topology.
 
+⚠ RETIRED 2026-08-19 — this is the CLASSIFY-era harness. It loads
+`gnn_checkpoint_best.pt`, uses the retired 4-class LABEL_MAP, applies Lever A
+and reports a per-class classification_report, none of which exists under N-1
+screening. **The live harness is `evaluation/eval_shield_n1.py`.** This file is
+kept because the classify arm is still discussed in the write-up; do not run it
+for any current result, and do not extend it.
+
 The thesis headline (component_d_plan.md §8) is the *delta* between the two
 arms: what the raw GNN ships versus what survives the shield, per topology, with
 false block rate and missed-fault catch rate broken out by failure mode.

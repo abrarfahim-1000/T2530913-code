@@ -1,5 +1,16 @@
 # What We're Doing — Plain English Overview
 
+> ⚠ **STALE as of 2026-08-19 — this describes the v1 architecture.** Three things below are
+> no longer true: the AI classifies **N-1 contingencies** ("if this line fails, does the grid
+> break?"), not four fault types — that target was retired because four if-statements
+> reproduced it exactly; the knowledge graph is **retired** and the shield reads rules
+> directly; and the gate is **asymmetric** — it blocks over-permissive verdicts only, never
+> cautious ones. The core idea and the contribution claim still stand.
+>
+> For what the system actually does and what it measured, read
+> [`thesis_findings.md`](thesis_findings.md). Rewrite or retire this file — do not hand it to
+> anyone as-is.
+
 ## The Problem
 
 Power grids can develop faults — overloads, line trips, cascading failures. A GNN (a neural network built to understand networks/graphs) can be trained to detect and locate these faults automatically.

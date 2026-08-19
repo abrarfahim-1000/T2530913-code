@@ -16,6 +16,10 @@ The GNN is trained on one topology (36-bus) and evaluated on unseen topologies (
 
 ## Current Status (2026-08-15)
 
+> **Start here for results:** [`supplimentary_docs/thesis_findings.md`](supplimentary_docs/thesis_findings.md)
+> — the plain-language account of every measured finding, with the caveats that must travel
+> with them. Written for a reader without the codebase open.
+>
 > **The operative plan is [`supplimentary_docs/component_d_plan.md`](supplimentary_docs/component_d_plan.md).**
 > Read it before starting work — it carries the task redesign, the runbook, and the landmines.
 > This file describes the *architecture*; the plan describes *what to do next*.
@@ -84,6 +88,14 @@ experiments are documented in
 [`supplimentary_docs/gnn_final_results.md`](supplimentary_docs/gnn_final_results.md) — they pertain
 to the retired classify task.
 
+> **2026-08-19 — stage 2 FAILED on a parsing bug, was fixed, and RE-RAN clean. Guard + audit done.**
+> Run 2: `total_no_verdict: 0`, `total_unparseable: 0` — every one of the 2,463 rules got a verdict.
+> **82 translated (3.3%) → guard 33 kept (59.8% rejected) → audit 11 distinct rules can do work**,
+> of which the only unambiguously useful family is `loading_pct > 100`. Surviving rules cover
+> **4 of 14** observable variables and **nothing about topology** — see `component_d_plan.md` §4.2
+> for the headline finding (the standards/simulator mismatch runs both ways) and the two caveats
+> that must travel with it. New: `evaluation/audit_rules.py`. History of the original bug follows.
+>
 > **2026-08-19 — stage 2 ran and FAILED on a parsing bug; the fix is in, the re-run is pending.**
 > 2,190 of 2,463 rules (88.9%) came back `NO_VERDICT` and only **6 translated**. Cause: every
 > worked example in `TRANSLATE_PROMPT` omitted `rule_id` while `TranslationResult` requires it, so
@@ -117,13 +129,27 @@ alone — newer Qwen builds ignore the prefix and the reasoning trace breaks JSO
 
 v1 outputs are archived at `rules/v1_archive/` (retained as a thesis negative result).
 
-**Component C (Knowledge Graph) — to be REDESIGNED from scratch.** `kg/knowledge_graph.pkl` is a
-v1 artifact and is not used by anything current. Do **not** rebuild with the existing mechanism —
+**Component C (Knowledge Graph) — to be REDESIGNED from scratch.** ⚠ `kg/knowledge_graph.pkl`
+**no longer exists on disk** (verified 2026-08-19); `kg/` holds only the v1 visualisations.
+Nothing current uses it. Do **not** rebuild with the existing mechanism —
 the new graph is designed against the rules that actually survive translation, guard, and
 validation. Note for that redesign: `Line` (59) and `Bus` (28) account for only **3.5%** of the
 corpus, so entity-based retrieval carries almost no information.
 
-**Component D (Symbolic Shield) — BUILT and tested; not yet run against a real ruleset.**
+**Component D (Symbolic Shield) — BUILT, tested, and RUN END-TO-END (2026-08-19).**
+Measured on all three topologies against the 33 guarded rules, threshold selected on the
+neurips2020 val split and held fixed: **wcci2022 F1 0.5577 → 0.6232 (+0.0655), missed
+violations 68,166 → 46,860 (−31.3%) at 0.860 intervention precision**; neurips2020
++0.0026 (−20.9% missed, precision 0.514); case14 +0.0021 (precision 0.922). The shield's
+override precision *rises* off-distribution — the symbolic layer holds while the neural
+layer stops earning the benefit of the doubt. Zero ERROR and zero NOT_EVALUABLE verdicts
+everywhere. ⚠ Two caveats travel with this: `loading_pct > 100` on the base case is close
+to a physical tautology (P(violation | base overloaded) = 91–96%, not 100%), and the N-1
+doctrine it enforces is hand-written in `validate_n1`, not extracted. Full account and
+both caveats: `component_d_plan.md` §11.
+
+**Live harness is `evaluation/eval_shield_n1.py`** — `eval_shield.py` is the classify-era
+version and is banner-marked RETIRED.
 `shield/` (context, evaluator, shield), `extraction/polarity_guard.py`,
 `evaluation/eval_shield.py`, `evaluation/summarize_shield_results.py`. **118 tests green.**
 Rule retrieval sits behind a `RuleProvider` protocol, **not** `build_kg.py::get_rules_for_entity`,
@@ -307,7 +333,7 @@ rules/                             # Component B outputs (one *_candidates/_conf
   validation_run_summary.json      # per-document confirm/correct/reject counts from the validation pass
 
 kg/                                # Component C — knowledge graph artifacts (built by extraction/build_kg.py)
-  knowledge_graph.pkl              # RETIRED v1 artifact - not used by the shield
+  # knowledge_graph.pkl            # GONE - deleted at some point; kg/ has only the v1 plots
   kg_full.html / rules_only.html / rule_R_001_subgraph.html   # pyvis visualizations
   severity_breakdown.png, rule_local_sample_2d.{png,svg,pdf}  # EDA plots
   # NOTE: the shield lives in shield/ at the repo root, NOT here. This KG is a retired v1 artifact.

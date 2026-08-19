@@ -1,0 +1,6 @@
+{
+  "rule_id": "R_142",
+  "translatable": false,
+  "condition": null,
+  "reason": "scope: power factor requirement applies to PowerGeneratingModule (generator terminals), but observable variable power_factor_at_max_load is defined on the most heavily loaded line; mismatch in measurement point and entity scope."
+}

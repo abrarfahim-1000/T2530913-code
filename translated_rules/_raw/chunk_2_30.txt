@@ -1,0 +1,6 @@
+{
+  "rule_id": "R_124",
+  "translatable": false,
+  "condition": null,
+  "reason": "scope: requires power factor of a specific generating facility (Non-Synchronous Generation) at continuous rated output, not the grid-wide maximum loading line"
+}

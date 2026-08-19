@@ -1,0 +1,6 @@
+{
+  "rule_id": "R_1874",
+  "translatable": false,
+  "condition": null,
+  "reason": "unobservable: requires generator-side power factor or specific relay setting logic not available in grid-wide line observables"
+}

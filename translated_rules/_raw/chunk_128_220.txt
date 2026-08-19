@@ -1,0 +1,6 @@
+{
+  "rule_id": "R_541",
+  "translatable": false,
+  "condition": null,
+  "reason": "requires synchronised_proportion_pct and registered_capacity_mw, not observable in Grid2Op"
+}

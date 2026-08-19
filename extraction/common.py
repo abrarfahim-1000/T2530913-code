@@ -260,9 +260,26 @@ For each rule, decide:
      Never bind an under-limit to the maximum, or vice versa.
 
   4. PROXY SUBSTITUTION. A quantity expressed against an equipment rating is the
-     loading ratio in disguise.
+     loading ratio in disguise. Substitute the ratio and DROP the rating.
      "flow shall not exceed 100% of the continuous rating" -> "loading_pct > 100"
      "loaded beyond its emergency rating"                  -> "rho_max > 1.0"
+
+     The ratio REPLACES the absolute figure - it is never ORed with it. Every
+     absolute magnitude in the vocabulary (current_a_max, apparent_power_mva_max,
+     active_power_mw_max, reactive_power_mvar_max) is a maximum over EVERY line in
+     the grid, whereas a rating printed in a standard belongs to ONE named circuit.
+     Comparing the two asks whether the busiest line anywhere exceeds some other
+     line's nameplate - which is true on a perfectly healthy grid, so the rule
+     fires constantly and is worse than useless.
+     A rating schedule reading "Post-Fault Continuous 100% Line 580 Amps 132 MVA"
+     states ONE limit in three units - percent, amps, MVA - not three limits.
+     -> {{"rule_id": "R_047", "translatable": true, "role": "CONSTRAINT",
+          "condition": "loading_pct > 100"}}
+     NEVER "loading_pct > 100 or current_a_max > 580 or apparent_power_mva_max > 132".
+
+     Use an absolute magnitude ONLY when the standard states it as a system-wide
+     limit in its own right, with no equipment rating behind it. If the number came
+     from a rating, a nameplate, or a circuit rating schedule, it is a ratio.
 
   5. SCOPE vs PREDICATE. Many clauses combine WHICH equipment the rule covers with
      WHAT it requires. The scope half is NOT part of the condition.
@@ -287,6 +304,11 @@ For each rule, decide:
   SELF-CHECK before returning. Substitute a healthy grid: voltage_pu_min = 1.0,
   voltage_pu_max = 1.0, loading_pct = 40, rho_max = 0.4, n_tripped_lines = 0,
   any_line_tripped = False, power_factor_at_max_load = 0.93.
+  If your condition names an absolute magnitude, substitute these too - they are
+  typical HEALTHY readings for a transmission grid, so any threshold below them
+  fires on a healthy grid: active_power_mw_max = 205, reactive_power_mvar_max = 234,
+  apparent_power_mva_max = 272, current_a_max = 426, total_generation_mw = 579,
+  total_load_mw = 569, generation_load_imbalance_pct = 1.7.
   - a CONSTRAINT must be FALSE for those values (a healthy grid violates nothing)
   - an AFFIRMATION of `normal` must be TRUE for those values
   If yours comes out the other way, fix it or mark it untranslatable.

@@ -1,0 +1,6 @@
+{
+  "rule_id": "R_149",
+  "translatable": false,
+  "condition": null,
+  "reason": "requires individual generator output percentage, not observable in Grid2Op"
+}

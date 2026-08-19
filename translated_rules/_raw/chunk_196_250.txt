@@ -1,0 +1,6 @@
+{
+  "rule_id": "R_1933",
+  "translatable": false,
+  "condition": null,
+  "reason": "compound: requires specific contingency state (outage of the 345 kV transmission line) and equipment-specific output limit, not general grid-wide generation"
+}

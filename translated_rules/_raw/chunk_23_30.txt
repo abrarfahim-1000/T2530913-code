@@ -1,0 +1,6 @@
+{
+  "rule_id": "R_150",
+  "translatable": false,
+  "condition": null,
+  "reason": "ride-through: requires specific generator trip status and duration for low-voltage ride-through capability"
+}

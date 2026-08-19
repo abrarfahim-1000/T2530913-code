@@ -1,0 +1,6 @@
+{
+  "rule_id": "R_127",
+  "translatable": false,
+  "condition": null,
+  "reason": "scope: applies to specific interconnecting generators, not grid-wide lines; power_factor_at_max_load is on the most loaded line, not necessarily the generator's PF"
+}

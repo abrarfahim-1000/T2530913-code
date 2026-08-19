@@ -1,0 +1,947 @@
+{
+  "n_rules": 32,
+  "n_distinct": 23,
+  "counts": {
+    "INERT": 4,
+    "UNINFORMATIVE": 7,
+    "NO_EVIDENCE": 0,
+    "TOPOLOGY_DEPENDENT": 11,
+    "USEFUL": 10
+  },
+  "tags": [
+    "neurips2020",
+    "case14",
+    "wcci2022"
+  ],
+  "min_discrimination": 0.05,
+  "rules": [
+    {
+      "rule_id": "R_116",
+      "entity": "PowerGeneratingModule",
+      "condition": "voltage_pu_min >= 0.90 and voltage_pu_max <= 1.118",
+      "role": "AFFIRMATION",
+      "affirms": "normal",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 0.936,
+          "line_trip": 0.9940652818991098,
+          "cascade": 0.9578378378378378
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 0.8333333333333334,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 1.0,
+          "overload": 0.9920318725099602,
+          "line_trip": 1.0,
+          "cascade": 0.9956896551724138
+        }
+      },
+      "verdict": "UNINFORMATIVE",
+      "detail": "holds on `normal` and on every other class alike (best margin +0.006)"
+    },
+    {
+      "rule_id": "R_120",
+      "entity": "PowerGeneratingModule",
+      "condition": "voltage_pu_min >= 0.90 and voltage_pu_max <= 1.10",
+      "role": "AFFIRMATION",
+      "affirms": "normal",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 0.936,
+          "line_trip": 0.9940652818991098,
+          "cascade": 0.9578378378378378
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 0.8333333333333334,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 1.0,
+          "overload": 0.9920318725099602,
+          "line_trip": 1.0,
+          "cascade": 0.9956896551724138
+        }
+      },
+      "verdict": "UNINFORMATIVE",
+      "detail": "holds on `normal` and on every other class alike (best margin +0.006)"
+    },
+    {
+      "rule_id": "R_121",
+      "entity": "PowerGeneratingModule",
+      "condition": "voltage_pu_min >= 0.90 and voltage_pu_max <= 1.118",
+      "role": "AFFIRMATION",
+      "affirms": "normal",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 0.936,
+          "line_trip": 0.9940652818991098,
+          "cascade": 0.9578378378378378
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 0.8333333333333334,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 1.0,
+          "overload": 0.9920318725099602,
+          "line_trip": 1.0,
+          "cascade": 0.9956896551724138
+        }
+      },
+      "verdict": "UNINFORMATIVE",
+      "detail": "holds on `normal` and on every other class alike (best margin +0.006)"
+    },
+    {
+      "rule_id": "R_123",
+      "entity": "PowerGeneratingModule",
+      "condition": "voltage_pu_min >= 0.90 and voltage_pu_max <= 1.12",
+      "role": "AFFIRMATION",
+      "affirms": "normal",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 0.936,
+          "line_trip": 0.9940652818991098,
+          "cascade": 0.9578378378378378
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 0.8333333333333334,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 1.0,
+          "overload": 0.9920318725099602,
+          "line_trip": 1.0,
+          "cascade": 0.9956896551724138
+        }
+      },
+      "verdict": "UNINFORMATIVE",
+      "detail": "holds on `normal` and on every other class alike (best margin +0.006)"
+    },
+    {
+      "rule_id": "R_260",
+      "entity": "Grid",
+      "condition": "voltage_pu_min < 0.9 or voltage_pu_max > 1.1",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.064,
+          "line_trip": 0.005934718100890208,
+          "cascade": 0.04216216216216216
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.16666666666666666,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.00796812749003984,
+          "line_trip": 0.0,
+          "cascade": 0.004310344827586207
+        }
+      },
+      "verdict": "TOPOLOGY_DEPENDENT",
+      "detail": "fires on abnormal frames on some grids only (0.008..0.167)"
+    },
+    {
+      "rule_id": "R_434",
+      "entity": "PowerGeneratingModule",
+      "condition": "voltage_pu_max > 1.2",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "verdict": "INERT",
+      "detail": "never fires on any class on any grid (max abnormal rate 0.000) \u2014 cannot block, contributes nothing"
+    },
+    {
+      "rule_id": "R_741",
+      "entity": "Generator",
+      "condition": "voltage_pu_max > 1.2 or voltage_pu_min < 0.5",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "verdict": "INERT",
+      "detail": "never fires on any class on any grid (max abnormal rate 0.000) \u2014 cannot block, contributes nothing"
+    },
+    {
+      "rule_id": "R_797",
+      "entity": "Bus",
+      "condition": "voltage_pu_min < 0.90 or voltage_pu_max > 1.10",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.064,
+          "line_trip": 0.005934718100890208,
+          "cascade": 0.04216216216216216
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.16666666666666666,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.00796812749003984,
+          "line_trip": 0.0,
+          "cascade": 0.004310344827586207
+        }
+      },
+      "verdict": "TOPOLOGY_DEPENDENT",
+      "detail": "fires on abnormal frames on some grids only (0.008..0.167)"
+    },
+    {
+      "rule_id": "R_798",
+      "entity": "Bus",
+      "condition": "voltage_pu_min < 0.85 or voltage_pu_max > 1.10",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.064,
+          "line_trip": 0.005934718100890208,
+          "cascade": 0.04216216216216216
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.028985507246376812,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.00398406374501992,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "verdict": "TOPOLOGY_DEPENDENT",
+      "detail": "fires on abnormal frames on some grids only (0.004..0.064)"
+    },
+    {
+      "rule_id": "R_858",
+      "entity": "Line",
+      "condition": "loading_pct > 100.0",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "verdict": "USEFUL",
+      "detail": "fires on abnormal frames at 1.000..1.000"
+    },
+    {
+      "rule_id": "R_916",
+      "entity": "Line",
+      "condition": "loading_pct > 100",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "verdict": "USEFUL",
+      "detail": "fires on abnormal frames at 1.000..1.000"
+    },
+    {
+      "rule_id": "R_1098",
+      "entity": "PowerGeneratingModule",
+      "condition": "voltage_pu_min < 0.917",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.2536231884057971,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.01593625498007968,
+          "line_trip": 0.0,
+          "cascade": 0.008620689655172414
+        }
+      },
+      "verdict": "TOPOLOGY_DEPENDENT",
+      "detail": "fires on abnormal frames on some grids only (0.000..0.254)"
+    },
+    {
+      "rule_id": "R_1108",
+      "entity": "PowerGeneratingModule",
+      "condition": "voltage_pu_min < 0.9 or voltage_pu_max > 1.1",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.064,
+          "line_trip": 0.005934718100890208,
+          "cascade": 0.04216216216216216
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.16666666666666666,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.00796812749003984,
+          "line_trip": 0.0,
+          "cascade": 0.004310344827586207
+        }
+      },
+      "verdict": "TOPOLOGY_DEPENDENT",
+      "detail": "fires on abnormal frames on some grids only (0.008..0.167)"
+    },
+    {
+      "rule_id": "R_1152",
+      "entity": "Grid",
+      "condition": "voltage_pu_min >= 0.9 and voltage_pu_max <= 1.1",
+      "role": "AFFIRMATION",
+      "affirms": "normal",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 0.936,
+          "line_trip": 0.9940652818991098,
+          "cascade": 0.9578378378378378
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 0.8333333333333334,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 1.0,
+          "overload": 0.9920318725099602,
+          "line_trip": 1.0,
+          "cascade": 0.9956896551724138
+        }
+      },
+      "verdict": "UNINFORMATIVE",
+      "detail": "holds on `normal` and on every other class alike (best margin +0.006)"
+    },
+    {
+      "rule_id": "R_1154",
+      "entity": "PowerGeneratingModule",
+      "condition": "voltage_pu_min >= 0.9 and voltage_pu_max <= 1.1",
+      "role": "AFFIRMATION",
+      "affirms": "normal",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 0.936,
+          "line_trip": 0.9940652818991098,
+          "cascade": 0.9578378378378378
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 0.8333333333333334,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 1.0,
+          "overload": 0.9920318725099602,
+          "line_trip": 1.0,
+          "cascade": 0.9956896551724138
+        }
+      },
+      "verdict": "UNINFORMATIVE",
+      "detail": "holds on `normal` and on every other class alike (best margin +0.006)"
+    },
+    {
+      "rule_id": "R_1319",
+      "entity": "PowerGeneratingModule",
+      "condition": "voltage_pu_min < 0.3",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "verdict": "INERT",
+      "detail": "never fires on any class on any grid (max abnormal rate 0.000) \u2014 cannot block, contributes nothing"
+    },
+    {
+      "rule_id": "R_1443",
+      "entity": "Facility",
+      "condition": "loading_pct > 100",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "verdict": "USEFUL",
+      "detail": "fires on abnormal frames at 1.000..1.000"
+    },
+    {
+      "rule_id": "R_1444",
+      "entity": "Bus",
+      "condition": "voltage_pu_min < 0.9 or voltage_pu_max > 1.1",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.064,
+          "line_trip": 0.005934718100890208,
+          "cascade": 0.04216216216216216
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.16666666666666666,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.00796812749003984,
+          "line_trip": 0.0,
+          "cascade": 0.004310344827586207
+        }
+      },
+      "verdict": "TOPOLOGY_DEPENDENT",
+      "detail": "fires on abnormal frames on some grids only (0.008..0.167)"
+    },
+    {
+      "rule_id": "R_1492",
+      "entity": "Facility",
+      "condition": "loading_pct > 100",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "verdict": "USEFUL",
+      "detail": "fires on abnormal frames at 1.000..1.000"
+    },
+    {
+      "rule_id": "R_1575",
+      "entity": "Grid",
+      "condition": "generation_load_imbalance_pct > 25.0",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "verdict": "INERT",
+      "detail": "never fires on any class on any grid (max abnormal rate 0.000) \u2014 cannot block, contributes nothing"
+    },
+    {
+      "rule_id": "R_1710",
+      "entity": "Facility",
+      "condition": "loading_pct > 100",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "verdict": "USEFUL",
+      "detail": "fires on abnormal frames at 1.000..1.000"
+    },
+    {
+      "rule_id": "R_1717",
+      "entity": "Facility",
+      "condition": "loading_pct > 100",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "verdict": "USEFUL",
+      "detail": "fires on abnormal frames at 1.000..1.000"
+    },
+    {
+      "rule_id": "R_1833",
+      "entity": "PowerGeneratingModule",
+      "condition": "voltage_pu_max > 1.10",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.064,
+          "line_trip": 0.005934718100890208,
+          "cascade": 0.04216216216216216
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "verdict": "TOPOLOGY_DEPENDENT",
+      "detail": "fires on abnormal frames on some grids only (0.000..0.064)"
+    },
+    {
+      "rule_id": "R_1835",
+      "entity": "PowerGeneratingModule",
+      "condition": "voltage_pu_min < 0.90",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.16666666666666666,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.00796812749003984,
+          "line_trip": 0.0,
+          "cascade": 0.004310344827586207
+        }
+      },
+      "verdict": "TOPOLOGY_DEPENDENT",
+      "detail": "fires on abnormal frames on some grids only (0.000..0.167)"
+    },
+    {
+      "rule_id": "R_1926",
+      "entity": "Bus",
+      "condition": "voltage_pu_min < 0.95",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.2753623188405797,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.04780876494023904,
+          "line_trip": 0.014945652173913044,
+          "cascade": 0.03017241379310345
+        }
+      },
+      "verdict": "TOPOLOGY_DEPENDENT",
+      "detail": "fires on abnormal frames on some grids only (0.000..0.275)"
+    },
+    {
+      "rule_id": "R_1927",
+      "entity": "Generator",
+      "condition": "voltage_pu_min < 0.95",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.2753623188405797,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.04780876494023904,
+          "line_trip": 0.014945652173913044,
+          "cascade": 0.03017241379310345
+        }
+      },
+      "verdict": "TOPOLOGY_DEPENDENT",
+      "detail": "fires on abnormal frames on some grids only (0.000..0.275)"
+    },
+    {
+      "rule_id": "R_2018",
+      "entity": "Facility",
+      "condition": "loading_pct > 100",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "verdict": "USEFUL",
+      "detail": "fires on abnormal frames at 1.000..1.000"
+    },
+    {
+      "rule_id": "R_2019",
+      "entity": "Facility",
+      "condition": "loading_pct > 100",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "verdict": "USEFUL",
+      "detail": "fires on abnormal frames at 1.000..1.000"
+    },
+    {
+      "rule_id": "R_2165",
+      "entity": "Line",
+      "condition": "loading_pct > 100",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "verdict": "USEFUL",
+      "detail": "fires on abnormal frames at 1.000..1.000"
+    },
+    {
+      "rule_id": "R_2282",
+      "entity": "PowerGeneratingModule",
+      "condition": "voltage_pu_min >= 0.90",
+      "role": "AFFIRMATION",
+      "affirms": "normal",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 0.8333333333333334,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 1.0,
+          "overload": 0.9920318725099602,
+          "line_trip": 1.0,
+          "cascade": 0.9956896551724138
+        }
+      },
+      "verdict": "UNINFORMATIVE",
+      "detail": "holds on `normal` and on every other class alike (best margin +0.000)"
+    },
+    {
+      "rule_id": "R_069",
+      "entity": "Bus",
+      "condition": "voltage_pu_min < 0.95",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.2753623188405797,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.04780876494023904,
+          "line_trip": 0.014945652173913044,
+          "cascade": 0.03017241379310345
+        }
+      },
+      "verdict": "TOPOLOGY_DEPENDENT",
+      "detail": "fires on abnormal frames on some grids only (0.000..0.275)"
+    },
+    {
+      "rule_id": "R_167",
+      "entity": "Facility",
+      "condition": "loading_pct > 100",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "verdict": "USEFUL",
+      "detail": "fires on abnormal frames at 1.000..1.000"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "rule_id": "R_145",
+  "translatable": false,
+  "condition": null,
+  "reason": "scope: requires per-generator power factor, not grid-wide maximum loading power factor"
+}

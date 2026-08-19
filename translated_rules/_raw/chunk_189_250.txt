@@ -1,0 +1,6 @@
+{
+  "rule_id": "R_1925",
+  "translatable": false,
+  "condition": null,
+  "reason": "unobservable: requires protection relay setting (overcurrent_setting_pct), which is not a Grid2Op observable variable"
+}

@@ -214,3 +214,9 @@ data/
 docs/*.pdf
 done_pdfs/
 rules/
+
+# ── project eval output (regenerable; see component_d_plan.md §11) ───────────
+# Per-contingency failure logs run to ~12 MB on wcci2022 and are rebuilt by
+# evaluation/eval_shield_n1.py. The shield_*.json summaries ARE kept — they are
+# small and they are the recorded result.
+failures_*.jsonl

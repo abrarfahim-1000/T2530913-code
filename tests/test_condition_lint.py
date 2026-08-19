@@ -114,6 +114,57 @@ def test_extract_prompt_stays_open_vocabulary():
     assert "There is no pre-defined variable list." in EXTRACT_PROMPT
 
 
+def test_translate_prompt_forbids_oring_an_equipment_rating_with_a_ratio():
+    """Regression guard for R_769 (2026-08-19).
+
+    The translator emitted
+    `loading_pct > 100 or current_a_max > 580 or apparent_power_mva_max > 132`
+    from an offshore circuit rating schedule that stated ONE limit in three units.
+    The two absolute terms name grid-wide maxima, while 580 A / 132 MVA belong to
+    one named circuit, so the rule fired on 100% of healthy frames on all three
+    topologies. The prompt must forbid the ORed form explicitly.
+    """
+    assert 'PROXY SUBSTITUTION' in TRANSLATE_PROMPT
+    assert 'REPLACES the absolute figure' in TRANSLATE_PROMPT
+    assert 'never ORed with it' in TRANSLATE_PROMPT
+    assert ('NEVER "loading_pct > 100 or current_a_max > 580 '
+            'or apparent_power_mva_max > 132".') in TRANSLATE_PROMPT
+
+
+def _self_check_healthy_values():
+    """The healthy-grid substitutions the prompt tells the model to try."""
+    import re
+    body = TRANSLATE_PROMPT.split('SELF-CHECK before returning.', 1)[1]
+    body = body.split('  - a CONSTRAINT', 1)[0]
+    return {m.group(1): float(m.group(2))
+            for m in re.finditer(r'(\w+) = (-?\d+(?:\.\d+)?)', body)}
+
+
+def test_self_check_magnitudes_actually_expose_the_rating_defect():
+    """The self-check is only load-bearing if its numbers are large enough to
+    catch the bug. Evaluated against the healthy values the prompt itself
+    supplies, the defective condition must come out True — so a model following
+    the self-check literally is forced to reject it — while the corrected
+    single-term form must come out False."""
+    healthy = _self_check_healthy_values()
+    for name in ('current_a_max', 'apparent_power_mva_max', 'loading_pct'):
+        assert name in healthy, f'self-check gives no healthy value for {name}'
+
+    defective = 'loading_pct > 100 or current_a_max > 580 or apparent_power_mva_max > 132'
+    assert eval(defective, {'__builtins__': {}}, healthy) is True, (
+        'self-check magnitudes are too small to expose the ORed-rating defect')
+    assert eval('loading_pct > 100', {'__builtins__': {}}, healthy) is False
+
+
+def test_self_check_covers_every_variable_in_the_vocabulary():
+    """A variable with no healthy value in the self-check cannot be checked by the
+    model at all — which is how the rating defect got through: the old self-check
+    named seven variables and stopped."""
+    healthy = _self_check_healthy_values()
+    named = set(healthy) | {'any_line_tripped'}   # boolean, stated as False not `= n`
+    missing = set(CONDITION_VOCABULARY) - named
+    assert not missing, f'self-check supplies no healthy value for: {sorted(missing)}'
+
 # ── THINK-TAG STRIPPING ───────────────────────────────────────────────────────
 
 def test_strip_think_removes_well_formed_block():

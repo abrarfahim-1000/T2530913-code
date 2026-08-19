@@ -1,0 +1,46 @@
+{
+  "tag": "wcci2022",
+  "rules": "translated_rules\\guarded\\",
+  "n_rules": 33,
+  "threshold": 0.8848512768745422,
+  "threshold_source": "selected on the neurips2020 val split, held fixed",
+  "n_contingencies": 742472,
+  "violation_rate": 0.24760529690008512,
+  "ap": 0.6418837991998272,
+  "f1_rule_baseline": 0.49152091277927557,
+  "f1_model_best_on_topology": 0.5721070824403444,
+  "arms": {
+    "gnn": {
+      "f1": 0.5577378814215147,
+      "precision": 0.5008464779158025,
+      "recall": 0.629210182767624,
+      "tp": 115674,
+      "false_alarms": 115283,
+      "missed_violations": 68166
+    },
+    "gnn_shield": {
+      "f1": 0.6232397730530014,
+      "precision": 0.535634682912714,
+      "recall": 0.7451044386422977,
+      "tp": 136980,
+      "false_alarms": 118754,
+      "missed_violations": 46860
+    }
+  },
+  "eligible": 24777,
+  "blocked": 24777,
+  "corrections": 21306,
+  "regressions": 3471,
+  "missed_violations": 68166,
+  "missed_reachable_by_rule": 21306,
+  "shield_health": {
+    "n_frames": 4000,
+    "n_not_evaluable": 0,
+    "n_error": 0,
+    "n_unsupported": 0
+  },
+  "severities": {
+    "critical": 22802,
+    "high": 1975
+  }
+}

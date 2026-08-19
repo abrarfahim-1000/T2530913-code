@@ -1,6 +1,12 @@
 """
 summarize_shield_results.py — turn the per-topology shield runs into thesis tables.
 
+⚠ ORPHANED 2026-08-19. It reads `results/shield_summary_<tag>.json` — a directory that
+does not exist in this layout, in a schema produced by the retired `eval_shield.py`.
+The live harness is `evaluation/eval_shield_n1.py`, which writes `shield_<tag>.json` at
+the repo root with a different schema. Nothing imports this module. Rewrite it against
+the new schema or delete it; do not run it expecting output.
+
 Reads results/shield_summary_<tag>.json + results/failures_<tag>.jsonl for every
 tag given, and writes supplimentary_docs/shield_final_results.md — the companion
 to gnn_final_results.md.

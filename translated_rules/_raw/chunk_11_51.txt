@@ -1,0 +1,6 @@
+{
+  "rule_id": "R_2077",
+  "translatable": false,
+  "condition": null,
+  "reason": "unobservable: requires specific generating facility MW output and maximum steady state operating limit, which are not Grid2Op observables"
+}

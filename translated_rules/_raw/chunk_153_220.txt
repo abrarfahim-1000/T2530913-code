@@ -1,0 +1,6 @@
+{
+  "rule_id": "R_606",
+  "translatable": false,
+  "condition": null,
+  "reason": "requires registered capacity rating and power output measurement not available in Grid2Op vocabulary"
+}

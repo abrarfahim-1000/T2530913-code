@@ -1,0 +1,6 @@
+{
+  "rule_id": "R_144",
+  "translatable": false,
+  "condition": null,
+  "reason": "observable: power_factor_at_max_load is the PF of the most loaded line, not the generator; grid code requires generator-specific PF which is not observable"
+}

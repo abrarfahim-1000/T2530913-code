@@ -1,0 +1,122 @@
+{
+  "tags": [
+    "neurips2020",
+    "case14",
+    "wcci2022"
+  ],
+  "n_contexts": {
+    "neurips2020": {
+      "normal": 5000,
+      "overload": 250,
+      "line_trip": 2696,
+      "cascade": 925
+    },
+    "case14": {
+      "normal": 4815,
+      "overload": 138,
+      "line_trip": 835,
+      "cascade": 212
+    },
+    "wcci2022": {
+      "normal": 2781,
+      "overload": 251,
+      "line_trip": 736,
+      "cascade": 232
+    }
+  },
+  "max_fire_rate": 0.5,
+  "min_support": 0.5,
+  "n_rules": 58,
+  "n_kept": 32,
+  "n_rejected": 26,
+  "files": [
+    {
+      "file": "130308_Final_Version_NC_RfG_translated.jsonl",
+      "n_rules": 5,
+      "n_kept": 4,
+      "n_rejected": 1
+    },
+    {
+      "file": "8589935310-Complete Grid Code_translated.jsonl",
+      "n_rules": 7,
+      "n_kept": 3,
+      "n_rejected": 4
+    },
+    {
+      "file": "Bangladesh_Electricity-Grid-Code-regulations_translated.jsonl",
+      "n_rules": 14,
+      "n_kept": 4,
+      "n_rejected": 10
+    },
+    {
+      "file": "guideline-ieee_1547-2018_bps_perspectives_clean-1_translated.jsonl",
+      "n_rules": 2,
+      "n_kept": 1,
+      "n_rejected": 1
+    },
+    {
+      "file": "inverter-based_resource_performance_guideline_translated.jsonl",
+      "n_rules": 5,
+      "n_kept": 4,
+      "n_rejected": 1
+    },
+    {
+      "file": "NERC FAC-008-5 \u2014 Facility Ratings_translated.jsonl",
+      "n_rules": 0
+    },
+    {
+      "file": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)_translated.jsonl",
+      "n_rules": 16,
+      "n_kept": 12,
+      "n_rejected": 4
+    },
+    {
+      "file": "order-842_translated.jsonl",
+      "n_rules": 0
+    },
+    {
+      "file": "power-system-requirements_translated.jsonl",
+      "n_rules": 1,
+      "n_kept": 1,
+      "n_rejected": 0
+    },
+    {
+      "file": "prc-006-5_translated.jsonl",
+      "n_rules": 0
+    },
+    {
+      "file": "prc-023-6_translated.jsonl",
+      "n_rules": 0
+    },
+    {
+      "file": "prc-024-4_translated.jsonl",
+      "n_rules": 1,
+      "n_kept": 1,
+      "n_rejected": 0
+    },
+    {
+      "file": "prc-025-2_translated.jsonl",
+      "n_rules": 3,
+      "n_kept": 1,
+      "n_rejected": 2
+    },
+    {
+      "file": "prc-029-1_translated.jsonl",
+      "n_rules": 1,
+      "n_kept": 0,
+      "n_rejected": 1
+    },
+    {
+      "file": "RM16-1-000_translated.jsonl",
+      "n_rules": 2,
+      "n_kept": 0,
+      "n_rejected": 2
+    },
+    {
+      "file": "TPL-001-5.1 \u2014 Transmission System Planning Performance Requirements_translated.jsonl",
+      "n_rules": 1,
+      "n_kept": 1,
+      "n_rejected": 0
+    }
+  ]
+}

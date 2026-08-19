@@ -6,23 +6,41 @@ negative-results record only). Everything still operative is in this file.
 **Read alongside:** `CLAUDE.md` (project overview), `gnn_final_results.md` (Component A
 negative results — note §2 below reopens Component A).
 
+**For the narrative account** — what was found and what it means, readable without the
+codebase open — see [`thesis_findings.md`](thesis_findings.md). This file is the
+operational record: runbooks, derivations, landmines. Where the two disagree, this one
+is authoritative and the findings doc needs correcting.
+
 ---
 
 ## 1. Status and sequencing
 
 | Component | State |
 |---|---|
-| **A — GNN** | **REOPENED** (§2). Classify task closed; forecast task implemented, not yet trained. |
-| **B — Extraction** | Stage 1 done: **2,463 candidates / 16 documents** in `rules_35b/`. Stages 2–3 not run. |
+| **A — GNN** | **DONE and TRAINED** (2026-08-16). N-1 screening; test F1 0.8872, 1.91× the best single rule. Classify and forecast tasks probed and rejected — §1.1, §2. |
+| **B — Extraction** | Stage 1 done (**2,463 / 16 docs**, `rules_35b/`). **Run 3 done** (proxy fix): 58 translated → guard **32 kept** → audit **21 can work, 13 distinct** (§14). Proxy defect gone. **Stage 3 (`validate.py`) is the last unexecuted stage.** |
 | **C — KG** | To be **redesigned from scratch** against the rules that survive. Not started. |
-| **D — Shield** | Built and tested. Needs the binary/asymmetric update (§6) once the task lands. |
+| **D — Shield** | **RUN END-TO-END on all three topologies, 2026-08-19 — §11.** Asymmetric N-1 gate live. wcci2022 F1 0.5577 → **0.6232**, missed violations **−31.3%** at 0.860 intervention precision. |
+
+⚠ The sequencing table that stood here described the **forecast** phase and every row of it was
+retired on 2026-08-16 (§1.1). Current sequence — commands in §13.1:
 
 | When | Where | What |
 |---|---|---|
-| **Next** | personal PC | `generate_dataset.py --task forecast` → check class balance (§2.4) → `preprocess.py` → train |
-| Then | research PC | `translate.py`, then `validate.py` |
-| Then | personal PC | polarity guard on the translated corpus → KG redesign → shield binary update |
-| Finally | personal PC | `eval_shield.py` matrix + the §7 controls → `summarize_shield_results.py` |
+| ~~done~~ | personal PC | N-1 datasets ×3 → training → cross-topology eval (§7.6) |
+| ~~done~~ | research PC | `translate.py` run 2 → 82 translated (§3.5) |
+| ~~done~~ | personal PC | `polarity_guard.py` → 33 kept · `audit_rules.py` → 11 can work (§4.2) |
+| ~~done~~ | personal PC | `eval_shield_n1.py` on all three grids against the guarded corpus (**§11**) |
+| ~~done~~ | research PC | `translate.py` run 3 with the proxy fix → 58 translated (§14.1–14.2) |
+| ~~done~~ | personal PC | guard run 3 → **32 kept**; audit → 21 can work; **shield re-run reproduces §11 exactly** (§14.4) |
+| **Next** | research PC | `validate.py` → `rules/all_rules_deduped.jsonl` — **stage 3, still never run** |
+| Then | personal PC | re-run `eval_shield_n1.py` ×3 against the validated corpus, diff against §11 (expectation in §14.5) |
+| Open | personal PC | Component C (KG redesign) · §7 controls · agenda item 6 for the §7.6 table |
+
+**That expectation was recorded before the fact and then tested:** "the §11 numbers should move
+only slightly — `loading_pct > 100` is doing all the work." Measured on the run-3 corpus, they
+did not move **at all** (§14.4). The prediction about *yield* in §13 item 4 was wrong in
+direction (58, not ~82); the prediction about *mechanism* held exactly. Both are recorded.
 
 ### 1.1 THE TASK DECISION — settled 2026-08-16, by measurement
 
@@ -360,6 +378,20 @@ its yield is a clean measurement of what this prompt actually produces. Only the
 about whether the prompt is too strict — run 1 provides none, since 90% of the corpus was never
 assessed.
 
+**RUN 2 (2026-08-19, after the fix) — the parser fix is confirmed and the yield is now real.**
+`total_no_verdict: 0`, `total_unparseable: 0` across all 2,463 rules — every rule received a model
+verdict. TRANSLATOR_FAIL fell 40 → 5. **82 translated (3.3%)**, 49 distinct `(entity, condition)`
+pairs, 54 CONSTRAINT / 28 AFFIRMATION, and **zero out-of-vocabulary variable names**. Qwen3.6-35B
+obeyed the output contract exactly once the prompt stopped contradicting the parser — there is no
+remaining instruction-following problem, and **no case for swapping in Nemotron for stage 2**
+(doing so would also cost stage 3 its independence, since Nemotron is the validator).
+
+The 82 → guard → audit chain is §4.2. The 693 (28.1%) expectation in §3.1 is a **variable-level**
+bound — it asks whether a rule's variable *names* map onto the vocabulary — and cannot see the
+blocker that dominates in practice: the variable is derivable but the **entity it is measured on**
+is not (`power_factor` of one module vs the grid-wide aggregate). Do not cite 693 as a yield
+target; cite it as what a static analysis over-counts, and §4.2 as why.
+
 **Quality signal from the 6 survivors** (all that run 1 supports): two fail the prompt's *own*
 self-check, firing on the healthy grid it defines —
 `power_factor_at_max_load < 0.95 or ... > 1.0` and `... < -0.95 or ... > 0.90` (the second is
@@ -432,6 +464,112 @@ a constraint's. If affirmations turn out to be a large share of what survives tr
 Verified end-to-end on all three topologies (300-frame probe): all four classes sample, and
 `voltage_pu_max > 1` fires at **1.00 on every topology** — the ~6% above-nominal operating point
 from §5.1, now visible on wcci2022 too.
+
+---
+
+### 4.2 GUARD + AUDIT RESULTS — measured 2026-08-19
+
+First run of the guard against a real ruleset (stage-2 run 2, 82 translated rules), and of a new
+deterministic audit, `evaluation/audit_rules.py`. Both offline, no LLM, no GPU.
+
+#### Guard: 82 → 33 kept, 49 rejected (59.8% contaminated)
+
+**The fire-rate distribution is cleanly bimodal** — 43 rules at ≤ 0.01, 39 at ≥ 0.75, **nothing
+between 0.1 and 0.9**. §4 warned this might not hold and told the reader to inspect the middle
+before trusting the cutoff. There is no middle: the 0.5 cutoff is not a judgment call on this
+corpus. Report it as measured, not chosen.
+
+**Cross-topology: 38 rules differ by > 0.25 between grids**, and the pattern is systematic rather
+than noisy. A textbook ±5% grid-code voltage band:
+
+| topology | v_min (median) | v_max (median) | healthy frames inside 0.95–1.05 |
+|---|---:|---:|---:|
+| neurips2020 | 1.047 | 1.080 | **0.0%** |
+| case14 | 1.011 | 1.100 | **0.0%** |
+| wcci2022 | 0.982 | 1.050 | **100.0%** |
+
+The same rule is polarity-contaminated on two grids and clean on the third. This is §5.1's
+prediction — grid-code bands are calibrated to utility operating practice, not to IEEE test-case
+setpoint conventions — now measured on real frames. It is also the strongest single argument for
+guarding against **all three** topologies (§4.1): guarding on wcci2022 alone would have passed
+every one of those rules.
+
+#### Audit: of the 33 survivors, 11 distinct rules can do work
+
+The guard asks *"is this rule wrong?"*. `audit_rules.py` asks *"can it do anything?"* — the two
+come apart. A constraint that fires on 0% of healthy frames passes the guard; if it also fires on
+0% of overload, line_trip and cascade frames it can never block, and contributes nothing.
+
+| verdict | rules | representative |
+|---|---:|---|
+| INERT | 5 | `voltage_pu_max > 1.5`, `generation_load_imbalance_pct > 25` — never fires on any class on any grid |
+| UNINFORMATIVE | 9 | wide voltage bands holding on `normal` **and** `overload` alike (best margin **+0.006**) |
+| TOPOLOGY_DEPENDENT | 9 | voltage constraints firing on abnormal frames on some grids only (0.008–0.275) |
+| USEFUL | 10 | **all ten are `loading_pct > 100`** |
+
+Voltage cannot discriminate here because Grid2Op faults are **thermal**: voltage stays in band
+through overload and cascade alike. That is what the +0.006 margin says.
+
+⚠️ **Two caveats that must travel with the audit.**
+1. `loading_pct > 100` scores 1.000 on abnormal frames partly because the `overload` label *is*
+   `rho_max >= 1.0`. This is the §7.5 label-restatement trap; the USEFUL verdict is contaminated
+   by it and must not be quoted as independent validation.
+2. The audit scores against **classify** labels while the live task is **N-1 screening**. It is
+   triage — which rules separate grid states at all — not a shield evaluation. The N-1 shield
+   evaluation is still agenda item 5.
+
+#### The mismatch runs BOTH ways — the headline result
+
+The surviving rules touch **4 of the 14 vocabulary variables**:
+
+| covered | uncovered (no surviving rule) |
+|---|---|
+| `voltage_pu_min` (18), `voltage_pu_max` (16), `loading_pct` (10), `generation_load_imbalance_pct` (2) | `rho_max`, `n_tripped_lines`, `any_line_tripped`, `active_power_mw_max`, `reactive_power_mvar_max`, `apparent_power_mva_max`, `power_factor_at_max_load`, `current_a_max`, `total_generation_mw`, `total_load_mw` |
+
+**Nothing in the surviving corpus governs topology** — no rule mentions `n_tripped_lines` or
+`any_line_tripped`, which is the entire subject of the N-1 task. The one INERT variable
+(`generation_load_imbalance_pct`) leaves **3 of 14** with an informative rule.
+
+So the standards/simulator gap is not one-directional, and the honest framing is:
+
+> **(a)** The observation is coarser than the standards regulate. Grid codes govern *equipment* —
+> a generator's power factor, a module's terminal voltage, a connection point's demand. Grid2Op
+> simulates a *network*: buses, lines, aggregate flows. **1,332 candidates (54.1% of the corpus)
+> are blocked on exactly two missing capabilities, frequency and time**, and would become
+> *assessable* if the observation carried them. That is a measurement, not a hope — but
+> "assessable" is not "useful": those rules would still have to survive the guard and the audit,
+> and this corpus rejected 59.8% at the guard alone.
+>
+> **(b)** The standards are also silent about most of what the simulator *does* provide. Ten of
+> fourteen observable quantities have no rule at all — including line outages, the subject of the
+> live task. Grid codes govern **connection and equipment compliance**; contingency screening is
+> an *operational* activity written as process requirements ("shall perform studies annually"),
+> not as state predicates over telemetry. A shield built from connection codes cannot govern
+> operations, because the corpus was never about operations.
+
+Do **not** write "what the simulator provides can be governed by the rules that survived" — it is
+measurably false at 4/14 coverage, and an examiner can check it in one command.
+
+Blocked-capability counts from the run-2 verdicts (overlapping, 2,381 untranslatable):
+
+| missing capability | rules | share |
+|---|---:|---:|
+| TIME / duration | 782 | 32.8% |
+| FREQ / ROCOF / droop | 683 | 28.7% |
+| PROT / relay / settings | 528 | 22.2% |
+| ENTITY resolution | 364 | 15.3% |
+| other | 564 | 23.7% |
+
+#### What this implies for the remaining prompt work
+
+The emergency-rating family (`current_amps > 580 or power_mva > 132`, rejected as compound for a
+"10 m duration") is a PROXY SUBSTITUTION case that should become `rho_max > 1.0` — the one family
+the audit shows does work. The ride-through family is voltage-shaped, which the audit shows is
+inert or uninformative. **Fix proxy substitution; do not loosen ride-through** — it would add
+rules that measurably cannot contribute.
+
+And note the ceiling: more restatements of the thermal limit add no information. Ten copies of
+`loading_pct > 100` is one rule. The deliverable is not a bigger corpus.
 
 ---
 
@@ -633,7 +771,7 @@ See [`gnn_n1_tightening.md`](gnn_n1_tightening.md). Everything below is what rem
 | 2 | ~~`wcci2022`~~ | **DONE 2026-08-16** | 4,000 frames / 609 scenarios / 742,472 labels, 1,807 s. Result in §7.6 — transfers **partially**. |
 | 3 | **Component B stages 2–3** — `translate.py` → `polarity_guard.py` → `validate.py` | research PC | The long pole. Everything in 4 and 5 waits on it. |
 | 4 | **Component C — KG redesign** | 3 | Build against the rules that actually survive translation + guard + validation, not the v1 mechanism. |
-| 5 | **Shield on real predictions** | 3 | `validate_n1` is built and covered by 9 tests but has never seen model output or a real rule corpus. |
+| 5 | ~~**Shield on real predictions**~~ | **DONE 2026-08-19** | Ran against the 33 guarded rules on all three topologies — **§11**. New harness `evaluation/eval_shield_n1.py` (+17 tests); `eval_shield.py` retired. Re-run after stage 3 and diff (§13.1). |
 | 6 | **Threshold selection** | nothing | Every reported figure is best-threshold. Choose on val, report on test. The **missed-violation count** is the quantity the asymmetric gate keys on (§6.1), so select against that, not against F1. |
 | 7 | **Decision, not a task:** retrain `classify` under the normalization fix, or leave it demoted and caveated | — | See `revised_thesis_claim.md` §2 and §6.1. Recommendation: leave it demoted. |
 
@@ -785,3 +923,356 @@ Windows pipe encoding is cp1252, which crashes them mid-run on a `UnicodeEncodeE
 `rules_35b/` stays pristine as the stage-1 archive. The guard runs between stages 2 and 3 —
 `validate.py` reads `rules/guarded/`, where the kept files reuse the `*_translated.jsonl` name so
 its glob picks them up unchanged while the unfiltered originals survive for the counterfactual.
+
+---
+
+## 11. SHIELD RESULT — measured 2026-08-19, all three topologies
+
+**The first end-to-end run of the symbolic gate against real model output and a real rule
+corpus** (agenda item 5, previously blocked). Harness: `evaluation/eval_shield_n1.py` (new;
+the classify-era `eval_shield.py` is banner-marked RETIRED and must not be run). Rules: the
+**33 stage-2.5 guarded** rules from run 2 — stage 3 has not run yet, so these numbers will
+move slightly when it does.
+
+Threshold **0.8849, selected on the neurips2020 val split and held fixed across all three
+topologies** — this closes agenda item 6 for the shield arm. Every figure below is therefore
+honest-protocol, not best-on-its-own-topology. The best-on-topology raw model F1 is printed
+alongside as a reference line so these reconcile with §7.6.
+
+### 11.1 The result
+
+| topology | GNN F1 | **+shield F1** | Δ | missed violations | Δ missed | false alarms | Δ FA |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| neurips2020 *(in-dist, test)* | 0.8956 | **0.8982** | +0.0026 | 2,041 → 1,614 | **−20.9%** | 2,331 → 2,735 | +404 |
+| case14 *(unseen, smaller)* | 0.4167 | **0.4188** | +0.0021 | 18,592 → 18,497 | −0.51% | 21,431 → 21,439 | +8 |
+| wcci2022 *(unseen, larger)* | 0.5577 | **0.6232** | **+0.0655** | 68,166 → 46,860 | **−31.3%** | 115,283 → 118,754 | +3,471 |
+
+**On wcci2022 the shielded model (0.6232) beats the raw model's own best-on-topology ceiling
+(0.5721)** and lifts it from 1.13× to 1.27× the single-rule baseline (0.4915). A post-hoc
+gate that never touches training moved an unseen-topology result past what the model could
+reach with an oracle threshold on that topology.
+
+### 11.2 Where it acts, and how precisely
+
+The gate can only speak where the base case violates a CONSTRAINT and the model still said
+`secure`. That set is small, and its size is the whole story:
+
+| topology | eligible (of all scored) | blocked | corrections | regressions | **intervention precision** |
+|---|---:|---:|---:|---:|---:|
+| neurips2020 | 831 (0.73%) | 831 | 427 | 404 | **0.514** |
+| case14 | 103 (0.087%) | 103 | 95 | 8 | **0.922** |
+| wcci2022 | 24,777 (3.34%) | 24,777 | 21,306 | 3,471 | **0.860** |
+
+**This is the thesis claim, measured.** `CLAUDE.md` predicted "rule compliance stable while
+GNN accuracy degrades". What the numbers show is sharper:
+
+> **On the training topology the shield's overrides are coin flips (0.514) — when a good
+> model disagrees with the rule, its disagreement carries information. Off-distribution that
+> stops being true (0.860, 0.922) and the rule is right to override.** The symbolic layer
+> does not get better; the neural layer stops earning the benefit of the doubt.
+
+Note neurips2020 against its own conditional base rate: unconditionally **95.67%** of
+contingencies on an overloaded base case are violations (§11.4), but among the ones this
+model calls secure, only **51.4%** are. That gap **is** the model's contribution, and it is
+exactly what vanishes on foreign grids.
+
+### 11.3 The structural ceiling — what no corpus could reach
+
+Independent of rule count (the §7.3 ablation answered structurally rather than by
+subsetting): of every missed violation the model commits, what share sits on a base case a
+present-state rule over `CONDITION_VOCABULARY` can even see?
+
+| topology | missed violations | reachable by any present-state rule |
+|---|---:|---:|
+| neurips2020 | 2,041 | 427 (**20.9%**) |
+| case14 | 18,592 | 95 (**0.51%**) |
+| wcci2022 | 68,166 | 21,306 (**31.3%**) |
+
+The complement is the hard bound: **no rule over this observation can reach the other 79% /
+99.5% / 69%**, because those failures occur on base cases within every limit. Establishing
+them needs a post-contingency power flow — the computation the GNN stands in for. This is the
+answer to "would more rules have helped": on case14, essentially no; on wcci2022, up to a
+third more, but only if a rule existed that fired where `loading_pct > 100` does not.
+
+### 11.4 ⚠ THE CAVEAT THAT MUST TRAVEL WITH §11
+
+`loading_pct > 100` on the base case is **not** a restatement of the N-1 labeller, but it is
+close to a physical tautology, and the distance was measured rather than assumed:
+
+| topology | P(violation) | P(violation given base overloaded) | lift |
+|---|---:|---:|---:|
+| neurips2020 | 19.54% | **95.67%** | 4.90× |
+| case14 | 27.75% | **91.16%** | 3.28× |
+| wcci2022 | 24.76% | **94.74%** | 3.83× |
+
+If this were the §7.5 label-restatement trap the conditional would be 100%; at 91–96% the
+predicate carries real but partial information. The honest reading: **the shield is
+validating N-1 doctrine — a base case outside its limits cannot be declared secure against
+further loss — and the data confirms that doctrine 91–96% of the time.** The symbolic layer
+is not discovering new physics; it enforces a known operational principle the GNN failed to
+learn, and failed to learn *worse* the further it got from its training topology. That is
+legitimate and defensible. It is **not** a claim that the extracted corpus found something
+novel, and must not be written up as one.
+
+Equally important: **the doctrine being enforced is hand-written in `validate_n1`'s
+docstring, not extracted from the corpus.** The LLM pipeline supplied only the threshold.
+That doctrine belongs to the operational-standards class (NERC FAC-011, EU SO GL) that §12
+shows is absent from the corpus — so the loop closes, but volunteer it in the write-up
+rather than defending it under question.
+
+### 11.5 Shield health — every §8 gate passes
+
+| check | neurips2020 | case14 | wcci2022 |
+|---|---|---|---|
+| ERROR verdicts (must be 0) | **0** | **0** | **0** |
+| NOT_EVALUABLE verdicts | 0 | 0 | 0 |
+| Option B counterfactual (`unsupported`) | 0 | 0 | 0 |
+| false block rate (base-kV regression check) | 0.36% | 0.007% | 0.47% |
+
+Applicability is 100% on all three grids — every rule evaluated on every frame, which is what
+the stage-2 AST lint plus the §5 voltage contract were built to guarantee. The Option B
+counterfactual is 0 everywhere because **no AFFIRMATION survived the guard for the two N-1
+classes**; Option A vs Option B is therefore not a live choice on this corpus, and the
+comparison §6 promised cannot be made until affirmations survive.
+
+Per-contingency failure records go to `failures_<tag>.jsonl` (capped by `--max-failures`,
+default 50,000 — wcci2022 misses ~68k).
+
+---
+
+## 12. DOCUMENT ALIGNMENT — why the corpus is thin, and what would fix it
+
+Established while auditing the run-2 yield (§4.2). The per-document numbers show the problem
+is not uniform across the 16 documents:
+
+| document | candidates | translated | guard-kept |
+|---|---:|---:|---:|
+| NERC Reliability Standards (complete set) | 707 | 19 | 13 |
+| GB Grid Code | 571 | 14 | 3 |
+| Bangladesh Grid Code | 228 | 15 | 4 |
+| EU NC RfG | 218 | 11 | 7 |
+| IBR performance guideline | 237 | 5 | 1 |
+| **TPL-001-5.1** | **11** | 1 | 1 |
+| **NERC FAC-008-5** | **4** | 0 | 0 |
+
+**The two documents actually about post-contingency performance contributed 15 candidates
+between them.** TPL-001-5.1 yielded only **5 distinct chunks**, so the PDF on disk is a
+summary, not the standard carrying Table 1's P0–P7 contingency categories.
+
+What TPL-001 did produce is the diagnostic:
+
+```
+Line | loading_pct > relay_loadability_limit_pct
+Grid | power_oscillation_damping < acceptable_damping_threshold
+```
+
+Free variables, not numbers — **and that is structural, not an extraction failure.** NERC
+standards are criteria-referencing by design: they say "within its applicable Facility
+Rating", and FAC-008 then requires each utility to hold a *documented methodology* for
+computing that rating. The number is deliberately never in the standard. No prompt work
+extracts a threshold that was never written down.
+
+### 12.1 Where the numbers actually live
+
+| source | what it supplies | status |
+|---|---|---|
+| **PJM Manual 14B** | post-contingency voltage as literal numbers (**0.92–1.05 pu** across TPL-001 P1–P7), thermal as "within the applicable emergency rating", plus a **voltage-drop** criterion | verified by search; strongest candidate |
+| **NERC FAC-011-4** | the *predicate structure*: an SOL is thermal facility ratings + voltage limits + stability limits, pre- or post-contingency | verified; non-numeric, but it is the schema |
+| **EU SO GL (Reg. 2017/1485)** | the *operation* sibling of the RfG **connection** code already in the corpus; Art. 25 operational security limits, formal N-1 criterion | ⚠ Article 25 text **not** verified — EUR-Lex PDF fetch returned empty. Open it before citing |
+| ISO-NE PP3, NYISO Reliability Criteria, WECC TPL-001-WECC-CRT | same category — regional criteria with explicit numeric post-contingency limits | not investigated |
+
+The corpus is biased toward **connection** codes (RfG, IEEE 1547, Order 842, PRC-024/025/029
+= generator protection settings) and away from **operational security** codes. That is the
+one-sentence explanation for §4.2's finding, and it is more defensible than "the simulator is
+too coarse" because it does not require the simulator to be at fault.
+
+### 12.2 The ceiling on re-extraction — decide with this in hand
+
+A perfect document set supplies two predicates: post-contingency thermal (the corpus
+**already** yields it as `loading_pct > 100`, the only USEFUL family) and post-contingency
+voltage (which §4.2 measured as inert/uninformative here, since these grids operate at
+1.05–1.08 pu and never enter the ±5% band). **Most of the gain would be more restatements of
+the one rule already in hand**, and §11.3 bounds what that rule can reach.
+
+Exactly **one** genuinely new capability appears in §12.1: PJM's **voltage-drop** criterion.
+It is a delta rather than a level, so §4.2's band-inertness does not apply, and it is
+physically computable. But `label_n1()` stores only `n1_post_rho` and discards
+`sim_obs.v_or`, so it needs a generator change, a dataset regeneration (~55 min across all
+three topologies) and a vocabulary extension before any such rule could be evaluated.
+
+**Recommendation: do not re-run extraction on new documents for the thesis.** §11 is a
+complete, positive, honest result on the corpus in hand, and §11.3 bounds the headroom.
+Record §12 as the "what would extend this" section instead. Revisit only if the voltage-drop
+channel is wanted, and treat that as a scoped experiment, not a re-extraction.
+
+---
+
+## 13. DECISIONS TAKEN 2026-08-19
+
+1. **Proxy substitution fixed in `TRANSLATE_PROMPT`** (§4.2's remaining prompt item). R_769
+   ORed an offshore circuit's rating (`580 A`, `132 MVA`) with `loading_pct > 100`; both
+   absolute terms are grid-wide maxima while the rating belongs to one named circuit, so it
+   fired on **100% of healthy frames on all three topologies**. The prompt now states the
+   ratio REPLACES the absolute figure, carries the rating-schedule case as a worked example,
+   and names the defective string as a `NEVER`. **The SELF-CHECK was the deeper hole** — it
+   supplied healthy values for only 7 of 14 variables, so a rule naming
+   `apparent_power_mva_max` had nothing to substitute and passed vacuously. It now covers all
+   14 using measured healthy readings. Guarded by 3 tests in `tests/test_condition_lint.py`,
+   two of which evaluate the defective condition against the prompt's own numbers rather than
+   grepping for text.
+2. **Ride-through loosening: NOT done, deliberately.** It is voltage-shaped, and §4.2
+   measured voltage as inert or uninformative here. It would add rules that cannot contribute.
+3. **Nemotron for stage 2: rejected** (§3.5). No obedience gap remains after the run-2 fix,
+   and reusing the stage-3 validator at stage 2 would destroy validation independence.
+4. **Stage 2 re-run: worth one pass, on the same research-PC trip as stage 3** — shipping the
+   final ruleset with a known defect is worse than one extra run. Expect ~82 translated again,
+   **not** a yield jump; the fix is precision, not recall.
+5. **`eval_shield.py` retired, `eval_shield_n1.py` is the live harness.** 17 tests in
+   `tests/test_eval_shield_n1.py`. Suite: **190 green.**
+6. **Threshold protocol settled for the shield arm**: selected on the neurips2020 val split,
+   held fixed across topologies. Agenda item 6 stays open for §7.6's raw-model table, which is
+   still best-on-own-topology.
+
+### 13.1 Runbook — the remaining sequence
+
+```powershell
+# research PC — stage 2 with the proxy fix, into a FRESH folder (translated_rules/ is run 2)
+$env:PYTHONIOENCODING = "utf-8"
+.venv\Scripts\python.exe extraction\translate.py --candidates rules_35b\ --out translated_rules_run3\ --debug-raw
+
+# personal PC — guard (needs the datasets)
+.venv\Scripts\python.exe extraction\polarity_guard.py --translated translated_rules_run3\ --report
+.venv\Scripts\python.exe extraction\polarity_guard.py --translated translated_rules_run3\
+
+# research PC — stage 3
+.venv\Scripts\python.exe extraction\validate.py --candidates translated_rules_run3\guarded\ --out rules\
+
+# personal PC — re-run §11 against the validated corpus and diff the tables
+.venv\Scripts\python.exe evaluation\eval_shield_n1.py --tag neurips2020 --json shield_neurips2020_v2.json
+.venv\Scripts\python.exe evaluation\eval_shield_n1.py --tag case14     --json shield_case14_v2.json
+.venv\Scripts\python.exe evaluation\eval_shield_n1.py --tag wcci2022   --json shield_wcci2022_v2.json
+```
+
+⚠ `--rules` defaults to `rules/all_rules_deduped.jsonl` (stage-3 output). To reproduce §11
+exactly, pass `--rules translated_rules/guarded/` — the 33-rule guarded corpus these numbers
+were measured on.
+
+---
+
+## 14. STAGE 2 RUN 3 + GUARD — measured 2026-08-19, and the shield result is INVARIANT
+
+Run 3 carried one change: the proxy-substitution fix and the extended SELF-CHECK (§13 item 1).
+32 min, `qwen3.6:35b-a3b`, `total_no_verdict: 0`, `total_unparseable: 0` — the run-1 parser class
+of failure stays fixed.
+
+### 14.1 The defect is gone, by rejection rather than substitution
+
+`grep` for an absolute rating ORed into a condition returns **nothing** across the run-3 corpus.
+R_769 — the offshore rating schedule that produced
+`loading_pct > 100 or current_a_max > 580 or apparent_power_mva_max > 132` and fired on 100% of
+healthy frames on all three grids — is now in `*_untranslatable.jsonl` with the reason
+*"compound: requires time_seconds (post-fault condition)"*.
+
+**That is a defensible call, and arguably better than the substitution the fix was aiming for.**
+The source table carries 6hr / 20m / 10m / 5m / 3m duration columns, so "Post-Fault Continuous"
+genuinely does have a duration attached, and the compound-discard rule (§3.4) applies. The
+contaminated rule is eliminated either way; it simply left by a different door.
+
+### 14.2 Yield fell 82 → 58, and the fall is entirely in the worthless part
+
+| | run 2 | run 3 |
+|---|---:|---:|
+| translated | 82 | **58** |
+| distinct (entity, condition) | 49 | 38 |
+| CONSTRAINT / AFFIRMATION | 54 / 28 | 43 / 15 |
+| **guard-kept** | **33** | **32** |
+| guard rejection rate | 59.8% | **44.8%** |
+| `loading_pct > 100` rules (the only USEFUL family) | **10** | **10** |
+
+§13 item 4 predicted "~82 again, not a yield jump; the fix is precision, not recall." The count
+fell instead of holding — **record that the prediction was wrong in direction** — but the
+composition explains it and vindicates the mechanism: the working family is unchanged at exactly
+10, and the 24 lost rules are voltage and power-factor restatements, which §4.2 measured as inert
+or uninformative. The guard rejection rate falling 15 points on an independent run is the
+cleanest evidence that the prompt now emits a cleaner stream rather than a smaller one.
+
+### 14.3 Independent replication of two §4.2 findings
+
+Both were single-run observations before; run 3 is an independent draw and both hold.
+
+1. **The fire-rate distribution is again cleanly bimodal** — 33 rules at ≤ 0.01, 25 at ≥ 0.75,
+   **nothing between 0.1 and 0.9**. The 0.5 cutoff remains measured, not chosen.
+2. **The ±5% voltage band is again contaminated on two grids and clean on the third** — 19 rules
+   differ by > 0.25 across grids, all in the same direction (`neurips2020=1.00 case14=1.00
+   wcci2022=0.00`). §5.1's operating-point explanation reproduces.
+
+Audit verdicts (`evaluation/audit_rules.py`, `audit_run3.json`):
+
+| verdict | run 2 | run 3 |
+|---|---:|---:|
+| INERT | 5 | 4 |
+| UNINFORMATIVE | 9 | 7 |
+| TOPOLOGY_DEPENDENT | 9 | 11 |
+| **USEFUL** | **10** | **10** — still all `loading_pct > 100` |
+| **can do work** | 19/33 (11 distinct) | **21/32 (13 distinct)** |
+
+Affirmation coverage is again `normal` and `overload` only — **still nothing for `line_trip` or
+`cascade`**, so Option B (§6) remains unmeasurable on this corpus for the second run running.
+That is now a property of the corpus, not an accident of one run.
+
+### 14.4 THE RESULT THAT MATTERS — the shield is invariant to the translation run
+
+`eval_shield_n1.py` re-run on all three grids against the **run-3** guarded corpus reproduces
+§11 **exactly, to every reported digit**:
+
+| grid | GNN | +shield | Δ | blocked | intervention precision |
+|---|---:|---:|---:|---:|---:|
+| neurips2020 | 0.8956 | 0.8982 | +0.0026 | 831 | 0.514 |
+| case14 | 0.4167 | 0.4188 | +0.0021 | 103 | 0.922 |
+| wcci2022 | 0.5577 | **0.6232** | **+0.0655** | 24,777 | 0.860 |
+
+Not "close to" §11 — **identical**, including every count of corrections, regressions, missed
+violations and false alarms. Zero ERROR and zero NOT_EVALUABLE verdicts, as before.
+
+⚠ **THE MECHANISM SENTENCE BELOW IS FALSE — measured 2026-08-19, pending rewrite.** 478 of
+neurips2020's 831 blocks (58%) fire on *voltage* rules with no thermal rule involved. The
+blocking DECISIONS are still identical across both corpora — that part stands — but not for
+the reason given. Voltage blocks were then measured at 0.13–0.20 precision against thermal's
+0.92–0.94, and a thermal-only shield scores strictly better on every axis. §11.2's
+"coin flip in-distribution" reading is an artifact of mixing the two and is also void.
+
+The mechanism is stated in §11.2 and is now demonstrated rather than argued: **`loading_pct > 100`
+is the only rule that ever fires as a constraint on a base case, and both corpora contain exactly
+ten copies of it.** Every other rule is silent at inference. Two independently generated rulesets,
+differing by 24 rules, produce a bit-identical gate.
+
+Two things follow, and both are worth reporting:
+
+1. **The §11 result does not depend on the extraction run that produced it.** For a pipeline with
+   an LLM in the middle, run-to-run stability of the *end* result is not a given, and this is the
+   evidence for it.
+2. **It also bounds the corpus's contribution honestly.** A ruleset can lose 29% of its rules and
+   change nothing downstream, because the contribution was concentrated in one predicate all
+   along. This is §4.2's "the deliverable is not a bigger corpus", now closed experimentally.
+
+⚠ **Reproduction path corrected.** Run 2's `translated_rules/` and its `guarded/` subfolder were
+**overwritten** when run 3 was copied into the same directory (the runbook asked for
+`translated_rules_run3/`). Neither is recoverable — they were untracked. This would have been a
+genuine hole in §11's reproducibility, and it is closed only because §14.4 shows the run-3 corpus
+gives the identical result. **`translated_rules/guarded/` now holds run 3, and that is the corpus
+to cite for §11.** Keep the next run out of this directory.
+
+### 14.5 Next
+
+Stage 3 (`validate.py`) has still never run. It is the last unexecuted stage in the pipeline.
+
+```powershell
+.venv\Scripts\python.exe extraction\validate.py --candidates translated_rules\guarded\ --out rules\
+```
+
+Then re-run §11 a third time against `rules/all_rules_deduped.jsonl` and diff. **Recorded
+expectation, before the fact:** validation removes or corrects rules and never adds them, and
+§14.4 shows the gate is insensitive to everything except the `loading_pct` family. So the shield
+numbers should be identical again *unless validation rejects `loading_pct > 100` itself* — which
+would be a substantive finding about the validator, not a numerical drift, and must be
+investigated rather than absorbed.

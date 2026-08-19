@@ -1,0 +1,6 @@
+{
+  "rule_id": "R_147",
+  "translatable": false,
+  "condition": null,
+  "reason": "scope: requires generator nameplate capacity to calculate percentage of output"
+}
