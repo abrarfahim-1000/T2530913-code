@@ -94,17 +94,25 @@ def main():
     args = ap.parse_args()
 
     env_name  = ENV_NAMES[args.tag]
-    meta_path = os.path.join(DATA_DIR, f"grid_dataset_{args.tag}_meta.json")
     out_path  = os.path.join(DATA_DIR, f"grid_dataset_{args.tag}_basekv.json")
 
-    if not os.path.exists(meta_path):
-        sys.exit(f"Missing {meta_path} — generate the dataset first.")
+    # Only `n_line` is read from the meta, and every task's meta carries it, so
+    # fall back to the N-1 set when no classify set exists for this tag (wcci2022
+    # was only ever generated with --task n1). The suffix is resolved ONCE and
+    # reused for the --empirical JSONL, so meta and samples always describe the
+    # same run.
+    for suffix in ("", "_n1"):
+        meta_path = os.path.join(DATA_DIR, f"grid_dataset_{args.tag}{suffix}_meta.json")
+        if os.path.exists(meta_path):
+            break
+    else:
+        sys.exit(f"No meta for tag '{args.tag}' in {DATA_DIR} — generate the dataset first.")
     with open(meta_path, encoding="utf-8") as f:
         meta = json.load(f)
     n_line = meta["n_line"]
 
     if args.empirical:
-        jsonl_path = os.path.join(DATA_DIR, f"grid_dataset_{args.tag}.jsonl")
+        jsonl_path = os.path.join(DATA_DIR, f"grid_dataset_{args.tag}{suffix}.jsonl")
         if not os.path.exists(jsonl_path):
             sys.exit(f"Missing {jsonl_path} — needed for --empirical.")
         kv_or, kv_ex = base_kv_empirical(jsonl_path, n_line)

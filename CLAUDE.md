@@ -7,61 +7,122 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A neuro-symbolic fault detection system for power grids combining:
 - **GNN (Neural Layer):** Graph Attention Network trained on 36-bus NeurIPS 2020 topology
 - **LLM Pipeline (Component B):** Qwen3-14B + Nemotron-3 Nano 30B extract rules from IEEE/NERC standards
-- **Knowledge Graph (Component C):** 587 nodes, 6,632 edges — Bus, Line, Generator, Grid, and 469 Rule nodes
-- **Symbolic Shield (Component D):** Hard inference-time gate — every GNN prediction validated against KG rules before output
+- **Knowledge Graph (Component C):** to be redesigned from scratch (the v1 graph — 587 nodes / 469 rules — is retired)
+- **Symbolic Shield (Component D):** Post-hoc gate — every GNN prediction validated against the rule corpus before output
 
 The GNN is trained on one topology (36-bus) and evaluated on unseen topologies (14-bus, 118-bus) to measure cross-topology generalization. The shield's rule compliance rate is expected to remain stable while GNN accuracy degrades.
 
 ---
 
-## Current Status (2026-07-16)
+## Current Status (2026-08-15)
 
-**Component A (GNN) — CLOSED.** No further training-side experimentation is planned. The deployed
-result is **Lever A** (post-hoc per-class logit-margin calibration): calibrated test macro F1
-**0.8277**, `normal` recall **0.8806** (36-bus, in-distribution). Three rounds of architecture/loss/
-attention experiments (data regeneration, resampling, alternate pooling, a two-stage head, soft-F1
-loss, GSAT stochastic edge gating) were all tried and rejected — full index in
-[`supplimentary_docs/gnn_final_results.md`](supplimentary_docs/gnn_final_results.md),
-which is written to double as the thesis negative-results section. Deployed artifacts
-(`gnn_checkpoint_best.pt`, `gnn_checkpoint_leverA.pt`, `gnn_logit_margin.json`,
-`normalization_stats.pt` — all at repo root) are frozen — do not retrain or recalibrate against
-them without a new, previously-untried hypothesis.
+> **The operative plan is [`supplimentary_docs/component_d_plan.md`](supplimentary_docs/component_d_plan.md).**
+> Read it before starting work — it carries the task redesign, the runbook, and the landmines.
+> This file describes the *architecture*; the plan describes *what to do next*.
+> `component_d_handoff_archive.md` is retired — do not follow it.
 
-**Component B (LLM extraction) — REOPENED for re-extraction (2026-07-16).** The v1 ruleset
-(469 rules) turned out to be largely non-operationalizable: only ~64 conditions used
-Grid2Op-observable variables, and some had inverted polarity (condition described the *healthy*
-state). Root causes and fixes are documented in
-[`supplimentary_docs/component_d_handoff.md`](supplimentary_docs/component_d_handoff.md).
-The pipeline is now **three stages** — `extract.py` (open vocabulary, `RawRule`, syntax-lint only)
-→ `translate.py` (maps engineering variables onto the closed 6-variable `CONDITION_VOCABULARY`,
-emits `*_untranslatable.jsonl`) → `validate.py` (verify + polarity correction). The closed
-vocabulary and the `lint_condition` AST linter are enforced at stages 2–3 **only**.
+> **2026-08-16 — the task is now N-1 CONTINGENCY SCREENING (`--task n1`).** Two earlier task
+> designs were built, probed and rejected *before* generating against them; the full evidence chain
+> is [`component_d_plan.md`](supplimentary_docs/component_d_plan.md) §1.1. Short version: the
+> 4-class `classify` target is closed-form (4 rules = 100% agreement), and the binary `forecast`
+> target is either unlearnable (any-fault: 1.00× the all-positive baseline at every H ≥ 3, because
+> trip onset is an unconditional coin flip) or exhausted by one threshold (overload-only: model
+> 0.163 vs rule 0.160). N-1 screening is neither — global `rho_max` scores 1.04× baseline, 100% of
+> frames are mixed, and a network-aware model reaches 0.868 against a best-rule 0.608. **No rule
+> over the present observation can restate an N-1 label, because producing it needs a power-flow
+> solve** — which is what permanently un-rigs the shield comparison.
+>
+> **TRAINED (2026-08-16).** Edge-level head, 12,000 frames / 576 chronics / 702,618 contingency
+> labels. Held-out test **F1 0.8872, AP 0.9549 — 1.91× the best single-rule baseline (0.4639)**;
+> ablation shows message passing contributes **+0.058** over endpoint features alone. Full account
+> in [`gnn_n1_tightening.md`](supplimentary_docs/gnn_n1_tightening.md).
+>
+> **CROSS-TOPOLOGY, measured 2026-08-16 — generalisation is PARTIAL and ASYMMETRIC.** Full table,
+> caveats and an untested hypothesis in [`component_d_plan.md`](supplimentary_docs/component_d_plan.md) §7.6.
+>
+> | topology | lines | contingencies | best rule | **model** | AP |
+> |---|---:|---:|---:|---:|---:|
+> | neurips2020 *(in-dist)* | 59 | 113,205 | 0.4639 | **0.8972** — 1.93× | 0.9615 |
+> | case14 *(unseen, smaller)* | 20 | 118,502 | 0.5392 | **0.4477** — **0.83×, FAILS** | 0.4270 |
+> | wcci2022 *(unseen, larger)* | 186 | 742,472 | 0.4915 | **0.5721** — 1.16× | 0.6419 |
+>
+> Scaling **up** costs far less than scaling **down** — the opposite of the naive expectation.
+> On case14 the model loses to the single-rule baseline outright; report it as such. Every figure
+> is best-threshold *on its own topology* (agenda item 6 would lower all three). Note the eval
+> script reads 0.8972/0.9615 in-distribution where the tightening doc records 0.8872/0.9549 —
+> the checkpoint on disk is from a different run than the one written up; treat the checkpoint as
+> authoritative.
+>
+> 🚨 **That doc also records a normalization bug affecting EVERY task, including the frozen
+> classify checkpoint.** `compute_normalization_stats()` populates PyG's `_data_list` cache, so the
+> subsequent in-place `_data.x` normalization never reached the DataLoaders — all training ran on
+> raw unnormalized features while `normalization_stats.pt` was saved as if it had been applied.
+> the (now removed) classify cross-topology script *did* normalize at inference, so the frozen
+> classify checkpoint has a **train/inference mismatch**, and some share of its reported
+> cross-topology degradation is attributable to that rather than to topology transfer. Fixed for
+> N-1 (`_data_list = None` plus an assertion); read §3 of the tightening doc before citing any
+> classify cross-topology number.
 
-⚠️ **Do not re-close `EXTRACT_PROMPT` against `CONDITION_VOCABULARY`.** It was tried
-(2026-08-10) and extraction returned *zero* rules: on frequency/timing-heavy standards the model
-correctly answers `[]` for nearly every chunk, starving stage 2. Guarded by
+**Component A (GNN) — N-1 contingency screening, TRAINED and DONE.** The trainer, config and
+feature builders carry the N-1 path *only*; the 4-class classifier and the binary forecast model
+were retired on 2026-08-16 and their code lives in git history. Rationale for the demotion, and the
+one page of methodology that survives into the thesis, are in
+[`revised_thesis_claim.md`](supplimentary_docs/revised_thesis_claim.md) §2.
+
+For the record, the finding that motivated it: the 4-class label was a **closed-form function of
+the observation** (`rho_max >= 1.0 → overload`, `n_tripped_lines == 0 → normal`, `== 1 →
+line_trip`, else `cascade`) — four ordered rules reproduce the stored labels with **100% agreement
+on 55,000 records** across both topologies, so a symbolic layer scored 100% where the trained GATv2
+reached 0.8277.
+
+⚠️ **Retired classify artifacts remain on disk and must not be overwritten** —
+`gnn_checkpoint_best.pt`, `gnn_checkpoint_leverA.pt` (**not** the same file — see the constants
+table), `gnn_logit_margin.json`, `normalization_stats.pt`, `data/grid_dataset_neurips2020.jsonl`,
+`data/processed_grid_data.pt`, `data/split_neurips2020_*.npy`. Every N-1 artifact carries an `_n1`
+suffix precisely so it cannot collide with them. The three rounds of rejected architecture
+experiments are documented in
+[`supplimentary_docs/gnn_final_results.md`](supplimentary_docs/gnn_final_results.md) — they pertain
+to the retired classify task.
+
+**Component B (LLM extraction) — stage 1 DONE, stages 2–3 pending.** 2,463 candidates across 16
+documents in `rules_35b/` (kept pristine as the stage-1 archive). The pipeline is now **four
+stages**: `extract.py` (open vocabulary) → `translate.py` → `polarity_guard.py` (stage 2.5,
+deterministic) → `validate.py`. The closed vocabulary is enforced at stages 2–3 **only**.
+
+The vocabulary is **14 variables**, not 6 — it previously used only `rho`, `v_or`, `line_status`
+and ignored `p_or/q_or/gen_p/load_p`, which every record already carries. Measured against what is
+actually derivable, **693 of 2,463 candidates (28.1%)** are expressible, not 195 (7.9%).
+
+Rules carry a **role**: `CONSTRAINT` (true ⇒ violation ⇒ BLOCK) or `AFFIRMATION` (true ⇒ telemetry
+consistent with the class in `affirms`). Forcing everything into constraint polarity was itself
+generating inverted-band defects.
+
+⚠️ **Do not re-close `EXTRACT_PROMPT` against `CONDITION_VOCABULARY`.** Tried twice; extraction
+returned *zero* rules both times — on frequency/timing-heavy standards the model correctly answers
+`[]` for nearly every chunk, starving stage 2. Guarded by
 `tests/test_condition_lint.py::test_extract_prompt_stays_open_vocabulary`. Related: thinking must
 be suppressed via `generate_no_think()` (API-level `think=False`), not the `/no_think` prefix
 alone — newer Qwen builds ignore the prefix and the reasoning trace breaks JSON parsing.
 
-The v1 outputs are archived at `rules/v1_archive/` (retained as a thesis
-negative result). **The user re-runs extraction on the research PC** — until then there is no
-current `rules/all_rules_deduped.jsonl`.
+v1 outputs are archived at `rules/v1_archive/` (retained as a thesis negative result).
 
-**Component C (Knowledge Graph) — STALE.** `kg/knowledge_graph.pkl` is still built from the v1
-rules; rebuild it after re-extraction:
-`python extraction/build_kg.py --rules rules/all_rules_deduped.jsonl --out-dir kg/`.
+**Component C (Knowledge Graph) — to be REDESIGNED from scratch.** `kg/knowledge_graph.pkl` is a
+v1 artifact and is not used by anything current. Do **not** rebuild with the existing mechanism —
+the new graph is designed against the rules that actually survive translation, guard, and
+validation. Note for that redesign: `Line` (59) and `Bus` (28) account for only **3.5%** of the
+corpus, so entity-based retrieval carries almost no information.
 
-**Component D (Symbolic Shield) — NOT STARTED; blocked on B re-extraction + C rebuild.** No
-`shield.py` or equivalent exists yet. **The build brief is
-[`supplimentary_docs/component_d_handoff.md`](supplimentary_docs/component_d_handoff.md)** —
-it contains the shield package plan, the test-harness plan, the binding voltage contract
-(per-line base kV from `data/grid_dataset_<tag>_basekv.json`, energized-line masking — the flat
-`v_or/150.0` conversion in `study3(integration).md` §4.5 is superseded; even the 36-bus grid has
-7 lines at ~365 kV), verification gates, and the thesis result framing (headline = GNN-only vs
-GNN+shield delta; no binding external benchmark). Older design references:
-`supplimentary_docs/study3(integration).md` and
-`supplimentary_docs/shield_necessity_analysis_report.md`.
+**Component D (Symbolic Shield) — BUILT and tested; not yet run against a real ruleset.**
+`shield/` (context, evaluator, shield), `extraction/polarity_guard.py`,
+`evaluation/eval_shield.py`, `evaluation/summarize_shield_results.py`. **118 tests green.**
+Rule retrieval sits behind a `RuleProvider` protocol, **not** `build_kg.py::get_rules_for_entity`,
+so the KG redesign cannot invalidate it. Pending: the binary/asymmetric update for the forecast
+task (plan §6.1).
+
+Binding voltage contract (plan §5): per-line base kV from `data/grid_dataset_<tag>_basekv.json`
+with energized-line masking. The flat `v_or/150.0` conversion in `study3(integration).md` §4.5 is
+**superseded** — case14 runs lines at ~20 kV and ~138 kV, and even the 36-bus grid has 7 lines at
+~365 kV.
 
 ---
 
@@ -82,34 +143,68 @@ pip install -r requirements.txt
 
 ### Dataset Generation
 ```bash
-# Generate training dataset (NeurIPS 2020, 36-bus, ~300k records)
-python scripts/generate_dataset.py --env neurips --n_records 300000
+# ⚠️ Windows: use the repo venv — a bare `python` is the Microsoft Store stub.
+#    Set PYTHONIOENCODING=utf-8 when piping/redirecting (these scripts print `→`,
+#    and the cp1252 pipe encoding kills them mid-run on a UnicodeEncodeError).
+#      $env:PYTHONIOENCODING = "utf-8"
+#      .venv\Scripts\python.exe scripts\generate_dataset.py ...
 
-# Generate cross-topology test sets (~15-20k records each)
-python scripts/generate_dataset.py --env case14
-python scripts/generate_dataset.py --env wcci
+# N-1 contingency screening — the ONLY task; `--task n1` is the default.
+# Per-line "if this line trips, is a thermal limit violated?"; writes *_n1.jsonl
+# with a per-line label vector per frame.
+#
+# SIZING: effective sample size is bounded by SCENARIO count, not label count.
+# --n1-stride 12 is the protocol on ALL THREE topologies — identical generation,
+# only the environment differs. At the old stride 4 a 12k-frame budget would have
+# covered only ~210 of neurips's 576 chronics instead of all of them.
+#
+# All three sets below are GENERATED and verified (component_d_plan.md §7.6).
+# Measured throughput, not estimates:
+python scripts/generate_dataset.py --env neurips --n_records 12000   # 20 min, 10 rec/s, 702k labels
+python scripts/generate_dataset.py --env case14  --n_records 6000    #  5 min, 21 rec/s, 119k labels
+python scripts/generate_dataset.py --env wcci    --n_records 4000    # 30 min,  2 rec/s, 742k labels
+
+# --smoke: 3 chronics x 500 steps, capped at 200 records (~8 s). The record cap is
+# load-bearing — the loop cycles chronics toward --n_records, so before it existed a
+# smoke run replayed 3 scenarios toward 300,000 records and never terminated.
+python scripts/generate_dataset.py --env case14 --smoke
+
+# ⚠️ Forecast task — BUILT, PROBED, REJECTED. Retained ONLY to reproduce the
+# negative result; do not train against it, and do not delete it to "finish" the
+# classify cleanup — no forecast dataset exists on disk, so the code is the only
+# way to reproduce component_d_plan.md §1.1 steps 1-2. Any-fault scores 1.00x the
+# all-positive baseline at every H >= 3 (line-trip onset is an unconditional coin
+# flip); overload-only is exhausted by a single rho threshold (model 0.163 vs rule
+# 0.160, trend features do not help).
+python scripts/generate_dataset.py --env neurips --task forecast --horizon 6 --n_records 300000
+
+# The legacy 4-class `classify` generator was REMOVED on 2026-08-16 (closed-form
+# target — see Current Status), mirroring the same cleanup in train_gnn.py. Its
+# code is in git history; the datasets it produced stay frozen on disk.
 ```
 
 ### LLM Rule Extraction
 ```bash
 # Stage 1: Extract candidate rules (Qwen3 extractor) — open vocabulary; writes *_candidates.jsonl
 # Add --debug-raw to dump full model responses to <out>/_raw/ whenever JSON parsing fails
-python extraction/extract.py --docs data/documents/ --out rules/
+python extraction/extract.py --docs data/documents/ --out rules/     # DONE - do not re-run
 
 # Stage 2: Translate conditions onto CONDITION_VOCABULARY (same model, reloaded)
 #          → *_translated.jsonl + *_untranslatable.jsonl
-python extraction/translate.py --candidates rules/
+python extraction/translate.py --candidates rules_35b/ --out rules/
 
-# Stage 3: Validate translated rules (Nemotron-3 Nano 30B) — reads *_translated.jsonl
-python extraction/validate.py --candidates rules/
+# Stage 2.5: polarity guard (deterministic, no LLM/GPU) — --report first to pick the cutoff
+python extraction/polarity_guard.py --translated rules/ --tag neurips2020 --tag case14 --report
+python extraction/polarity_guard.py --translated rules/ --tag neurips2020 --tag case14
 
-# Build knowledge graph from validated rules (writes into --out-dir, default "kg")
-python extraction/build_kg.py --rules rules/all_rules_deduped.jsonl --out-dir kg/
+# Stage 3: Validate guarded rules (Nemotron-3 Nano 30B) — reads guarded/*_translated.jsonl
+python extraction/validate.py --candidates rules/guarded/
+
+# NOTE: build_kg.py is NOT part of the current flow — Component C is being redesigned.
 ```
-Being re-run with the fixed prompts (see Current Status). The v1 outputs (469 rules) are archived
-at `rules/v1_archive/`; `kg/knowledge_graph.pkl` must be rebuilt once the new
-`rules/all_rules_deduped.jsonl` exists. Note: `deduplicate_rules` merges every `*_confirmed.jsonl`
-in the out dir — keep old outputs out of `rules/` (validate.py warns if stale files are present).
+Stage 1 is complete (`rules_35b/`, 2,463 candidates) — do not re-run it. v1 outputs are archived
+at `rules/v1_archive/`. ⚠️ `deduplicate_rules` merges every `*_confirmed.jsonl` in the out dir —
+keep old outputs out of `rules/`, and never name a guard output `*_confirmed.jsonl`.
 
 ```bash
 # Per-line base kV sidecar (needed by the shield's voltage_pu conversion)
@@ -119,25 +214,42 @@ python scripts/dump_base_kv.py --tag case14 --empirical  # from existing JSONL (
 
 ### Model Training
 ```bash
-# Train GNN (36-bus NeurIPS 2020 — only topology used for training)
-python training/train_gnn.py
+# Train the N-1 GNN (36-bus NeurIPS 2020 — only topology used for training).
+# No task switch: N-1 screening is the only model. GRID_TASK is gone.
+python scripts/preprocess.py
+python training/train_gnn.py --epochs 30 --batch_size 128 --lr 3e-4
 
-# Key flags
-python training/train_gnn.py --epochs 100 --batch_size 256 --lr 5e-4
+# Ablation: drop message passing from the readout (writes *_headonly.pt, never
+# overwrites the deliverable). Reported result: 0.8411 vs 0.8987 with it.
+python training/train_gnn.py --head-only
+
+# --report-train scores a train slice each epoch; the train/val gap is what
+# separates memorisation from an optimiser that never fitted the signal.
+python training/train_gnn.py --report-train
+
+# GRID_DEVICE forces a backend (cpu/xpu/cuda) — added to distinguish backend
+# bugs from modelling problems.
+$env:GRID_DEVICE = "cpu"; python training/train_gnn.py
 ```
 
-### Cross-Topology Evaluation
+### Verification and Cross-Topology Evaluation
 ```bash
-# GNN-only classification metrics on unseen topologies (no retraining, no shield — see Current Status)
-python evaluation/eval_cross_topology.py --tag case14
-python evaluation/eval_cross_topology.py --tag wcci2022
-# checkpoint defaults to gnn_checkpoint_best.pt; override with --checkpoint / margin with --margin
+# Sanity-check a generated N-1 set BEFORE training on it: structure, scenario
+# diversity, mixed-frame fraction, and whether the task is still non-degenerate.
+python scripts/verify_n1_dataset.py --tag neurips2020
+
+# Per-contingency metrics vs both baselines. neurips2020 scores the held-out
+# test split; foreign topologies score every frame. All three RUN — results and
+# caveats in component_d_plan.md §7.6.
+python evaluation/eval_n1_cross_topology.py --tag neurips2020   # F1 0.8972  (1.93x rule)
+python evaluation/eval_n1_cross_topology.py --tag case14        # F1 0.4477  (0.83x rule — FAILS)
+python evaluation/eval_n1_cross_topology.py --tag wcci2022      # F1 0.5721  (1.16x rule)
 ```
 
 ### Data Inspection
 ```bash
 # Inspect dataset statistics
-python scripts/inspect.py [data_file_path]
+python scripts/verify_n1_dataset.py --tag neurips2020
 # Default: data/grid_dataset_neurips2020.jsonl
 ```
 
@@ -164,7 +276,7 @@ data/
   documents/                       # IEEE/NERC/FERC/AEMO PDFs for LLM extraction (not present on every machine)
 
 # NOTE: normalization_stats.pt (z-score stats from the 36-bus training split, required at
-# inference) lives at the REPO ROOT, not in data/ — see training/save_normalization_stats.py.
+# inference) lives at the REPO ROOT. Written by training/train_gnn.py.
 
 extraction/                        # Component B — LLM rule extraction pipeline
   extract.py                       # Qwen3-14B extraction pass → rules/*_candidates.jsonl
@@ -173,29 +285,30 @@ extraction/                        # Component B — LLM rule extraction pipelin
   common.py                        # Shared prompt/schema helpers
 
 rules/                             # Component B outputs (one *_candidates/_confirmed/_flagged.jsonl per source doc)
-  all_rules_deduped.jsonl          # 469 unique rules after dedup — the artifact Component C is built from
+  all_rules_deduped.jsonl          # produced by validate.py; does not exist yet (stages 2-3 pending)
   validation_run_summary.json      # per-document confirm/correct/reject counts from the validation pass
 
 kg/                                # Component C — knowledge graph artifacts (built by extraction/build_kg.py)
-  knowledge_graph.pkl              # Serialized KG (587 nodes, 6,632 edges)
+  knowledge_graph.pkl              # RETIRED v1 artifact - not used by the shield
   kg_full.html / rules_only.html / rule_R_001_subgraph.html   # pyvis visualizations
   severity_breakdown.png, rule_local_sample_2d.{png,svg,pdf}  # EDA plots
-  # NOTE: no shield.py here (or anywhere) yet — Component D is not implemented, see Current Status.
+  # NOTE: the shield lives in shield/ at the repo root, NOT here. This KG is a retired v1 artifact.
 
 scripts/
-  generate_dataset.py              # Grid2Op simulation → JSONL records
-  preprocess.py                    # JSONL → processed_grid_data.pt
-  pyg_data.py                      # PyTorch Geometric dataset wrapper (GridDataset, feature builders)
-  split.py                         # Chronic-level train/val/test splitting + class weights
-  inspect_data.py, audit_datasets.py, chk_split.py, diag.py   # ad hoc inspection utilities
+  generate_dataset.py              # Grid2Op simulation → JSONL records (--task n1 | forecast | classify)
+  preprocess.py                    # JSONL → processed_grid_data_n1.pt
+  pyg_data.py                      # PyG wrapper: GridDataset, feature builders, build_line_targets
+  verify_n1_dataset.py             # pre-training sanity check on a generated N-1 set
+  dump_base_kv.py                  # per-line base kV sidecar for the shield
 
 training/
-  train_gnn.py                     # Main training script (GridGNN) — reverted to pre-Round-3 state; GSAT/soft-F1 removed, see closure doc
-  config.py                        # TRAIN_CONFIG, auto-selected by device (cuda vs personal-PC)
-  calibrate_margin.py              # Lever A post-hoc logit-margin calibration/report tool
+  train_gnn.py                     # Trains the N-1 GNN — the only model. Chronic-level split built inline.
+  config.py                        # TRAIN_CONFIG (auto-selected by device), artifact paths, GRID_DEVICE override
 
 evaluation/
-  eval_cross_topology.py           # GNN-only classification metrics on unseen topologies (no shield yet)
+  eval_n1_cross_topology.py        # per-contingency metrics vs the all-positive and rule baselines
+  eval_shield.py                   # ⚠️ classify-era harness, awaiting rewrite for N-1 (plan §7.5 item 5)
+  summarize_shield_results.py
 ```
 
 ---
@@ -234,7 +347,7 @@ below; the DEPLOYED checkpoint uses `[16,32,32]`/`heads=[4,4,1]` (the personal-P
 - **Lever A (deployed, inference-time only):** a fixed per-class logit offset (`normal +0.30`,
   `line_trip −0.10`, others `0`, in `gnn_logit_margin.json`) is added to the raw logits before argmax.
   This is what takes macro F1 from 0.7830 → 0.8277 and `normal` recall from 0.65 → 0.88 — see
-  `training/calibrate_margin.py` and the closure doc for why this, and not an architecture change, is
+  the closure doc for why this, and not an architecture change, is
   the thing that worked. **Does not transfer cross-topology** — apply only to 36-bus in-distribution eval.
 - **GSAT (stochastic edge gating) and a soft-F1 loss term were tried and rejected in Round 3** — the
   code has since been removed from `train_gnn.py`/`config.py` (reverted to pre-Round-3 state) now that
@@ -322,7 +435,7 @@ Sequential only — never load both models simultaneously. `keep_alive=0` on eve
 PDF chunks → Qwen3-14B → JSON candidates → Pydantic validation → Nemotron-3 Nano 30B → CONFIRM/CORRECT/REJECT → dedup → KG
 ```
 
-### Finalized Results
+### v1 Results (SUPERSEDED — kept as the negative-result record)
 
 | Stage | Count |
 |---|---|
@@ -332,6 +445,8 @@ PDF chunks → Qwen3-14B → JSON candidates → Pydantic validation → Nemotro
 | Rejected (REJECT) | 766 |
 | Flagged for review | 105 |
 | **Unique rules after dedup** | **469** |
+
+v2 stage 1 produced **2,463 candidates** across 16 documents (`rules_35b/`); stages 2–3 pending.
 
 ### Rule Schema
 
@@ -359,7 +474,7 @@ PDF chunks → Qwen3-14B → JSON candidates → Pydantic validation → Nemotro
 
 **Backend:** NetworkX DiGraph (pure Python, zero setup, sufficient at this scale)
 
-### Statistics
+### v1 Statistics (RETIRED — the graph is being redesigned, see Current Status)
 
 | Metric | Value |
 |---|---|
@@ -393,14 +508,19 @@ The KG is built from IEEE standards — it is **not** built from the NeurIPS 202
 
 ## Component D — Symbolic Validation Shield
 
-**NOT YET IMPLEMENTED — this is the design, not existing code.** No `shield.py` (or equivalent) exists
-in this repo yet; `evaluation/eval_cross_topology.py` does not call anything like `validate()` today.
-See **Current Status** at the top of this file. The pseudocode below is the intended design (from
-`supplimentary_docs/study3(integration).md`, the implementation blueprint) — treat it as the spec for
-the next phase, not a description of what runs today. Once built: every GNN prediction passes through
-the shield, with no bypass mode.
+**BUILT (2026-08-15) — but the pseudocode below is the OLD design and no longer matches the code.**
+The real implementation is `shield/{context,evaluator,shield}.py`; read those and
+`supplimentary_docs/component_d_plan.md` §5–§6 instead. Three differences that matter:
 
-### Validation Flow (design)
+1. **Rule retrieval is not KG-based.** `validate(context, rules)` takes a plain rule list behind a
+   `RuleProvider` protocol, so the Component C redesign cannot invalidate the shield.
+2. **`voltage_pu = min(v_or)/150.0` is wrong** — per-line base kV with energized-line masking (§5).
+3. **Rules have roles.** Only `CONSTRAINT` violations block; `AFFIRMATION` rules supply supporting
+   evidence and never block on their own (Option A).
+
+Every GNN prediction passes through the shield; there is no bypass mode.
+
+### Validation Flow (SUPERSEDED design — historical)
 
 ```python
 def validate(prediction_context: dict, KG) -> dict:
@@ -488,22 +608,29 @@ def get_state_label(obs, env):
     return "cascade", -1
 ```
 
+⚠️ **This labelling function is CLOSED-FORM over the observation** — four threshold rules on
+`rho_max` and `n_tripped_lines` reproduce it with 100% agreement on 55,000 records. That is why
+Component A was reopened for the binary forecast task; see Current Status and plan §2. The
+`classify` target below cannot distinguish a learned model from a threshold.
+
 **`NO_OVERFLOW_DISCONNECTION = False`** — must be passed at `grid2op.make()` via `param=params`, not set post-make. Enables natural cascades.
 
 ---
 
 ## Hardware
 
-### Research PC — All Production Runs
+### Research PC — LLM stages only
 
 - RTX 4080 Super (16GB VRAM), i7-14700K, 64GB DDR5
-- Runs: GNN training, all dataset generation, LLM extraction (Qwen3-14B then Nemotron-3 Nano 30B, sequential), cross-topology evaluation
+- Runs: **LLM stages only** — `translate.py`, then `validate.py` (sequential, never both models loaded)
 - Schedule: Saturdays, Mondays, Wednesdays
 
-### Personal PC — Development Only
+### Personal PC — Data Generation, Training, Shield
 
 - Intel Arc B580 (12GB VRAM), Ryzen 5 7500F, 16GB DDR5
-- Runs: Code development, unit tests, shield logic — no training, no LLM inference
+- Runs: forecast dataset generation, **GNN training**, polarity guard, shield, all tests — no LLM inference.
+  `training/config.py` auto-selects the small `[16,32,32]` config here, which is the proven one;
+  the CUDA branch `[64,128,128]` has never produced a working checkpoint.
 
 **Nemotron-3 Nano 30B note:** ~18–20GB total (partial CPU offload into 64GB RAM). Qwen3-14B runs first (~8–10GB, fully GPU-resident), then Nemotron-3, never concurrent.
 
@@ -514,13 +641,14 @@ def get_state_label(obs, env):
 | Constant | Value | Context |
 |---|---|---|
 | `num_workers` | `0` | Windows PyG DataLoader constraint |
-| Nominal voltage | `150.0 kV` | NeurIPS 2020 environment — used in voltage_pu conversion |
+| ~~Nominal voltage~~ | ~~`150.0 kV`~~ | **SUPERSEDED** — the shield uses per-line base kV from `data/grid_dataset_<tag>_basekv.json`. A flat divisor gives ~100% false blocks. Still used only for the GNN's `mean_v` node feature. |
+| Base kV method | `backend`, all 3 tags | **Settled 2026-08-16** (`component_d_plan.md` §5.1). Backend nominals: neurips 138/345, case14 14/20/138, wcci2022 138/161/345. These grids *operate* ~6% above nominal, so healthy frames read ~1.06 pu, **not ~1.00**. Empirical originals kept as `*_basekv_empirical.json` — do not delete, they are the counterfactual arm. Never pass `--empirical` again. |
 | FAULT_PROB | `0.05` | Grid2Op fault injection rate (`scripts/generate_dataset.py`) |
 | RECONNECT_PROB | `0.20` | Grid2Op reconnect probability |
-| NORMAL_KEEP_PROB | `0.02` | Fraction of `normal` frames kept (dataset is capped/quota'd, see script) |
-| LINE_TRIP_KEEP_PROB | `1.0` | All N-1 cooldown frames kept — this is the Round-2 `line_trip` magnet's data-side root cause (see closure doc); a rebalanced alternative was tried (Lever E) and reverted |
+| `--n1-stride` | `12` | Labels every 12th step. The protocol on **all three** topologies — see the sizing note under Dataset Generation |
+| ~~NORMAL_KEEP_PROB~~ / ~~LINE_TRIP_KEEP_PROB~~ | — | **REMOVED 2026-08-16** with the classify generator. They drove that task's subsampling quotas; N-1 does not subsample by class. In git history only. |
 | Random seed | `42` | Model init + in-memory shuffle before training — deployed init is seed-sensitive, see Component A |
-| Checkpoint filename | `gnn_checkpoint_best.pt` (deployed, == `gnn_checkpoint_leverA.pt`) | Saved on best macro F1 |
+| Checkpoint filename | `gnn_checkpoint_best.pt` — ⚠️ **NOT** identical to `gnn_checkpoint_leverA.pt` (verified: byte-different, all 35 tensors differ by up to ~5e-3; two separate runs). Which one produced 0.8277 is not determinable from the artifacts. | Saved on best macro F1 |
 | Logit margin | `gnn_logit_margin.json` | Lever A per-class calibration offsets, applied at inference only |
 | Normalization stats | `normalization_stats.pt` (repo root) | Must exist before cross-topology eval |
 

@@ -1,5 +1,5 @@
 """
-context.py — the binding voltage contract (component_d_handoff.md §5).
+context.py — the binding voltage contract (component_d_plan.md §5).
 
 Turns one raw telemetry frame into the exact namespace a rule condition is
 evaluated against. This is the single definition of "what a context is"; the

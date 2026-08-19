@@ -223,3 +223,65 @@ def validate(context: dict, rules: Iterable[dict]) -> ShieldResult:
         contradicting_rules=contradicting,
         n_affirmations_for_class=n_affirmations_for_class,
     )
+
+
+# ── N-1 GATE (asymmetric) ─────────────────────────────────────────────────────
+
+SECURE, VIOLATION = "secure", "violation"
+
+
+def validate_n1(context: dict, rules: Iterable[dict], predicted: str) -> ShieldResult:
+    """Gate one N-1 *contingency* verdict.
+
+    What this can and cannot do, stated plainly because the distinction matters
+    for what the thesis is allowed to claim:
+
+    The shield **cannot** verify the contingency itself. Establishing whether
+    losing line k actually violates a limit requires a post-contingency power
+    flow, which is precisely the computation the GNN is standing in for. If the
+    shield could run it, the GNN would be unnecessary.
+
+    What it verifies instead is that the verdict is **consistent with the rules
+    governing the present state**. N-1 security presupposes a secure base case:
+    a grid already violating a thermal or voltage constraint cannot be declared
+    safe against the loss of any further element. So a `secure` verdict issued
+    over a base case that breaks a CONSTRAINT rule is unsupportable, and blocks.
+
+    **The gate is asymmetric, and only the permissive direction blocks:**
+
+      predicted `secure`    + base case violates a constraint  -> BLOCK
+      predicted `violation` + anything                         -> PASS
+
+    Predicting `violation` on a calm grid is a false alarm: wasteful, but it
+    fails toward caution and a safety gate must never suppress it. Predicting
+    `secure` on a grid that is already outside its limits is the failure that
+    actually endangers a network, and it is the only one worth blocking.
+
+    Affirmations keep Option A semantics from `validate()`: they supply
+    supporting evidence for a `secure` verdict and never block on their own.
+    """
+    result = validate({**context, "fault_type": predicted}, rules)
+
+    if predicted == SECURE:
+        return result
+
+    # Conservative prediction: record the evidence, withhold the block.
+    return ShieldResult(
+        status="PASS",
+        fault_type=predicted,
+        confidence=result.confidence,
+        violated_rules=[],
+        highest_severity=None,
+        explanation=(
+            f"Prediction '{predicted}' is the conservative verdict; the shield gates "
+            f"only over-permissive predictions. "
+            f"{len(result.violated_rules)} constraint(s) fired on the base case and "
+            f"are recorded as corroboration, not as grounds to block."
+        ),
+        n_evaluated=result.n_evaluated,
+        n_not_evaluable=result.n_not_evaluable,
+        n_error=result.n_error,
+        supporting_rules=result.violated_rules + result.supporting_rules,
+        contradicting_rules=result.contradicting_rules,
+        n_affirmations_for_class=result.n_affirmations_for_class,
+    )

@@ -3,6 +3,14 @@ import os
 
 # ── DEVICE CONFIGURATION ─────────────────────────────────────────────────────
 def get_best_device():
+    # GRID_DEVICE forces a backend. Added while diagnosing the n1 training
+    # stall: the edge-level head gathers node embeddings (`x[src]`) on every
+    # forward, whose backward is a scatter-add — a code path the graph-level
+    # heads never exercised. Being able to re-run the identical job on CPU is
+    # what distinguishes a backend bug from a modelling problem.
+    forced = os.environ.get("GRID_DEVICE", "").strip().lower()
+    if forced:
+        return torch.device(forced)
     if torch.cuda.is_available():
         return torch.device("cuda")
     elif hasattr(torch, "xpu") and torch.xpu.is_available():
@@ -17,7 +25,17 @@ DEVICE = get_best_device()
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 
-DATA_FILE = os.path.join(DATA_DIR, "grid_dataset_neurips2020.jsonl")
+# ── ARTIFACTS ────────────────────────────────────────────────────────────────
+# N-1 contingency screening is the project's only task. The `_n1` suffix is kept
+# on every filename deliberately: it names the domain concept, and it stops these
+# artifacts colliding with the retired classify dataset/splits still on disk.
+_SUFFIX = "_n1"
+DATA_FILE = os.path.join(DATA_DIR, f"grid_dataset_neurips2020{_SUFFIX}.jsonl")
+
+CHECKPOINT_FILE = f"gnn_checkpoint{_SUFFIX}.pt"
+NORM_STATS_FILE = f"normalization_stats{_SUFFIX}.pt"
+PROCESSED_PT    = f"processed_grid_data{_SUFFIX}.pt"
+SPLIT_PREFIX    = f"split_neurips2020{_SUFFIX}"
 
 # ── HYPERPARAMETERS ──────────────────────────────────────────────────────────
 # NeurIPS 2020 L2RPN — 36 subs, 59 lines [PRIMARY]
@@ -52,9 +70,12 @@ else:
     }
 
 # ── MODEL ARCHITECTURE ───────────────────────────────────────────────────────
-# These dimensions are fixed by the GridDataset implementation in pyg_data.py
-NODE_FEATURES = 5  # load_p, mean_v, max_rho, connected_line_frac, global_trip_frac
-EDGE_FEATURES = 4  # rho, p_or, q_or, near_limit
+# Fixed by the feature builders in scripts/pyg_data.py — see the N1_*_FEATURES
+# block there for why each feature is present.
+#   node: load_p, mean_v, max_rho, connected_line_frac, global_trip_frac,
+#         sum_headroom, sum_abs_p, degree
+#   edge: rho, p_or, q_or, near_limit, |p_or|, |q_or|, apparent_s, headroom
+NODE_FEATURES, EDGE_FEATURES = 8, 8
 
 # ── REPRODUCIBILITY ──────────────────────────────────────────────────────────
 SEED = 42

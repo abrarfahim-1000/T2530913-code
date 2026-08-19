@@ -1,7 +1,7 @@
 """
 eval_shield.py — GNN-only vs GNN+shield, per topology.
 
-The thesis headline (component_d_handoff.md §1) is the *delta* between the two
+The thesis headline (component_d_plan.md §8) is the *delta* between the two
 arms: what the raw GNN ships versus what survives the shield, per topology, with
 false block rate and missed-fault catch rate broken out by failure mode.
 
