@@ -24,9 +24,9 @@ from training.config import DEVICE
 # Research PC (24GB VRAM) gets the 35B; personal PC runs the 9B for testing.
 EXTRACTOR_MODEL  = os.environ.get(
     "EXTRACTOR_MODEL",
-    "qwen3.6:35b" if DEVICE.type == "cuda" else "qwen3.5:9b",
+    "qwen3.6:35b-a3b" if DEVICE.type == "cuda" else "qwen3.5:9b",
 )
-VALIDATOR_MODEL  = "nemotron-3-nano:latest"   # update tag if yours differs
+VALIDATOR_MODEL  = "nemotron-3-nano:30b"   # update tag if yours differs
 TRANSLATOR_MODEL = EXTRACTOR_MODEL            # same model, re-used after extraction
 
 # ── CHUNKING CONFIG ───────────────────────────────────────────────────────────
@@ -136,13 +136,51 @@ Text:
 {chunk}
 """
 
-VALIDATE_PROMPT = """You are a power systems safety auditor verifying extracted rules against source text.
+# The auditor prompt comes in two arms. They share criteria 4-7 and the output
+# contract; they differ only in what "faithful to the source" is taken to mean.
+#
+#   strict     — the original wording. Asks whether the constraint is *stated* in
+#                the text. Written for stage-1 candidates, whose conditions were
+#                still in the standard's own terms.
+#   translated — asks whether the condition is a faithful *operationalization* of
+#                the requirement. Stage-2 conditions are deliberately not
+#                quotations: "Applicable Facility Ratings shall not be exceeded"
+#                is rendered `loading_pct > 100`, which no standard says verbatim.
+#
+# Keep VALIDATE_PROMPT byte-identical to the strict arm — the 2026-08-20 run is
+# only reproducible against it.
+_VALIDATE_HEADER_STRICT = """You are a power systems safety auditor verifying extracted rules against source text.
 
 For each rule below, verify:
 1. Is this constraint actually stated in the source text?
 2. Is the condition boundary (threshold value) correctly parsed?
 3. Is the entity type correct?
-4. Does the condition use ONLY these variables, with Python syntax
+"""
+
+_VALIDATE_HEADER_TRANSLATED = """You are a power systems safety auditor verifying MACHINE-TRANSLATED rules against the source text they were extracted from.
+
+READ THIS FIRST — how these rules were produced. The source text is engineering
+prose. A prior stage rewrote each rule's condition into a fixed vocabulary of
+quantities a power-flow simulator can observe, so the condition is deliberately
+NOT a quotation. "Applicable Facility Ratings shall not be exceeded" becomes
+`loading_pct > 100`. "Voltage shall remain within the continuous operating range"
+becomes a per-unit band. You are auditing the TRANSLATION, not the wording.
+
+For each rule below, verify:
+1. Does the source text state a requirement that this condition faithfully
+   operationalizes? Numbers that do not appear verbatim are FINE when the text
+   expresses the same limit in words — a Facility Rating, a thermal limit, a
+   continuous operating range. REJECT only if the text states no such
+   requirement, or states a materially different one.
+2. Is the condition boundary (threshold value) correctly parsed? Where the text
+   names a limit without a number ("shall not exceed its rating"), 100% of that
+   rating is the correct boundary.
+3. Is the entity type correct? Accept the nearest reasonable entity. A merely
+   imprecise entity is never grounds for REJECT on its own — return CORRECT with
+   the right entity instead.
+"""
+
+_VALIDATE_BODY = """4. Does the condition use ONLY these variables, with Python syntax
    (comparisons, and/or/not, parentheses — no BETWEEN, no units, no prose)?
 {vocabulary}
    If the condition uses any other variable or cannot be expressed with these, REJECT.
@@ -185,6 +223,9 @@ Source text:
 Extracted rules:
 {rules}
 """
+
+VALIDATE_PROMPT            = _VALIDATE_HEADER_STRICT + _VALIDATE_BODY
+VALIDATE_PROMPT_TRANSLATED = _VALIDATE_HEADER_TRANSLATED + _VALIDATE_BODY
 
 TRANSLATE_PROMPT = """You are a power systems engineer translating operational safety rules into a machine-evaluable format.
 
@@ -335,6 +376,7 @@ Rules to translate:
 # .format(chunk=...) / .format(chunk=..., rules=...) unchanged.
 EXTRACT_PROMPT   = EXTRACT_PROMPT.replace("{vocabulary}", _vocabulary_block())
 VALIDATE_PROMPT  = VALIDATE_PROMPT.replace("{vocabulary}", _vocabulary_block())
+VALIDATE_PROMPT_TRANSLATED = VALIDATE_PROMPT_TRANSLATED.replace("{vocabulary}", _vocabulary_block())
 TRANSLATE_PROMPT = TRANSLATE_PROMPT.replace("{vocabulary}", _vocabulary_block())
 
 # ── LOGGING ───────────────────────────────────────────────────────────────────

@@ -12,10 +12,20 @@ Usage:
     python extraction/validate.py --candidates rules/ --out rules/
 
 Output (in --out folder):
-    <pdf_stem>_confirmed.jsonl      — rules the validator confirmed
-    <pdf_stem>_flagged.jsonl        — REJECT / CORRECT / NO_VERDICT
+    <pdf_stem>_confirmed.jsonl      — rules the validator confirmed or corrected
+    <pdf_stem>_rejected.jsonl       — REJECT, WITH the validator's reason
+    <pdf_stem>_flagged.jsonl        — NO_VERDICT / validator failure
     all_rules_deduped.jsonl         — merged, deduplicated confirmed rules
     validation_run_summary.json     — stats + metadata
+
+⚠ Rejections used to be counted and discarded. The 2026-08-20 run rejected 31 of
+32 guarded rules and left no evidence of why — including the `loading_pct > 100`
+family the shield's measured gain rests on. A rejection without its reason is not
+a finding, so every REJECT is now persisted.
+
+--prompt-variant selects which auditor question is asked (see common.py):
+    strict     — reproduces the 2026-08-20 run
+    translated — asks about faithful operationalization, not verbatim presence
 """
 
 import argparse
@@ -33,6 +43,7 @@ from pydantic import ValidationError
 from common import (
     VALIDATOR_MODEL,
     VALIDATE_PROMPT,
+    VALIDATE_PROMPT_TRANSLATED,
     Rule,
     Verdict,
     get_logger,
@@ -41,6 +52,15 @@ from common import (
 )
 
 log = get_logger("validate")
+
+# Above this share of REJECT verdicts the run is more likely broken than the
+# corpus is bad — stage 2 already lost a whole run to a silent schema mismatch.
+REJECT_RATE_TRIPWIRE = 0.80
+
+PROMPT_VARIANTS = {
+    "strict":     VALIDATE_PROMPT,
+    "translated": VALIDATE_PROMPT_TRANSLATED,
+}
 
 
 def unload_model(model_name: str):
@@ -68,7 +88,7 @@ class ValidationResult:
 
 
 # ── OLLAMA CALL ───────────────────────────────────────────────────────────────
-def run_validator(chunk: str, candidates: list[dict]) -> list[dict]:
+def run_validator(chunk: str, candidates: list[dict], prompt: str) -> list[dict]:
     """Uses ollama.chat() with think=False — required for nemotron-mini
     to suppress chain-of-thought before JSON output."""
     resp = ollama.chat(
@@ -80,7 +100,7 @@ def run_validator(chunk: str, candidates: list[dict]) -> list[dict]:
             },
             {
                 "role": "user",
-                "content": VALIDATE_PROMPT.format(
+                "content": prompt.format(
                     chunk=chunk,
                     rules=json.dumps(candidates, indent=2),
                 ),
@@ -99,6 +119,7 @@ def validate_batch(
     chunk: str,
     rules: list[dict],
     chunk_label: str,
+    prompt: str,
 ) -> list[ValidationResult]:
     """Sends all rules from one chunk to the validator in a single call.
     Returns one ValidationResult per rule."""
@@ -106,7 +127,7 @@ def validate_batch(
 
     try:
         t0 = time.perf_counter()
-        verdicts_raw = run_validator(chunk, rules)
+        verdicts_raw = run_validator(chunk, rules, prompt)
         elapsed_ms   = (time.perf_counter() - t0) * 1000
     except Exception as exc:
         log.warning(f"  [{chunk_label}] Validator call failed: {exc} — flagging all")
@@ -164,7 +185,7 @@ def validate_batch(
 
 
 # ── FILE PROCESSOR ────────────────────────────────────────────────────────────
-def process_candidates_file(candidates_file: Path, out_dir: Path) -> dict:
+def process_candidates_file(candidates_file: Path, out_dir: Path, prompt: str) -> dict:
     """Reads one *_translated.jsonl, groups records by chunk, calls validator
     per chunk, writes confirmed + flagged output files."""
     stem = candidates_file.stem.replace("_translated", "")
@@ -194,6 +215,7 @@ def process_candidates_file(candidates_file: Path, out_dir: Path) -> dict:
         chunk_groups.setdefault(chunk, []).append(rule)
 
     confirmed_file = out_dir / f"{stem}_confirmed.jsonl"
+    rejected_file  = out_dir / f"{stem}_rejected.jsonl"
     flagged_file   = out_dir / f"{stem}_flagged.jsonl"
 
     stats = {
@@ -206,12 +228,12 @@ def process_candidates_file(candidates_file: Path, out_dir: Path) -> dict:
         "total_validate_ms": 0.0,
     }
 
-    with confirmed_file.open("w") as cf, flagged_file.open("w") as ff:
+    with confirmed_file.open("w", encoding="utf-8") as cf,          rejected_file.open("w", encoding="utf-8") as rf,          flagged_file.open("w", encoding="utf-8") as ff:
         for chunk_idx, (chunk, rules) in enumerate(chunk_groups.items()):
             label = f"chunk {chunk_idx + 1}/{len(chunk_groups)}"
             log.info(f"  {label} — {len(rules)} rule(s)")
 
-            results = validate_batch(chunk, rules, label)
+            results = validate_batch(chunk, rules, label, prompt)
 
             for res in results:
                 stats["total_validate_ms"] += res.validate_ms
@@ -223,6 +245,7 @@ def process_candidates_file(candidates_file: Path, out_dir: Path) -> dict:
                     else:
                         stats["n_corrected"] += 1
                 elif res.outcome == "rejected":
+                    rf.write(json.dumps({"rule": res.rule, "verdict": res.verdict}) + "\n")
                     stats["n_rejected"] += 1
                 else:  # flagged
                     ff.write(json.dumps({"rule": res.rule, "verdict": res.verdict}) + "\n")
@@ -237,6 +260,7 @@ def process_candidates_file(candidates_file: Path, out_dir: Path) -> dict:
 
     n_written = stats["n_confirmed"] + stats["n_corrected"]
     log.info(f"  → {confirmed_file.name}  ({n_written} rules)")
+    log.info(f"  → {rejected_file.name}  ({stats['n_rejected']} rejected, with reasons)")
     log.info(f"  → {flagged_file.name}  ({stats['n_flagged']} flagged)")
     return stats
 
@@ -246,7 +270,12 @@ def main():
     parser = argparse.ArgumentParser(description="Stage 3: LLM rule validation")
     parser.add_argument("--candidates", required=True, help="Folder with *_translated.jsonl files")
     parser.add_argument("--out",        default=None,  help="Output folder (default: same as --candidates)")
+    parser.add_argument("--prompt-variant", choices=sorted(PROMPT_VARIANTS), default="strict",
+                        help="Which auditor question to ask: 'strict' reproduces the "
+                             "2026-08-20 run; 'translated' audits the operationalization")
     args = parser.parse_args()
+
+    prompt = PROMPT_VARIANTS[args.prompt_variant]
 
     candidates_dir = Path(args.candidates)
     out_dir        = Path(args.out) if args.out else candidates_dir
@@ -276,6 +305,7 @@ def main():
 
     log.info(f"Found {len(candidate_files)} candidate file(s)")
     log.info(f"Validator model : {VALIDATOR_MODEL}")
+    log.info(f"Prompt variant  : {args.prompt_variant}")
     log.info(f"Output          : {out_dir}/")
 
     try:
@@ -290,13 +320,14 @@ def main():
     run_stats = {
         "run_start":       datetime.now().isoformat(),
         "validator_model": VALIDATOR_MODEL,
+        "prompt_variant":  args.prompt_variant,
         "files":           [],
     }
 
     try:
         t0 = time.perf_counter()
         for cf in candidate_files:
-            file_stats = process_candidates_file(cf, out_dir)
+            file_stats = process_candidates_file(cf, out_dir, prompt)
             run_stats["files"].append(file_stats)
     finally:
         # Unload the validator model to free VRAM (if not dry run - but validate.py doesn't have dry-run)
@@ -314,6 +345,14 @@ def main():
     run_stats["total_confirmed"] = sum(s.get("n_confirmed", 0) + s.get("n_corrected", 0) for s in run_stats["files"])
     run_stats["total_rejected"]  = sum(s.get("n_rejected", 0) for s in run_stats["files"])
     run_stats["total_flagged"]   = sum(s.get("n_flagged", 0)  for s in run_stats["files"])
+    n_verdicts = (run_stats["total_confirmed"] + run_stats["total_rejected"]
+                  + run_stats["total_flagged"])
+    run_stats["reject_rate"] = (run_stats["total_rejected"] / n_verdicts) if n_verdicts else 0.0
+
+    if run_stats["reject_rate"] > REJECT_RATE_TRIPWIRE:
+        log.error(f"REJECT rate {run_stats['reject_rate']:.1%} exceeds "
+                  f"{REJECT_RATE_TRIPWIRE:.0%} — read the *_rejected.jsonl reasons before "
+                  f"treating this as a property of the corpus.")
 
     summary_path = out_dir / "validation_run_summary.json"
     with summary_path.open("w") as f:
@@ -321,7 +360,7 @@ def main():
 
     log.info(f"\nValidation complete.")
     log.info(f"  Confirmed : {run_stats['total_confirmed']}")
-    log.info(f"  Rejected  : {run_stats['total_rejected']}")
+    log.info(f"  Rejected  : {run_stats['total_rejected']}  ({run_stats['reject_rate']:.1%})")
     log.info(f"  Flagged   : {run_stats['total_flagged']}")
     log.info(f"  Unique KG-ready rules : {n_unique}")
     log.info(f"  Time      : {run_stats['total_time_sec']}s")
