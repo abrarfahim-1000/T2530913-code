@@ -42,7 +42,7 @@ SPLIT_PREFIX    = f"split_neurips2020{_SUFFIX}"
 
 # Auto-scale config based on device
 if DEVICE.type == "cuda":
-    # Research PC — full scale
+    # CUDA branch — full scale, never validated at this size
     TRAIN_CONFIG = {
         "epochs": 50,
         "batch_size": 256,
@@ -54,7 +54,7 @@ if DEVICE.type == "cuda":
         "loc_loss_weight": 0.5
     }
 else:
-    # Personal PC — best-performing config to date (Exp 1 = macro F1 0.795).
+    # Non-CUDA branch — the deployed config (Exp 1 = macro F1 0.795).
     # NOTE: scaling up to [64,128,128] was tried and OVERFITS/COLLAPSES under this schedule
     # (train loss drops while val F1 falls; normal+cascade go to 0.0). Kept at the proven
     # small config — its limited capacity acts as regularization.

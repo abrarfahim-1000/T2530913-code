@@ -210,13 +210,20 @@ __marimo__/
 .claude/
 .vscode/
 data/
-*.pt
 docs/*.pdf
-done_pdfs/
-rules/
 
-# ── project eval output (regenerable; see component_d_plan.md §11) ───────────
-# Per-contingency failure logs run to ~12 MB on wcci2022 and are rebuilt by
-# evaluation/eval_shield_n1.py. The shield_*.json summaries ARE kept — they are
-# small and they are the recorded result.
-failures_*.jsonl
+# Torch artifacts are ignored by default — the preprocessed tensor set is 92 MB
+# and fully regenerable. The ONE exception is the trained checkpoint: it is
+# 205 KB, it is NOT bit-reproducible (nondeterministic forward pass + a
+# seed-sensitive init), and every reported figure in the thesis is its output.
+# Retraining yields *a* good model, not *this* model. It is tracked deliberately.
+*.pt
+!gnn_checkpoint_n1.pt
+done_pdfs/
+
+# ── project eval output (see component_d_plan.md §11) ──────────────────
+# Everything eval_shield_n1.py writes lands under results/. The shield summaries
+# and citation chains ARE tracked — they are small and they are the recorded
+# result. The per-contingency failure logs are not: ~14 MB across three grids,
+# fully rebuilt by re-running the harness.
+results/failures/

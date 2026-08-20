@@ -1,0 +1,156 @@
+{
+  "run_start": "2026-06-03T16:28:03.006684",
+  "validator_model": "nemotron-3-nano:latest",
+  "files": [
+    {
+      "file": "130308_Final_Version_NC_RfG_candidates.jsonl",
+      "n_candidates": 58,
+      "n_confirmed": 0,
+      "n_corrected": 22,
+      "n_rejected": 29,
+      "n_flagged": 7,
+      "total_validate_ms": 274205.6014994159
+    },
+    {
+      "file": "8589935310-Complete Grid Code_candidates.jsonl",
+      "n_candidates": 298,
+      "n_confirmed": 11,
+      "n_corrected": 111,
+      "n_rejected": 155,
+      "n_flagged": 21,
+      "total_validate_ms": 1482100.588700967
+    },
+    {
+      "file": "Bangladesh_Electricity-Grid-Code-regulations_candidates.jsonl",
+      "n_candidates": 72,
+      "n_confirmed": 1,
+      "n_corrected": 30,
+      "n_rejected": 39,
+      "n_flagged": 2,
+      "total_validate_ms": 341443.70010169223
+    },
+    {
+      "file": "guideline-ieee_1547-2018_bps_perspectives_clean-1_candidates.jsonl",
+      "n_candidates": 42,
+      "n_confirmed": 0,
+      "n_corrected": 16,
+      "n_rejected": 24,
+      "n_flagged": 2,
+      "total_validate_ms": 215229.57070032132
+    },
+    {
+      "file": "inverter-based_resource_performance_guideline_candidates.jsonl",
+      "n_candidates": 66,
+      "n_confirmed": 3,
+      "n_corrected": 10,
+      "n_rejected": 35,
+      "n_flagged": 18,
+      "total_validate_ms": 341683.7528999894
+    },
+    {
+      "file": "NERC FAC-008-5 \u2014 Facility Ratings_candidates.jsonl",
+      "n_candidates": 1,
+      "n_confirmed": 0,
+      "n_corrected": 0,
+      "n_rejected": 1,
+      "n_flagged": 0,
+      "total_validate_ms": 7160.188500070944
+    },
+    {
+      "file": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)_candidates.jsonl",
+      "n_candidates": 563,
+      "n_confirmed": 25,
+      "n_corrected": 164,
+      "n_rejected": 330,
+      "n_flagged": 44,
+      "total_validate_ms": 2923760.9723000787
+    },
+    {
+      "file": "order-842_candidates.jsonl",
+      "n_candidates": 62,
+      "n_confirmed": 1,
+      "n_corrected": 15,
+      "n_rejected": 40,
+      "n_flagged": 6,
+      "total_validate_ms": 358362.2467017267
+    },
+    {
+      "file": "power-system-requirements_candidates.jsonl",
+      "n_candidates": 6,
+      "n_confirmed": 0,
+      "n_corrected": 4,
+      "n_rejected": 2,
+      "n_flagged": 0,
+      "total_validate_ms": 35569.77380020544
+    },
+    {
+      "file": "prc-006-5_candidates.jsonl",
+      "n_candidates": 14,
+      "n_confirmed": 0,
+      "n_corrected": 3,
+      "n_rejected": 10,
+      "n_flagged": 1,
+      "total_validate_ms": 73906.28240001388
+    },
+    {
+      "file": "prc-023-6_candidates.jsonl",
+      "n_candidates": 8,
+      "n_confirmed": 1,
+      "n_corrected": 4,
+      "n_rejected": 3,
+      "n_flagged": 0,
+      "total_validate_ms": 39768.089400138706
+    },
+    {
+      "file": "prc-024-4_candidates.jsonl",
+      "n_candidates": 10,
+      "n_confirmed": 0,
+      "n_corrected": 4,
+      "n_rejected": 5,
+      "n_flagged": 1,
+      "total_validate_ms": 51681.49930005893
+    },
+    {
+      "file": "prc-025-2_candidates.jsonl",
+      "n_candidates": 112,
+      "n_confirmed": 5,
+      "n_corrected": 39,
+      "n_rejected": 68,
+      "n_flagged": 0,
+      "total_validate_ms": 713182.0741996635
+    },
+    {
+      "file": "prc-029-1_candidates.jsonl",
+      "n_candidates": 22,
+      "n_confirmed": 0,
+      "n_corrected": 14,
+      "n_rejected": 6,
+      "n_flagged": 2,
+      "total_validate_ms": 93081.43920032309
+    },
+    {
+      "file": "RM16-1-000_candidates.jsonl",
+      "n_candidates": 25,
+      "n_confirmed": 2,
+      "n_corrected": 6,
+      "n_rejected": 16,
+      "n_flagged": 1,
+      "total_validate_ms": 173075.79049956985
+    },
+    {
+      "file": "TPL-001-5.1 \u2014 Transmission System Planning Performance Requirements_candidates.jsonl",
+      "n_candidates": 13,
+      "n_confirmed": 1,
+      "n_corrected": 9,
+      "n_rejected": 3,
+      "n_flagged": 0,
+      "total_validate_ms": 54884.49490000494
+    }
+  ],
+  "n_unique_rules_after_dedup": 469,
+  "run_end": "2026-06-03T18:28:20.220428",
+  "total_time_sec": 7213.4,
+  "total_confirmed": 501,
+  "total_rejected": 766,
+  "total_flagged": 105
+}

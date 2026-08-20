@@ -1,11 +1,18 @@
 # Findings — Neuro-Symbolic Fault Screening for Power Grids
 
-**Status as of 2026-08-19.** A plain-language account of what was built, what was measured, and
-what it means. Written to be readable without the codebase open.
+**Status as of 2026-08-20 — all four components are built and measured.** A plain-language account
+of what was built, what was measured, and what it means. Written to be readable without the
+codebase open.
 
-**Confirmed by replication:** every shield number below was re-measured against a second,
-independently generated rule corpus and came back **identical to the digit** (plan §14.4). The
-result does not depend on which extraction run produced the rules.
+**Confirmed by replication:** the shield numbers were re-measured against a second, independently
+generated rule corpus and came back **identical to the digit** (plan §14.4). The result does not
+depend on which extraction run produced the rules.
+
+⚠ **Corrected 2026-08-20.** An earlier version of this document said the gate's override
+precision *rises* off-distribution (51% at home, 86–92% away). That was measured to be false. It
+was an artifact of averaging two rule families; once the misextracted ones were removed the
+precision is **flat at 92–94% on all three grids**. §2.1 carries the corrected reading, and it is
+a better result than the one it replaces. Derivation: plan §15.7.
 
 This is the *narrative* record. The operational detail, runbooks and landmines live in
 [`component_d_plan.md`](component_d_plan.md); every number below cites the section there that
@@ -44,19 +51,20 @@ all three, so none of these numbers are tuned to the grid they are reported on.
 
 | grid | size | model alone | **+ symbolic gate** | change |
 |---|---|---:|---:|---:|
-| NeurIPS 2020 *(trained on)* | 36 buses, 59 lines | 0.8956 | **0.8982** | +0.0026 |
+| NeurIPS 2020 *(trained on)* | 36 buses, 59 lines | 0.8956 | **0.9038** | +0.0082 |
 | case14 *(unseen, smaller)* | 14 buses, 20 lines | 0.4167 | **0.4188** | +0.0021 |
-| WCCI 2022 *(unseen, larger)* | 118 buses, 186 lines | 0.5577 | **0.6232** | **+0.0655** |
+| WCCI 2022 *(unseen, larger)* | 118 buses, 186 lines | 0.5577 | **0.6253** | **+0.0676** |
 
-*(F1 score. Full table, including baselines and false-alarm counts: plan §11.1.)*
+*(F1 score, against the final validated four-rule corpus. Full table, including the earlier
+32-rule corpus for comparison: plan §15.6.)*
 
 On the large unseen grid the gate is worth a great deal more than a rounding error:
 
 - **Dangerous errors — cases where the model wrongly declared a contingency safe — fell from
-  68,166 to 46,860. A 31% reduction.**
-- The cost was about 3,500 extra false alarms, a 3% increase. In grid operations a missed fault
+  68,166 to 47,101. A 31% reduction.**
+- The cost was about 1,500 extra false alarms, a 1.3% increase. In grid operations a missed fault
   is far more expensive than a false alarm, so that is a favourable trade.
-- The gated score, **0.6232**, is higher than the raw model reaches on that grid *even when
+- The gated score, **0.6253**, is higher than the raw model reaches on that grid *even when
   allowed to tune its threshold against the answers* (0.5721). A layer bolted on after training,
   changing nothing inside the model, pushed an unseen-topology result past the model's own
   oracle ceiling.
@@ -64,54 +72,76 @@ On the large unseen grid the gate is worth a great deal more than a rounding err
 ### 2.1 Why this is the interesting result and not just a number
 
 The gate can only intervene in a narrow situation: the grid is **already** past a limit, and the
-model still called a contingency safe. How often the gate is *right* when it intervenes is the
-diagnostic:
+model still called a contingency safe. Two things vary across the three grids, and only one of
+them is what you would expect:
 
 | grid | how often it can intervene | **when it does, how often it is right** |
 |---|---:|---:|
-| NeurIPS 2020 *(trained on)* | 0.73% of cases | **51.4%** |
+| NeurIPS 2020 *(trained on)* | 0.31% of cases | **93.8%** |
 | case14 *(unseen)* | 0.087% | **92.2%** |
-| WCCI 2022 *(unseen)* | 3.34% | **86.0%** |
+| WCCI 2022 *(unseen)* | 3.04% | **93.4%** |
 
-Read that as a senior engineer looking over a junior's shoulder.
+**The right-hand column is flat.** The gate is right about 93% of the time on the grid the model
+was trained on, and about 93% of the time on grids it has never seen. That is the point:
 
-**On familiar ground, when the junior disagrees with the rulebook, the junior is right about half
-the time.** They are seeing something real that the crude rule misses — overruling them is a coin
-flip.
+> **The rulebook's accuracy does not depend on the topology, because it is not pattern-matching
+> — it is enforcing a physical principle that is equally true on every grid. The neural network's
+> accuracy collapses off-distribution (0.90 → 0.42 → 0.56). The rulebook's does not move.**
 
-**On unfamiliar ground the junior's disagreements stop being insightful.** They are simply wrong,
-86–92% of the time. There, the rulebook should win.
-
-The sharpest single number: on the training grid, **95.7%** of contingencies sitting on an
-already-overloaded base case are genuine violations — but among the ones *this model* calls safe,
-only **51.4%** are. That 44-point gap **is** the model's contribution, quantified. And it is
-exactly what disappears on foreign grids.
+What *does* change off-distribution is how much work there is for the gate to do. On the training
+grid the model is good, so it rarely hands the gate a wrong "this is safe" claim to veto — 0.31%
+of cases. On WCCI 2022 it is wrong ten times as often in exactly the way the gate can see — 3.04%
+— which is why the same rulebook is worth +0.0676 there and +0.0082 at home.
 
 So the finding is not "rules help." It is:
 
-> **The symbolic layer does not get smarter off-distribution. The neural layer stops earning the
-> benefit of the doubt.**
+> **A symbolic layer built from published standards is topology-invariant in a way a trained
+> model is not. Its value scales with how badly the model is failing, not with how well the
+> symbolic layer is tuned.**
 
-That is precisely the case for keeping a symbolic layer in the loop at all, and it is now
-measured rather than asserted.
+That is precisely the case for keeping a symbolic layer in the loop, and it is measured rather
+than asserted.
+
+### 2.2 A correction worth reporting, because of how it was found
+
+An earlier version of this document reported a different and more dramatic story: that the gate
+was a **coin flip** on the training grid (51.4%) and reliable only off-distribution (86–92%). The
+reading built on it — *"the symbolic layer holds while the neural layer stops earning the benefit
+of the doubt"* — was wrong, and the way it was caught is itself a result.
+
+That 51.4% was an average over two very different kinds of rule. The voltage rules, which came
+from ride-through tables misread as instantaneous limits, were right only 13–20% of the time when
+they fired. The thermal rules were right 92–94% of the time. On the training grid the voltage
+rules happened to dominate — 478 of 831 interventions — and dragged the average to a coin flip.
+
+The final validation stage removed exactly those voltage rules. It did so by **reading the source
+standards**, having never seen a single measurement of how the rules behave on real grid data. The
+number it was implicitly predicting — that the remaining rules would be right ~93% of the time
+everywhere — is what came out.
+
+The lesson is a general one about this kind of pipeline: **a rulebook that is 90% wrong rules and
+10% good ones does not perform at 90% of the good version. It performs at the average, and the
+average hides the good rules completely.** Filtering was not cosmetic; it was the difference
+between a coin flip and a reliable gate.
 
 ---
 
 ## 3. Why the effect is dramatic on one grid and invisible on two
 
-Not a contradiction — the three grids sit in different regimes.
+Not a contradiction — the three grids sit in different regimes, and in all three the gate is
+right roughly 93% of the time when it speaks. What differs is how often it gets to speak.
 
 **Training grid:** the model is genuinely good (0.90 F1), so there were only 2,041 dangerous
-errors to begin with. Cutting 20% of a small number barely moves an aggregate score. The gate is
-working; there is little left for it to work on.
+errors to begin with, and only 16% of those sit on a grid state a rule can see. The gate is
+working — and at 93.8% precision it is working well — but there is little left for it to work on.
 
 **case14:** the model is broken here — it fails against a single-threshold baseline outright
 (plan §7.6) and floods the output with false alarms. Because it declares almost everything
 dangerous, it almost never hands the gate a "this is safe" claim to veto. Reach collapses to
-0.087%. Note the gate is *nearly always right* in that sliver (92.2%); there is just no sliver.
+0.087%. The gate is *nearly always right* in that sliver (92.2%); there is just no sliver.
 
 **WCCI 2022:** the sweet spot. The model fails often **and** fails on states the rules can see.
-3.34% reach, 86% precision, 31% of the dangerous errors removed.
+3.04% reach, 93.4% precision, 31% of the dangerous errors removed.
 
 ---
 
@@ -131,16 +161,39 @@ runs, because the agreement between them is itself informative:
 | expressible against simulator telemetry | 82 (3.3%) | 58 (2.4%) |
 | passing the polarity check (does not fire on a healthy grid) | 33 | 32 |
 | able to do any work at all | 11 distinct | 13 distinct |
+| **surviving final validation against the source standards** | — | **4 distinct** |
 | **rules that actually fire at inference** | **10** | **10** |
 | — all of them saying the same thing (`is the line over 100% loaded?`) | ✔ | ✔ |
 
-*(plan §4.2, §14.)* The symbolic layer distils to **one** physically meaningful predicate, and
-that survives unchanged across two independent extraction runs whose totals differ by 29%. The
-second run also produced a **cleaner** stream — the polarity check rejected 44.8% of it rather
-than 59.8% — after a prompt fix described in plan §13.
+*(plan §4.2, §14, §15.)* End to end: **2,463 candidate rules become 4.** The symbolic layer
+distils to **one** physically meaningful predicate, and that survives unchanged across two
+independent extraction runs whose totals differ by 29%. The second run also produced a
+**cleaner** stream — the polarity check rejected 44.8% of it rather than 59.8% — after a prompt
+fix described in plan §13.
 
-This is why the shield result in §2 is identical on both corpora: everything except that one
-predicate is silent at inference.
+This is why the shield result was identical on both extraction corpora: everything except that
+one predicate is silent at inference. It is also why removing 28 of the 32 rules at the
+validation stage *improved* the result rather than degrading it (§2.2) — the discarded rules were
+not contributing coverage, they were contributing noise.
+
+**The four survivors are worth naming, since the whole symbolic layer is these:** three phrasings
+of *"is any line loaded past 100% of its thermal rating?"*, plus one statement that *"voltage
+between 0.9 and 1.1 per unit is consistent with normal operation"*, which supplies supporting
+evidence but can never block on its own.
+
+**Four is also the least flattering way to count it.** Those three thermal rules are the same
+physical check; they are stored as three records only because the extraction model labelled the
+entity `Line` in one standard and `Facility` in another, and wrote `100` in one clause and `100.0`
+in another. The knowledge graph (§7) normalizes that away and shows what is actually there:
+
+> **one thermal check, stated in 10 separate clauses across 4 documents, by two different
+> standards bodies on two continents** — NERC and the Bangladesh grid code.
+
+That is a stronger claim than "we extracted 4 rules", from the same evidence counted more
+carefully. It does not make the rule less obvious — §4.2 still applies, and four documents
+agreeing that you should not exceed a thermal rating is four documents agreeing on standard
+practice. What it does establish is that the surviving rule is not an artefact of one document or
+one parse.
 
 ### 4.2 That rule is close to common sense
 
@@ -179,9 +232,9 @@ present-state rule could even notice?
 
 | grid | dangerous errors | reachable by any rule of this kind |
 |---|---:|---:|
-| NeurIPS 2020 | 2,041 | 427 (**20.9%**) |
+| NeurIPS 2020 | 2,041 | 331 (**16.2%**) |
 | case14 | 18,592 | 95 (**0.51%**) |
-| WCCI 2022 | 68,166 | 21,306 (**31.3%**) |
+| WCCI 2022 | 68,166 | 21,065 (**30.9%**) |
 
 The complement is a hard bound. **The other 69–99% of failures happen on grids that look
 perfectly healthy.** Detecting those requires actually simulating the line failure — which is the
@@ -300,11 +353,47 @@ average precision. *(plan §1.1.)*
 requires a power-flow solve. That is what permanently un-rigs the comparison, and it is why the
 result in §2 means something.
 
-There is also a smaller but instructive one: **a pipeline failure that looked exactly like a
-finding.** A stage in the extraction pipeline reported that only 6 of 2,463 rules were
-expressible — a dramatic negative result about standards. It was a parsing bug: 89% of the corpus
-was never assessed at all. A void run and a genuinely inexpressible corpus produce identical
-summary statistics. It is now guarded by tests and a tripwire. *(plan §3.5.)*
+There is also a pair of instructive ones, both cases of **a pipeline failure that looked exactly
+like a finding.**
+
+*First:* a stage in the extraction pipeline reported that only 6 of 2,463 rules were expressible
+— a dramatic negative result about standards. It was a parsing bug: 89% of the corpus was never
+assessed at all. A void run and a genuinely inexpressible corpus produce identical summary
+statistics. It is now guarded by tests and a tripwire. *(plan §3.5.)*
+
+*Second, and subtler:* the final validation stage rejected 31 of 32 rules and looked like a
+verdict on the corpus. It was a verdict on the question being asked. The auditor was asked whether
+each rule was **stated** in the source text — but the preceding stage's entire job is to rewrite
+rules out of the standard's language into simulator variables, so nothing it produces is ever
+stated in the source text. Asked instead whether each rule was a faithful **operationalization**,
+the same model on the same input confirmed 11 instead of 1.
+
+What makes this worth reporting is *how* the two runs differed. The rejections in the strict run
+cited reasons that were fabricated — rules were rejected for "using an undefined variable
+`loading_pct`", where `loading_pct` was listed in the model's own instructions two paragraphs
+earlier. **The verdicts were perfectly stable across runs while the stated reasoning was
+invented.** That is invisible unless you store the reasons, and the first run had thrown them
+away. *(plan §15.1–§15.3.)*
+
+### 6.1 The strongest methodological result: two independent filters, same answer
+
+Two entirely separate methods were used to decide which extracted rules were worth keeping, and
+neither had access to what the other used:
+
+- **An empirical filter.** No language model. It ran every candidate rule against real grid data
+  and asked *does this fire, and does it discriminate?*
+- **A textual auditor.** No grid data. It read the source standards and asked *is this a faithful
+  reading of the document?*
+
+Both kept the same family — *"is any line loaded past 100% of its rating?"* — and both discarded
+the voltage rules, the auditor because they came from ride-through tables and time-bound operating
+envelopes that had been misread as instantaneous limits.
+
+Either result alone invites an easy objection: *your empirical cutoff is mistuned*, or *your
+prompt is wrong* — and the strict run shows the second objection can genuinely be correct.
+Convergence defeats both. **The four surviving rules are a property of the mismatch between what
+standards regulate and what the simulator models, not an artifact of either filter.** *(plan
+§15.8.)*
 
 ---
 
@@ -319,12 +408,34 @@ summary statistics. It is now guarded by tests and a tripwire. *(plan §3.5.)*
 - The gate, with asymmetric semantics: it blocks over-permissive verdicts and never blocks
   cautious ones
 - An evaluation harness reporting both arms, the conditional view, and the structural ceiling
-- **190 tests, all passing**
+- The full four-stage pipeline, run end to end, including the final validation stage and a
+  controlled A/B over the question it asks
+- A knowledge graph recording where every surviving rule came from, so the gate can cite the
+  clause and standard that authorise each block (below)
+- **222 tests, all passing**
 
-**Remaining, and mechanical:** one more translation pass carrying a prompt fix made today, the
-validation stage on the research PC, then re-running the same three evaluation commands and
-diffing the tables. The expectation is that the numbers shift slightly and the shape holds, since
-the one working rule is not in question. Sequence: plan §13.1.
+### 7.1 The knowledge graph, and why it was built last
+
+The graph answers one question: *when the gate blocks, on whose authority?* It records
+**Document → Clause → Rule → Predicate**, so a block can name the exact section of the exact
+standard behind it — and every other standard that says the same thing.
+
+It was built last on purpose. A first attempt, made before the corpus was settled, organised the
+graph around the physical grid: a node per bus, a node per transmission line, rules attached to
+whichever component they mentioned. That failed twice over. Only 3.5% of the extracted rules named
+a specific bus or line at all, so **96% of its 6,632 connections carried no information** — they
+were every rule attached to a single catch-all node. And because it was built from one grid's
+wiring, it could not be used on the other two grids the model is tested on, even though the rules
+themselves are grid-independent. That version has been deleted.
+
+The replacement holds **36 nodes and 40 connections**, is grid-independent, and every connection
+means something. Using it changes no result: the gate reads exactly the same rules whether it is
+handed the flat file or the graph, which is checked by a test and was verified by re-running all
+three evaluations and comparing every reported number.
+
+**Remaining:** two optional robustness items — repeating the validation run at several random
+seeds, and re-reporting the raw model under the same held-threshold protocol this document uses.
+Neither changes the shape of the result. Sequence: plan §16.8.
 
 ---
 
@@ -332,10 +443,17 @@ the one working rule is not in question. Sequence: plan §13.1.
 
 | claim | evidence |
 |---|---|
-| shield results, all three grids | plan §11 · `shield_<tag>.json` · `failures_<tag>.jsonl` |
+| shield results, all three grids | plan §15.6 · `results/shield/shield_<tag>_validated.json` · `results/failures/failures_<tag>.jsonl` |
 | the result replicates across extraction runs | plan §14.4 · `shield_<tag>_run3.json` |
+| validation A/B, and the fabricated reasoning | plan §15.1–§15.4 · `validated_{strict,translated}/*_rejected.jsonl` |
+| filtering the corpus improved the gate | plan §15.6 (both corpora, same table) |
+| the "precision rises off-distribution" correction | plan §15.7 |
+| two independent filters converge | plan §15.8 |
+| the knowledge graph, and the v1 that was deleted | plan §16 · `kg/knowledge_graph.json` |
+| 10 clauses / 4 documents / 2 bodies behind one rule | plan §16.3 · `kg/kg_corroboration.svg` |
+| the graph changes no measured number | plan §16.4 · `shield_<tag>_kg.json` · `tests/test_kg.py` |
 | the rule is not circular (91–96%, not 100%) | plan §11.4 |
-| structural ceiling on what rules can reach | plan §11.3 |
+| structural ceiling on what rules can reach | plan §11.3, §15.6 |
 | extraction yield and the audit | plan §4.2 · `evaluation/audit_rules.py` |
 | standards/simulator mismatch, both directions | plan §4.2, §12 |
 | the 4-class task was closed-form | plan §2.1 |
@@ -344,11 +462,16 @@ the one working rule is not in question. Sequence: plan §13.1.
 | voltage base-kV contract and why it matters | plan §5, §5.1 |
 
 **Reproducing §2:** the evaluation harness is `evaluation/eval_shield_n1.py`. To reproduce the
-numbers in this document exactly, point it at the 33-rule guarded corpus:
+numbers in this document exactly, point it at the validated four-rule corpus:
 
 ```powershell
-.venv\Scripts\python.exe evaluation\eval_shield_n1.py --tag wcci2022 --rules translated_rules\guarded\
+.venv\Scripts\python.exe evaluation\eval_shield_n1.py --tag wcci2022 --rules validated_translated\all_rules_deduped.jsonl
 ```
+
+⚠ Pointing it at `translated_rules\guarded\` instead reproduces the *earlier* 32-rule numbers
+(+0.0655 on WCCI, 51.4% precision at home). Those are superseded — see §2.2 — but kept in plan
+§15.6 alongside the new ones, because the difference between the two corpora is the evidence for
+§2.2.
 
 ⚠ Two threshold protocols are in circulation and must not be mixed. This document and plan §11
 use a threshold **selected on a validation split and held fixed across grids** — the honest

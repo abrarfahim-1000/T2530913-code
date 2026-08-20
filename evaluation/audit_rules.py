@@ -22,7 +22,7 @@ frames audited here are the frames guarded there.
 
 Usage:
     python evaluation/audit_rules.py --rules translated_rules/guarded/
-    python evaluation/audit_rules.py --rules translated_rules/guarded/ --json audit.json
+    python evaluation/audit_rules.py --rules translated_rules/guarded/ --json results/audit/audit_run3.json
 """
 from __future__ import annotations
 
@@ -205,6 +205,7 @@ def main() -> None:
     print()
 
     if args.json:
+        Path(args.json).parent.mkdir(parents=True, exist_ok=True)
         Path(args.json).write_text(json.dumps({
             "n_rules": len(rules),
             "n_distinct": len(distinct),

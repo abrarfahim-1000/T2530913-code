@@ -2,6 +2,23 @@
 
 This document compiles the mathematical formulas and formal definitions extracted from the codebase, organized by file. These representations are formatted for inclusion in a thesis report, detailing the data transformations, balancing techniques, and neural network mechanics used in the project.
 
+> ### ⚠️ STATUS 2026-08-20 — audited against the current codebase. Read this map first.
+>
+> Roughly a third of what follows describes the **retired 4-class classification** pipeline. Those
+> blocks are individually marked 🚫 **RETIRED** and kept only because the negative-results chapter
+> needs them. Everything unmarked is current and safe to cite.
+>
+> | | formulas |
+> |---|---|
+> | ✅ **Still current** | chunking, rho clipping, bus load summation, graph pruning, mean bus voltage, max bus loading, connected-line fraction, GATv2 attention, multi-head concat, LeakyReLU / ReLU / ELU, live batch norm, early stopping, precision / recall |
+> | 🚫 **Retired with the 4-class task** | the 4-class labelling function (§ generate_dataset), class-imbalance ratio, ICF weighting, global graph pooling, fault-localization targets, the multi-task loss, macro-F1 |
+> | ⚠️ **Superseded — the formula changed** | node/edge feature vectors (4/4 → 8/8), voltage normalization (flat ÷150 → per-line base kV **for the shield**) |
+> | ➕ **Added below** | the edge-level readout, masked BCE, per-line base-kV conversion, average precision, intervention precision, reach, structural ceiling, and predicate normalization |
+>
+> **Three referenced source files no longer exist:** `scripts/audit_datasets.py`,
+> `scripts/split.py`, `training/evaluate.py`. Their formulas are marked accordingly — do not cite
+> a file path that a reader cannot open.
+
 ## `extraction/extract.py`
 
 ⭐ **Text Chunking Strategy** (Used in Chapter 5)
@@ -22,7 +39,7 @@ $$ \text{end}_i = \text{start}_i + S \tag{2} $$
 
 ## `scripts/audit_datasets.py`
 
-⭐ **Class Imbalance Ratio** (Used in Chapter 5)
+🚫 **RETIRED — Class Imbalance Ratio** *(4-class task; `scripts/audit_datasets.py` no longer exists)*
 To quantify the severity of the class imbalance within the dataset, the ratio between the majority class and the minority class is calculated:
 $$ \text{Imbalance Ratio} = \frac{\max_{c \in C} N_c}{\min_{c \in C} N_c + \epsilon} \tag{3} $$
 
@@ -49,7 +66,7 @@ $$ \text{Percentile}(p) = \text{inf} \{ x \in \mathbb{R} : F(x) \geq p/100 \} \t
 
 ## `scripts/generate_dataset.py`
 
-⭐ **Physical State Labeling Logic** (Used in Chapter 5)
+🚫 **RETIRED AS A TARGET — but keep it: this is the closed-form result** *(Chapter: negative results)*
 The ground-truth label $y$ for each grid state is determined by a hierarchical physical rule set based on the loading ratio $\rho$ and the connectivity of the $N$ transmission lines:
 $$ y = \begin{cases} \text{overload} & \text{if } \max(\rho) \ge 1.0 \\ \text{normal} & \text{else if } \sum_{i=1}^N s_i = N \\ \text{line\_trip} & \text{else if } \sum_{i=1}^N s_i = N - 1 \\ \text{cascade} & \text{else if } \sum_{i=1}^N s_i < N - 1 \end{cases} \tag{5} $$
 
@@ -59,7 +76,8 @@ $$ y = \begin{cases} \text{overload} & \text{if } \max(\rho) \ge 1.0 \\ \text{no
     *   $s_i$: The operational status of line $i$ (1 = connected, 0 = tripped).
     *   $N$: The total number of transmission lines in the grid (e.g., 59).
 *   **Where it is used**: In `scripts/generate_dataset.py` within the `get_state_label` function.
-*   **How it works in this project**: This formula serves as the simulation-based ground truth engine. It prioritizes physical overloads ($\rho \ge 1.0$) as the highest-risk state, followed by topological health. This hierarchy ensures the GNN is trained on labels derived directly from the laws of power flow.
+*   **How it works in this project**: 🚫 **This target was abandoned, and equation (5) is the reason.** It is a *closed-form function of the observation the model is given* — every quantity on the right-hand side ($\rho$, $s_i$, $N$) is an input feature. Re-measured over every record of both datasets before they were deleted: **315,000 records, 100.000000% agreement, zero disagreements.** The trained GATv2 reached macro F1 0.8277 on the same task, so four threshold comparisons outperformed the network.
+    The honest reading, which must accompany this in the report: it is **not** evidence that symbolic methods beat neural ones — it is evidence that the benchmark was **mis-specified**. The label carried no information the input did not already contain, so any measurement of "does the symbolic layer add value over the GNN?" was rigged before it ran. That is precisely why the task was replaced with N-1 screening, whose label requires a power-flow solve and therefore *cannot* be written as a function of the present observation.
 
 ⭐ **Transmission Line Loading Clipping** (Used in Chapter 5)
 To prevent extreme values or measurement errors from destabilizing the neural network during data generation and feature extraction, the loading ratio $\rho$ is clipped to a predefined threshold $\rho_{\text{max}} = 2.0$:
@@ -122,7 +140,7 @@ $$ \rho_{\max, i} = \max_{e \in E_i} (\rho^{(e)}) \tag{10} $$
 *   **Where it is used**: In `scripts/pyg_data.py` within `build_node_features`.
 *   **How it works in this project**: Faults often start with a single line overload. This feature ensures that the substation node "perceives" the stress of its most critical connected line, aiding the GNN in pinpointing fault origins.
 
-⭐ **Voltage Normalization** (Used in Chapter 5 as $V_{pu}$)
+⚠️ **PARTLY SUPERSEDED — Voltage Normalization** *(still used for the GNN's `mean_v` node feature; NOT valid for the shield's per-unit conversion — see Current Formulas)*
 To scale the node voltage features into a stable range for the neural network, the raw voltage is normalized by a constant factor (150.0 kV):
 $$ V_{\text{norm}} = \frac{V_{\text{raw}}}{150.0} \tag{11} $$
 
@@ -144,7 +162,7 @@ $$ f_{\text{conn}}^{(i)} = \frac{N_{\text{connected}}^{(i)}}{N_{\text{total}}^{(
 *   **Where it is used**: In `scripts/pyg_data.py` within `build_node_features`.
 *   **How it works in this project**: This acts as a topological "health" indicator. A low fraction suggests that the bus is becoming isolated due to trips or cascades, providing a critical signal for classification.
 
-⭐ **Node and Edge Feature Vectors** (Used in Chapter 5)
+⚠️ **SUPERSEDED — Node and Edge Feature Vectors** *(now 8 node / 8 edge features; see Current Formulas)*
 The GNN input space is formally defined by the following feature compositions for each node $v$ and edge $e$:
 $$ \mathbf{x}_v = [P_{\text{load}, v}, \bar{V}_v, \rho_{\max, v}, f_{\text{conn}, v}]^\top \in \mathbb{R}^4 \tag{13} $$
 $$ \mathbf{e}_{uv} = [\rho_{uv}, P_{\text{or}, uv}, Q_{\text{or}, uv}, s_{uv}]^\top \in \mathbb{R}^4 \tag{14} $$
@@ -161,7 +179,7 @@ $$ \mathbf{e}_{uv} = [\rho_{uv}, P_{\text{or}, uv}, Q_{\text{or}, uv}, s_{uv}]^\
 
 ## `scripts/split.py`
 
-⭐ **Inverse Class Frequency (ICF) Weighting** (Used in Chapter 5)
+🚫 **RETIRED — Inverse Class Frequency (ICF) Weighting** *(4-class loss; `scripts/split.py` no longer exists. N-1 uses masked BCE — see Current Formulas)*
 To counteract the class imbalance during training, sample weights are determined using a square-root smoothed Inverse Class Frequency method:
 $$ w_c = \sqrt{\frac{N}{C \cdot N_c}} \tag{15} $$
 
@@ -287,7 +305,7 @@ $$ \mathbf{h}^{(l)} = \text{ELU} \left( \text{BatchNorm} \left( \text{GATConv} (
 *   **Where it is used**: The core layer block in `training/train_gnn.py`.
 *   **How it works in this project**: This represents the fundamental "reasoning" step of the GNN, where node features are updated based on topology-aware attention and then normalized/activated for the next layer.
 
-⭐ **Global Graph Pooling (Readout)** (Used in Chapter 5)
+🚫 **RETIRED — Global Graph Pooling (Readout)** *(the N-1 model pools NOTHING; see the edge-level readout in Current Formulas. Pooling would erase the per-line distinction the task is about)*
 To aggregate node-level features into a single fixed-size graph embedding $\mathbf{h}_G$, three distinct pooling mechanisms are concatenated (Mean, Max, and Min pooling):
 $$ \mathbf{h}_G = \text{Concat}\left( \frac{1}{|V|} \sum_{v \in V} \mathbf{h}_v, \max_{v \in V} \mathbf{h}_v, \min_{v \in V} \mathbf{h}_v \right) \tag{28} $$
 
@@ -309,7 +327,7 @@ $$ \mathcal{L}_{\text{cls}} = - \frac{1}{B} \sum_{j=1}^B w_{y_j} \log \left( \fr
 *   **Where it is used**: In `training/train_gnn.py` as the primary objective function.
 *   **How it works in this project**: This forces the model to focus on correctly identifying rare but dangerous grid faults (high $w_c$) over common normal states (low $w_c$).
 
-⭐ **Fault Localization Targets** (Used in Chapter 5)
+🚫 **RETIRED — Fault Localization Targets** *(the localizer head was removed with the task)*
 The localization task uses a node-level target vector $\mathbf{t}$ where a value of 1 indicates the physical location of the fault (the bus or the origin substation of a line) and 0 indicates all other nodes:
 $$ t_{g, i} = \begin{cases} 1 & \text{if node } i \in V_g \text{ is the identified fault location} \\ 0 & \text{otherwise} \end{cases} \tag{30} $$
 
@@ -319,7 +337,7 @@ $$ t_{g, i} = \begin{cases} 1 & \text{if node } i \in V_g \text{ is the identifi
 *   **Where it is used**: In `training/train_gnn.py` via `build_loc_targets_fast`.
 *   **How it works in this project**: This defines the target for the "where is the fault?" task, marking the specific substation involved in a trip or overload.
 
-⭐ **Binary Cross-Entropy (BCE) for Localization** (Used in Chapter 5)
+⚠️ **SUPERSEDED — Binary Cross-Entropy for Localization** *(BCE is still the loss, but over the per-line N-1 label vector with masking, not over per-bus fault targets. See Current Formulas)*
 The localization head is trained using Binary Cross-Entropy with logits, allowing the model to independently estimate the probability of each node being the fault source:
 $$ \mathcal{L}_{\text{loc}} = - \frac{1}{N} \sum_{i=1}^N [t_i \log \sigma(z_{\text{loc}, i}) + (1 - t_i) \log(1 - \sigma(z_{\text{loc}, i}))] \tag{31} $$
 
@@ -330,7 +348,7 @@ $$ \mathcal{L}_{\text{loc}} = - \frac{1}{N} \sum_{i=1}^N [t_i \log \sigma(z_{\te
 *   **Where it is used**: In `training/train_gnn.py` for the localization head.
 *   **How it works in this project**: This trains the GNN to output a probability heat-map across the grid, identifying the most likely origin of a fault.
 
-⭐ **Multi-Task Loss Formulation** (Used in Chapter 5)
+🚫 **RETIRED — Multi-Task Loss Formulation** *(there is no second head to weight; the N-1 loss is single-task)*
 The total objective function optimized during training is a weighted combination of the classification and localization losses:
 $$ \mathcal{L}_{\text{total}} = \mathcal{L}_{\text{cls}} + \lambda \mathcal{L}_{\text{loc}} \tag{32} $$
 
@@ -373,7 +391,7 @@ $$ \text{F1}_c = \frac{2 \cdot P_c \cdot R_c}{P_c + R_c} \tag{36} $$
 *   **Where it is used**: In `training/evaluate.py`.
 *   **How it works in this project**: This is the primary metric for each individual fault type, ensuring both high accuracy and high coverage.
 
-⭐ **Macro-Averaged F1 Score** (Used in Chapter 5)
+⚠️ **SUPERSEDED — Macro-Averaged F1 Score** *(`training/evaluate.py` no longer exists. N-1 is binary per contingency, so the reported metric is binary F1 plus average precision)*
 The primary performance metric is the Macro F1 score, which treats all grid fault classes with equal importance regardless of their frequency:
 $$ \text{F1}_{\text{macro}} = \frac{1}{C} \sum_{c=1}^C \frac{2 \cdot P_c \cdot R_c}{P_c + R_c} \tag{37} $$
 
@@ -401,3 +419,126 @@ $$ C_{i,j} = \sum_{k=1}^N \mathbb{1}(y_k = i) \cdot \mathbb{1}(\hat{y}_k = j) \t
     *   $\mathbb{1}$: The indicator function.
 *   **Where it is used**: In `training/evaluate.py` to diagnose model errors.
 *   **How it works in this project**: It helps identify if the model is confusing specific fault types (e.g., confusing an `overload` for a `cascade`), allowing for targeted improvements in the dataset or architecture.
+
+---
+
+# Current Formulas — N-1 screening, the shield, and the knowledge graph
+
+*Added 2026-08-20. Everything in this section reflects code that exists and results that were
+measured. Equation numbers continue from the sections above.*
+
+## `scripts/generate_dataset.py` — the N-1 label
+
+⭐ **N-1 Contingency Label** (the target the model actually learns)
+
+For a frame with observation $o$ and $N$ lines, the label is a **vector**, one entry per line:
+
+$$ y_k = \begin{cases} 1 & \text{if } \max\big(\rho(\,\mathcal{F}(o, \neg k)\,)\big) \ge 1.0 \ \text{ or the episode terminates} \\ 0 & \text{if the post-contingency flow is within all limits} \\ -1 & \text{if line } k \text{ is already out, or the flow diverges} \end{cases} \tag{34} $$
+
+*   **Notations**:
+    *   $\mathcal{F}(o, \neg k)$: a **power-flow solve** on the network with line $k$ removed.
+    *   $y_k \in \{1, 0, -1\}$: violation, secure, or *not evaluated*.
+*   **Where it is used**: `scripts/generate_dataset.py`, written to `n1_violation` per frame.
+*   **Why this matters more than any other equation in this document**: $\mathcal{F}$ is a
+    **solver**, not an arithmetic expression over $o$. Unlike equation (5), $y_k$ **cannot be
+    rewritten as a function of the present observation**, so no rule the shield could hold is
+    capable of restating it. This is the property that un-rigs the neuro-symbolic comparison.
+*   ⚠️ $-1$ entries are **missing labels, not negatives**, and must be masked out of the loss.
+
+## `training/train_gnn.py` — the edge-level readout
+
+⭐ **Per-Line Readout** (replaces global pooling, eq. 28)
+
+For line $k$ with origin bus $u$ and extremity bus $v$, after $L$ rounds of message passing:
+
+$$ z_k = \text{MLP}\Big( \big[\, \mathbf{h}_u^{(L)} \,\|\, \mathbf{h}_v^{(L)} \,\|\, \mathbf{e}_k \,\|\, \mathbf{x}_u \,\|\, \mathbf{x}_v \,\big] \Big) \in \mathbb{R} \tag{35} $$
+
+*   **Notations**:
+    *   $\mathbf{h}^{(L)}$: learned node embeddings after message passing.
+    *   $\mathbf{x}$: the **raw** input features of the same nodes — a skip connection.
+    *   $z_k$: a single logit; $\sigma(z_k) = P(\text{losing line } k \text{ violates a limit})$.
+*   **Why nothing is pooled**: measured over all 22,000 frames, **96.4–98.8% are *mixed*** — some
+    contingencies violate and others do not, within the same grid state. A graph-level vector
+    cannot represent that. (No frame on any grid is entirely secure: 0.00% everywhere.)
+*   **Why the raw skip $\mathbf{x}_u, \mathbf{x}_v$ is there**: post-contingency redistribution is
+    governed by whether the endpoints have spare capacity to absorb line $k$'s flow. Three rounds
+    of attention and normalization are free to render those quantities unrecognisable; the skip
+    lets the head form the flow/spare ratio directly. **Measured ablation:** removing
+    $\mathbf{h}^{(L)}$ from (35) costs $0.8987 \rightarrow 0.8411$.
+*   **Why it is topology-agnostic**: (35) is defined per line, so a 20-line and a 186-line grid
+    both evaluate on 36-bus-trained weights with no architectural change.
+
+⭐ **Masked Binary Cross-Entropy** (the training objective)
+
+$$ \mathcal{L} = -\frac{1}{|\mathcal{M}|} \sum_{k \in \mathcal{M}} \Big[ y_k \log \sigma(z_k) + (1 - y_k)\log\big(1 - \sigma(z_k)\big) \Big], \qquad \mathcal{M} = \{k : y_k \ne -1\} \tag{36} $$
+
+*   **Where it is used**: `training/train_gnn.py`.
+*   **How it works in this project**: single-task — there is no localization term and no
+    $\alpha$ to tune (contrast the retired eq. 33). $\mathcal{M}$ excludes contingencies the
+    simulator could not evaluate; counting them as negatives would teach the model that
+    already-tripped lines are safe to lose.
+
+## `shield/context.py` — the per-unit voltage contract
+
+⭐ **Per-Line Base-kV Conversion** (supersedes the flat $\div 150$ of eq. 11 **for the shield**)
+
+$$ V_{\text{pu}}^{\min} = \min_{k \,\in\, \mathcal{E}} \frac{V_{\text{or},k}}{V_{\text{base},k}}, \qquad V_{\text{pu}}^{\max} = \max_{k \,\in\, \mathcal{E}} \frac{V_{\text{or},k}}{V_{\text{base},k}}, \qquad \mathcal{E} = \{k : s_k = 1\} \tag{37} $$
+
+*   **Notations**:
+    *   $V_{\text{base},k}$: the **nominal voltage of line $k$**, from the backend, not a constant.
+    *   $\mathcal{E}$: energized lines only — de-energized lines read 0 kV and would otherwise
+        drive $V_{\text{pu}}^{\min}$ to 0 and fire every undervoltage rule.
+*   🚨 **Why a constant divisor is wrong**: case14 operates lines at ~20 kV *and* ~138 kV; the
+    36-bus grid has 7 lines at ~365 kV. A flat $\div 150$ yields ~100% false blocks.
+*   ⚠️ These grids run **~6% above nominal**, so a healthy frame reads $V_{\text{pu}} \approx 1.06$,
+    not $1.00$. A rule written assuming 1.00 will misfire.
+
+## `evaluation/eval_shield_n1.py` — how the gate is scored
+
+⭐ **Intervention Precision** (the headline metric)
+
+$$ \text{IP} = \frac{|\{\text{blocked} \wedge \text{truly a violation}\}|}{|\{\text{blocked}\}|} = \frac{\text{corrections}}{\text{corrections} + \text{regressions}} \tag{38} $$
+
+Measured **93.8% / 92.2% / 93.4%** on the 36-, 14- and 118-bus grids. The flatness is the finding:
+the gate enforces a physical doctrine rather than a learned pattern, so its accuracy does not
+depend on topology — while the model's F1 collapses $0.90 \rightarrow 0.42 \rightarrow 0.56$.
+
+⭐ **Reach** (what *does* vary with topology)
+
+$$ R = \frac{|\{\text{contingencies where the model says secure and a CONSTRAINT fires on the base case}\}|}{|\{\text{all contingencies scored}\}|} \tag{39} $$
+
+Measured **0.31% / 0.087% / 3.04%**. The gate is not more accurate off-distribution — it simply
+gets to speak more often, because the model is wrong more often in the way a rule can see.
+
+⭐ **Structural Ceiling** (the honest bound on the whole approach)
+
+$$ C = \frac{|\{\text{missed violations whose base case violates some rule}\}|}{|\{\text{missed violations}\}|} \tag{40} $$
+
+Measured **16.2% / 0.51% / 30.9%**. The complement is a hard limit: **69–99% of the model's
+dangerous errors occur on base cases that are entirely within limits.** Detecting those requires
+solving the contingency — the exact computation the model exists to avoid. This answers
+"would more rules have helped?" structurally, without building larger rulesets and plotting a curve.
+
+⭐ **Average Precision** (threshold-free ranking quality)
+
+$$ \text{AP} = \sum_n (R_n - R_{n-1})\, P_n \tag{41} $$
+
+Reported alongside F1 so a result cannot be an artifact of a lucky threshold. ⚠️ The decision
+threshold is selected on the **36-bus validation split and held fixed across all three grids** —
+never re-tuned per topology.
+
+## `kg/build.py` — predicate normalization
+
+⭐ **Canonical Predicate Form**
+
+$$ \pi(c) = \text{unparse}\Big( \mathcal{N}\big(\text{parse}(c)\big) \Big), \qquad \mathcal{N}: \ n \mapsto \lfloor n \rfloor \ \text{ if } n \in \mathbb{Z} \tag{42} $$
+
+*   **Notations**: $c$ a condition string; $\text{parse}/\text{unparse}$ an abstract-syntax-tree
+    round trip; $\mathcal{N}$ canonicalises numeric literals.
+*   **Why it exists**: deduplication keys on $(\text{entity}, c)$, which splits **one physical
+    check into three records** purely from noise in LLM output — `Line` in one standard versus
+    `Facility` in another, `100` in one clause versus `100.0` in the next. $\pi$ collapses them.
+*   ⚠️ **This is a view, not a substitution.** It never changes what the shield is served;
+    collapsing the served rules would move `highest_severity` and every count derived from it.
+*   **Result**: the thermal check resolves to **one** predicate, stated in **10 clauses across 4
+    documents from 2 identified standards bodies**.

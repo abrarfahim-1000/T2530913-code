@@ -2,7 +2,7 @@
 Tests for the symbolic shield — context construction, verdict taxonomy, and the gate.
 
 Contexts here are hand-written fixtures rather than dataset frames: the suite must
-run on the personal PC without loading a 300k-record, 3.4 GB JSONL. This is the
+run anywhere without loading a 300k-record, 3.4 GB JSONL. This is the
 ONLY legitimate use of a synthetic "healthy band" — as a test fixture, never as a
 filtering criterion (see extraction/polarity_guard.py for why).
 

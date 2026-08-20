@@ -38,7 +38,12 @@ wherever the shield blocked, which keeps both arms on one metric.
 Usage:
     python evaluation/eval_shield_n1.py --tag neurips2020
     python evaluation/eval_shield_n1.py --tag case14  --rules translated_rules/guarded/
-    python evaluation/eval_shield_n1.py --tag wcci2022 --json shield_wcci.json
+    python evaluation/eval_shield_n1.py --tag wcci2022 --json results/shield/shield_wcci2022.json
+
+Every artifact this writes lands under results/, which is created on demand:
+    results/shield/     the run summary   (--json)
+    results/failures/   per-contingency failure log, ~12 MB on wcci2022
+    results/citations/  provenance chains (--citations, requires --rules-kg)
 """
 from __future__ import annotations
 
@@ -66,7 +71,19 @@ from training.train_gnn import GridGNN, compute_normalization_stats
 
 CKPT = "gnn_checkpoint_n1.pt"
 HOME = "neurips2020"
-DEDUPED_RULES = "rules/all_rules_deduped.jsonl"
+# The stage-3 corpus. This used to point at `rules/`, which was the v1 output
+# directory and has held no live corpus since the v2 pipeline; the default
+# silently resolved to a file that does not exist.
+DEDUPED_RULES = "validated_translated/all_rules_deduped.jsonl"
+RESULTS_DIR = Path("results")
+
+
+def _mkparent(path: str) -> Path:
+    """Resolve an output path, creating its directory. Outputs now nest under
+    results/, so a plain open() would fail on a fresh clone."""
+    out = Path(path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    return out
 
 
 # ── rules ─────────────────────────────────────────────────────────────────────
@@ -235,6 +252,7 @@ def run_shield(scored: dict, pred: np.ndarray, rules: list[dict], tag: str,
     n_not_evaluable = n_error = n_unsupported = 0
     n_frames_seen = n_logged = 0
     severities: Counter = Counter()
+    fired: Counter = Counter()      # served rule_id -> blocks it produced
     fh = failures_path.open("w", encoding="utf-8") if failures_path else None
 
     cache: dict[tuple[int, str], object] = {}
@@ -263,6 +281,8 @@ def run_shield(scored: dict, pred: np.ndarray, rules: list[dict], tag: str,
             if res.blocked:
                 blocked[i] = True
                 severities[str(res.highest_severity)] += 1
+                for r in res.violated_rules:
+                    fired[str(r.get("rule_id"))] += 1
             # Only meaningful on the SECURE branch, which is the only branch either
             # consumer reads: `eligible` and the structural ceiling both gate on
             # pred == 0. On the VIOLATION branch validate_n1 folds fired constraints
@@ -296,6 +316,7 @@ def run_shield(scored: dict, pred: np.ndarray, rules: list[dict], tag: str,
         "blocked": blocked,
         "base_violates": base_violates,
         "n_frames": n_frames_seen,
+        "fired": fired,
         "n_not_evaluable": n_not_evaluable,
         "n_error": n_error,
         "n_unsupported": n_unsupported,
@@ -319,6 +340,15 @@ def main() -> None:
     ap.add_argument("--tag", default=HOME)
     ap.add_argument("--rules", default=DEDUPED_RULES,
                     help=f"{DEDUPED_RULES}, or a stage-2.5 guarded folder")
+    ap.add_argument("--rules-kg", default=None,
+                    help="Read rules from the Component C knowledge graph instead "
+                         "(kg/knowledge_graph.json). Returns the same set as --rules "
+                         "by construction — pinned by tests/test_kg.py — so the "
+                         "reported numbers must not move. Overrides --rules.")
+    ap.add_argument("--citations", default=None,
+                    help="Write the provenance chain for every rule that fired "
+                         "(requires --rules-kg). One record per distinct rule, not "
+                         "per contingency.")
     ap.add_argument("--checkpoint", default=CKPT)
     ap.add_argument("--batch-size", type=int, default=64)
     ap.add_argument("--threshold", type=float, default=None,
@@ -333,7 +363,17 @@ def main() -> None:
 
     if not os.path.exists(args.checkpoint):
         sys.exit(f"Missing {args.checkpoint} — train the N-1 model first.")
-    rules = load_rules(args.rules)
+    provider = None
+    if args.rules_kg:
+        from kg.provider import KgRuleProvider
+
+        provider = KgRuleProvider.from_json(args.rules_kg)
+        rules = provider.rules_for(SECURE)
+        print(f"Rules from knowledge graph {args.rules_kg} ({len(rules)} served)")
+    else:
+        rules = load_rules(args.rules)
+        if args.citations:
+            sys.exit("--citations requires --rules-kg (provenance lives in the graph).")
 
     print("Computing 36-bus N-1 train-split normalization stats...")
     home_pt = os.path.join(DATA_DIR, "processed_grid_data_n1.pt")
@@ -360,7 +400,9 @@ def main() -> None:
     y, logits = scored["y"], scored["logits"]
     pred = (logits > thr).astype(int)
 
-    failures_path = Path(args.failures) if args.failures else Path(f"failures_{args.tag}.jsonl")
+    failures_path = (Path(args.failures) if args.failures
+                     else RESULTS_DIR / "failures" / f"failures_{args.tag}.jsonl")
+    failures_path.parent.mkdir(parents=True, exist_ok=True)
     sh = run_shield(scored, pred, rules, args.tag, failures_path, args.max_failures)
 
     gnn = prf(y, pred)
@@ -430,6 +472,25 @@ def main() -> None:
     if sh["severities"]:
         print(f"  blocks by severity     : {sh['severities']}")
     print(f"\n  failure log -> {failures_path}")
+
+    if provider is not None and sh["fired"]:
+        from kg.schema import format_citation
+
+        print("\n  ── WHICH RULES ACTED, AND ON WHOSE AUTHORITY ──────────────────")
+        records = []
+        for rid, n in sh["fired"].most_common():
+            cit = provider.cite(rid)
+            records.append({**cit.to_dict(), "n_blocks": n})
+            print(f"\n  {n:,} block(s):")
+            for line in format_citation(cit).splitlines():
+                print(f"  {line}")
+        if args.citations:
+            _mkparent(args.citations).write_text(
+                json.dumps({"tag": args.tag, "rules_kg": args.rules_kg,
+                            "fired": records}, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            print(f"\n  citations -> {args.citations}")
     print()
 
     if n_blocked == 0:
@@ -438,9 +499,9 @@ def main() -> None:
         print("     violated a constraint. Report it, do not tune around it.\n")
 
     if args.json:
-        Path(args.json).write_text(json.dumps({
+        _mkparent(args.json).write_text(json.dumps({
             "tag": args.tag,
-            "rules": args.rules,
+            "rules": args.rules_kg or args.rules,
             "n_rules": len(rules),
             "threshold": thr,
             "threshold_source": thr_source,

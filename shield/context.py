@@ -8,7 +8,7 @@ what a healthy grid looks like.
 
 Two invariants earn their keep here:
 
-1. **Per-line base kV, never a flat nominal.** `study3(integration).md` §4.5
+1. **Per-line base kV, never a flat nominal.** `archive/study3(integration).md` §4.5
    prescribes `v_or / 150.0`. Measured reality: case14 runs lines at ~20 kV and
    ~138 kV, and even the 36-bus training grid has 7 lines at ~365 kV. A flat
    divisor reads those as 0.13 pu / 2.4 pu and blocks every healthy frame.

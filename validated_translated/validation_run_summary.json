@@ -1,0 +1,112 @@
+{
+  "run_start": "2026-08-20T14:38:39.753123",
+  "validator_model": "nemotron-3-nano:30b",
+  "prompt_variant": "translated",
+  "files": [
+    {
+      "file": "130308_Final_Version_NC_RfG_translated.jsonl",
+      "n_candidates": 4,
+      "n_confirmed": 0,
+      "n_corrected": 0,
+      "n_rejected": 4,
+      "n_flagged": 0,
+      "total_validate_ms": 11739.788600003521
+    },
+    {
+      "file": "8589935310-Complete Grid Code_translated.jsonl",
+      "n_candidates": 3,
+      "n_confirmed": 0,
+      "n_corrected": 0,
+      "n_rejected": 3,
+      "n_flagged": 0,
+      "total_validate_ms": 5423.639400003594
+    },
+    {
+      "file": "Bangladesh_Electricity-Grid-Code-regulations_translated.jsonl",
+      "n_candidates": 4,
+      "n_confirmed": 2,
+      "n_corrected": 0,
+      "n_rejected": 2,
+      "n_flagged": 0,
+      "total_validate_ms": 5686.9299999962095
+    },
+    {
+      "file": "guideline-ieee_1547-2018_bps_perspectives_clean-1_translated.jsonl",
+      "n_candidates": 1,
+      "n_confirmed": 0,
+      "n_corrected": 0,
+      "n_rejected": 1,
+      "n_flagged": 0,
+      "total_validate_ms": 1239.641499996651
+    },
+    {
+      "file": "inverter-based_resource_performance_guideline_translated.jsonl",
+      "n_candidates": 4,
+      "n_confirmed": 0,
+      "n_corrected": 1,
+      "n_rejected": 3,
+      "n_flagged": 0,
+      "total_validate_ms": 5205.987999986974
+    },
+    {
+      "file": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)_translated.jsonl",
+      "n_candidates": 12,
+      "n_confirmed": 6,
+      "n_corrected": 0,
+      "n_rejected": 6,
+      "n_flagged": 0,
+      "total_validate_ms": 13957.024799994542
+    },
+    {
+      "file": "power-system-requirements_translated.jsonl",
+      "n_candidates": 1,
+      "n_confirmed": 1,
+      "n_corrected": 0,
+      "n_rejected": 0,
+      "n_flagged": 0,
+      "total_validate_ms": 1236.4199000003282
+    },
+    {
+      "file": "prc-024-4_translated.jsonl",
+      "n_candidates": 1,
+      "n_confirmed": 0,
+      "n_corrected": 0,
+      "n_rejected": 1,
+      "n_flagged": 0,
+      "total_validate_ms": 1441.954000001715
+    },
+    {
+      "file": "prc-025-2_translated.jsonl",
+      "n_candidates": 1,
+      "n_confirmed": 0,
+      "n_corrected": 0,
+      "n_rejected": 1,
+      "n_flagged": 0,
+      "total_validate_ms": 1696.171299998241
+    },
+    {
+      "file": "prc-029-1_translated.jsonl",
+      "n_candidates": 0
+    },
+    {
+      "file": "RM16-1-000_translated.jsonl",
+      "n_candidates": 0
+    },
+    {
+      "file": "TPL-001-5.1 \u2014 Transmission System Planning Performance Requirements_translated.jsonl",
+      "n_candidates": 1,
+      "n_confirmed": 1,
+      "n_corrected": 0,
+      "n_rejected": 0,
+      "n_flagged": 0,
+      "total_validate_ms": 1161.891799994919
+    }
+  ],
+  "n_unique_rules_after_dedup": 4,
+  "run_end": "2026-08-20T14:39:28.680745",
+  "total_time_sec": 48.9,
+  "total_confirmed": 11,
+  "total_rejected": 21,
+  "total_flagged": 0,
+  "reject_rate": 0.65625
+}

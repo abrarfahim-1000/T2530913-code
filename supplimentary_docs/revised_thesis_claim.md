@@ -1,5 +1,23 @@
 # Revised Thesis Claim — Component A and Component D
 
+> ### ⚠️ STATUS 2026-08-20 — the claim holds; the supporting numbers here predate the shield runs.
+>
+> Written 2026-08-16, before Components C and D were finished. The N-1 framing below is **current
+> and correct** — it is still the claim to write up. Two updates:
+>
+> - **The shield results now exist.** +0.0082 / +0.0021 / **+0.0676** F1 across the three grids,
+>   at **93.8% / 92.2% / 93.4%** intervention precision. On the 118-bus grid the shielded score
+>   (0.6253) exceeds what the raw model reaches with an oracle threshold on that same grid
+>   (0.5721).
+> - 🚨 **Do not restate "the shield's precision rises off-distribution"** if that phrasing appears
+>   below or in any draft built from it. It was measured to be **false** — an artifact of
+>   averaging misextracted voltage rules with the thermal rules. The corrected finding is
+>   stronger: **the gate's precision is topology-invariant while the model's collapses.**
+>
+> Current numbers: [`thesis_findings.md`](thesis_findings.md) ·
+> [`component_d_plan.md`](component_d_plan.md) §15–16.
+
+
 **Status:** supersedes the fault-classification framing throughout the draft.
 **Date:** 2026-08-16
 **Audience:** whoever is editing the thesis text. Everything below is measured, not projected;

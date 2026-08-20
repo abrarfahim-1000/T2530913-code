@@ -94,14 +94,24 @@ def main():
     args = ap.parse_args()
 
     env_name  = ENV_NAMES[args.tag]
-    out_path  = os.path.join(DATA_DIR, f"grid_dataset_{args.tag}_basekv.json")
+    # The two methods write to DIFFERENT files. They disagree by design — the
+    # backend reports nominal kV, the empirical scan reports what the grid is
+    # actually running at (~6% above nominal) — and the shield reads the backend
+    # sidecar. Sharing one path meant a single --empirical run silently replaced
+    # the authoritative file with the counterfactual arm.
+    _suffix   = "_basekv_empirical" if args.empirical else "_basekv"
+    out_path  = os.path.join(DATA_DIR, f"grid_dataset_{args.tag}{_suffix}.json")
 
-    # Only `n_line` is read from the meta, and every task's meta carries it, so
-    # fall back to the N-1 set when no classify set exists for this tag (wcci2022
-    # was only ever generated with --task n1). The suffix is resolved ONCE and
-    # reused for the --empirical JSONL, so meta and samples always describe the
-    # same run.
-    for suffix in ("", "_n1"):
+    # Only `n_line` is read from the meta, and every task's meta carries it.
+    # The suffix is resolved ONCE and reused for the --empirical JSONL, so meta
+    # and samples always describe the same run.
+    #
+    # N-1 comes FIRST. The classify sets were deleted on 2026-08-20, but their
+    # `_meta.json` sidecars outlived them; with the old ("", "_n1") order this
+    # loop resolved to a suffix whose .jsonl no longer exists, so --empirical
+    # died on a missing file while the backend path silently read n_line from a
+    # stale meta.
+    for suffix in ("_n1", "_forecast"):
         meta_path = os.path.join(DATA_DIR, f"grid_dataset_{args.tag}{suffix}_meta.json")
         if os.path.exists(meta_path):
             break

@@ -21,7 +21,7 @@ from training.config import DEVICE
 # ── MODEL CONFIG ──────────────────────────────────────────────────────────────
 # DEVICE is a torch.device — compare .type, never the object against a string
 # (torch.device("cuda") == "cuda" is False, which silently selected the small model).
-# Research PC (24GB VRAM) gets the 35B; personal PC runs the 9B for testing.
+# A CUDA host gets the 35B; anything else runs the 9B for testing.
 EXTRACTOR_MODEL  = os.environ.get(
     "EXTRACTOR_MODEL",
     "qwen3.6:35b-a3b" if DEVICE.type == "cuda" else "qwen3.5:9b",

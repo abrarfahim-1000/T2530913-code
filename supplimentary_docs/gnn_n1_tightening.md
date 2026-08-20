@@ -1,5 +1,17 @@
 # Tightening the N-1 GNN — diagnosis and fixes
 
+> ### ✅ STATUS 2026-08-20 — CURRENT. One number to reconcile before citing.
+>
+> This is the live record of the N-1 model and its normalization fix. ⚠️ The held-out figures
+> here (**F1 0.8872 / AP 0.9549**) come from a different run than the checkpoint now on disk,
+> which the evaluation harness scores at **0.8972 / 0.9615**. **Treat the checkpoint as
+> authoritative** and cite the harness numbers; the gap is run-to-run variance, not a
+> methodological difference.
+>
+> §3's normalization bug is the important part and applies to **every GNN run in this project**,
+> including the retired classify checkpoints — read it before citing any pre-2026-08-16 result.
+
+
 **Date:** 2026-08-16
 **Outcome:** val contingency F1 **0.4751 → 0.8987**; held-out test **0.8872** (AP 0.9549).
 **Root cause:** a silent normalization failure that meant *every GNN run in this project, on every
@@ -100,7 +112,7 @@ model, identical split — so the difference had to be the tensors themselves.
 `gnn_checkpoint_best.pt` (macro F1 0.8277) was trained through this same code path, so **it was
 trained on unnormalized features.**
 
-`evaluation/eval_cross_topology.py` normalizes correctly, per batch, at inference:
+`evaluation/eval_n1_cross_topology.py` normalizes correctly, per batch, at inference:
 
 ```python
 batch.x         = (batch.x         - node_mean) / node_std
@@ -176,7 +188,7 @@ working. Only comparing `dataset[i]` against `_data` revealed otherwise.
 - **Cross-topology evaluation** — `case14` n1 set not yet generated; `wcci2022` env not downloaded.
 - **Classify retrain** under the normalization fix (§3) — a decision for the thesis, not a bug fix.
 - **Shield integration** on real n1 predictions — `validate_n1` is built and tested (9 tests) but has
-  not run against model output, because the rule corpus still needs the research PC.
+  not run against model output, because the rule corpus still needs the LLM stages.
 - **Threshold selection** — all model numbers are best-threshold. A deployment threshold should be
   chosen on val and reported on test, especially since the shield's asymmetric gate cares about the
   missed-violation count specifically.

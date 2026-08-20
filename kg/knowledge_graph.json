@@ -1,0 +1,590 @@
+{
+  "directed": true,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "type": "ServedRule",
+      "rule_id": "R_858",
+      "label": "R_858",
+      "rule": {
+        "rule_id": "R_858",
+        "source": "Section 8.3.1.2",
+        "entity": "Line",
+        "condition": "loading_pct > 100.0",
+        "action": "ALERT",
+        "severity": "high",
+        "explanation": "The System Operator and Licensee must continuously monitor transmission line loadings to prevent overloading.",
+        "role": "CONSTRAINT",
+        "affirms": null,
+        "fire_rate_neurips2020": 0.0,
+        "fire_rate_case14": 0.0,
+        "fire_rate_wcci2022": 0.0
+      },
+      "id": "ServedRule:R_858"
+    },
+    {
+      "type": "Predicate",
+      "canonical": "loading_pct > 100",
+      "plain_english": "maximum line loading as percent of thermal limit exceeds 100",
+      "role": "CONSTRAINT",
+      "variables": [
+        "loading_pct"
+      ],
+      "label": "loading_pct > 100",
+      "id": "Predicate:P_000"
+    },
+    {
+      "type": "Variable",
+      "name": "loading_pct",
+      "description": "maximum line loading as percent of thermal limit (100 = at limit)",
+      "label": "loading_pct",
+      "id": "Variable:loading_pct"
+    },
+    {
+      "type": "ServedRule",
+      "rule_id": "R_916",
+      "label": "R_916",
+      "rule": {
+        "rule_id": "R_916",
+        "source": "Grid Code Section 11.4.1, Item ix; EMO Dispatch Computer Constraints, Section 3.1",
+        "entity": "Line",
+        "condition": "loading_pct > 100",
+        "action": "ALERT",
+        "severity": "medium",
+        "explanation": "Equipment and transmission line overload is a reportable incident of lesser consequence.",
+        "role": "CONSTRAINT",
+        "affirms": null,
+        "fire_rate_neurips2020": 0.0,
+        "fire_rate_case14": 0.0,
+        "fire_rate_wcci2022": 0.0
+      },
+      "id": "ServedRule:R_916"
+    },
+    {
+      "type": "ServedRule",
+      "rule_id": "R_1154",
+      "label": "R_1154",
+      "rule": {
+        "rule_id": "R_1154",
+        "source": "NERC Inverter-Based Resource Performance Guideline, Chapter 3",
+        "entity": "PowerGeneratingModule",
+        "condition": "voltage_pu_min >= 0.9 and voltage_pu_max <= 1.1",
+        "action": "RESPOND_WITHIN_2S",
+        "severity": "medium",
+        "explanation": "Local inverters must respond to terminal voltage measurements within a fast response time when operating within the continuous range.",
+        "role": "AFFIRMATION",
+        "affirms": "normal"
+      },
+      "id": "ServedRule:R_1154"
+    },
+    {
+      "type": "Predicate",
+      "canonical": "voltage_pu_min >= 0.9 and voltage_pu_max <= 1.1",
+      "plain_english": "lowest per-unit voltage across all energized lines is at least 0.9 and highest per-unit voltage across all energized lines is at most 1.1",
+      "role": "AFFIRMATION",
+      "variables": [
+        "voltage_pu_min",
+        "voltage_pu_max"
+      ],
+      "label": "voltage_pu_min >= 0.9 and voltage_pu_max <= 1.1",
+      "id": "Predicate:P_001"
+    },
+    {
+      "type": "Variable",
+      "name": "voltage_pu_min",
+      "description": "lowest per-unit voltage across all energized lines (1.0 = nominal)",
+      "label": "voltage_pu_min",
+      "id": "Variable:voltage_pu_min"
+    },
+    {
+      "type": "Variable",
+      "name": "voltage_pu_max",
+      "description": "highest per-unit voltage across all energized lines (1.0 = nominal)",
+      "label": "voltage_pu_max",
+      "id": "Variable:voltage_pu_max"
+    },
+    {
+      "type": "ServedRule",
+      "rule_id": "R_1443",
+      "label": "R_1443",
+      "rule": {
+        "rule_id": "R_1443",
+        "source": "Guidelines and Technical Basis, Page 465, Example criteria (a); NERC PRC-005, Section 6.2.1; Text Section 6.c; Text Section 7c, Non-Limited Impact RAS Ratings; TPL-008-1, Table 1 (f); TPL-008-1, Section Steady State Only, f; TPL-001-5.1, Section 5.1.f",
+        "entity": "Facility",
+        "condition": "loading_pct > 100",
+        "action": "ALERT",
+        "severity": "high",
+        "explanation": "Thermal overloads beyond facility emergency ratings indicate potential instability or equipment damage.",
+        "role": "CONSTRAINT",
+        "affirms": null,
+        "fire_rate_neurips2020": 0.0,
+        "fire_rate_case14": 0.0,
+        "fire_rate_wcci2022": 0.0
+      },
+      "id": "ServedRule:R_1443"
+    },
+    {
+      "type": "Document",
+      "stem": "Bangladesh_Electricity-Grid-Code-regulations",
+      "issuing_body": "Bangladesh Energy Regulatory Commission",
+      "n_candidates": 228,
+      "label": "Bangladesh Electricity-Grid-Code-…",
+      "id": "Document:Bangladesh_Electricity-Grid-Code-regulations"
+    },
+    {
+      "type": "Clause",
+      "text": "Section 8.3.1.2",
+      "document": "Bangladesh_Electricity-Grid-Code-regulations",
+      "label": "Section 8.3.1.2",
+      "id": "Clause:C_000"
+    },
+    {
+      "type": "Rule",
+      "rule_id": "R_858",
+      "condition": "loading_pct > 100.0",
+      "entity": "Line",
+      "severity": "high",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "action": "ALERT",
+      "explanation": "The System Operator and Licensee must continuously monitor transmission line loadings to prevent overloading.",
+      "label": "R_858",
+      "id": "Rule:R_858"
+    },
+    {
+      "type": "Clause",
+      "text": "Grid Code Section 11.4.1, Item ix",
+      "document": "Bangladesh_Electricity-Grid-Code-regulations",
+      "label": "Grid Code Section 11.4.1, Item ix",
+      "id": "Clause:C_001"
+    },
+    {
+      "type": "Rule",
+      "rule_id": "R_916",
+      "condition": "loading_pct > 100",
+      "entity": "Line",
+      "severity": "medium",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "action": "ALERT",
+      "explanation": "Equipment and transmission line overload is a reportable incident of lesser consequence.",
+      "label": "R_916",
+      "id": "Rule:R_916"
+    },
+    {
+      "type": "Document",
+      "stem": "inverter-based_resource_performance_guideline",
+      "issuing_body": "NERC",
+      "n_candidates": 237,
+      "label": "inverter-based resource performan…",
+      "id": "Document:inverter-based_resource_performance_guideline"
+    },
+    {
+      "type": "Clause",
+      "text": "NERC Inverter-Based Resource Performance Guideline, Chapter 3",
+      "document": "inverter-based_resource_performance_guideline",
+      "label": "NERC Inverter-Based Resource Performance Gu…",
+      "id": "Clause:C_002"
+    },
+    {
+      "type": "Rule",
+      "rule_id": "R_1154",
+      "condition": "voltage_pu_min >= 0.9 and voltage_pu_max <= 1.1",
+      "entity": "PowerGeneratingModule",
+      "severity": "medium",
+      "role": "AFFIRMATION",
+      "affirms": "normal",
+      "action": "RESPOND_WITHIN_2S",
+      "explanation": "Local inverters must respond to terminal voltage measurements within a fast response time when operating within the continuous range.",
+      "label": "R_1154",
+      "id": "Rule:R_1154"
+    },
+    {
+      "type": "Document",
+      "stem": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+      "issuing_body": "NERC",
+      "n_candidates": 707,
+      "label": "NERC Reliability Standards (Compl…",
+      "id": "Document:NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)"
+    },
+    {
+      "type": "Clause",
+      "text": "Guidelines and Technical Basis, Page 465, Example criteria (a)",
+      "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+      "label": "Guidelines and Technical Basis, Page 465, E…",
+      "id": "Clause:C_003"
+    },
+    {
+      "type": "Rule",
+      "rule_id": "R_1443",
+      "condition": "loading_pct > 100",
+      "entity": "Facility",
+      "severity": "high",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "action": "ALERT",
+      "explanation": "Thermal overloads beyond facility emergency ratings indicate potential instability or equipment damage.",
+      "label": "R_1443",
+      "id": "Rule:R_1443"
+    },
+    {
+      "type": "Clause",
+      "text": "NERC PRC-005, Section 6.2.1",
+      "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+      "label": "NERC PRC-005, Section 6.2.1",
+      "id": "Clause:C_004"
+    },
+    {
+      "type": "Rule",
+      "rule_id": "R_1492",
+      "condition": "loading_pct > 100",
+      "entity": "Facility",
+      "severity": "high",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "action": "ALERT",
+      "explanation": "Steady state post-contingency flow through facilities must not exceed the facility's highest emergency rating.",
+      "label": "R_1492",
+      "id": "Rule:R_1492"
+    },
+    {
+      "type": "Clause",
+      "text": "Text Section 6.c",
+      "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+      "label": "Text Section 6.c",
+      "id": "Clause:C_005"
+    },
+    {
+      "type": "Rule",
+      "rule_id": "R_1710",
+      "condition": "loading_pct > 100",
+      "entity": "Facility",
+      "severity": "high",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "action": "BLOCK",
+      "explanation": "Applicable Facility Ratings must not be exceeded following a single RAS component malfunction.",
+      "label": "R_1710",
+      "id": "Rule:R_1710"
+    },
+    {
+      "type": "Clause",
+      "text": "Text Section 7c, Non-Limited Impact RAS Ratings",
+      "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+      "label": "Text Section 7c, Non-Limited Impact RAS Rat…",
+      "id": "Clause:C_006"
+    },
+    {
+      "type": "Rule",
+      "rule_id": "R_1717",
+      "condition": "loading_pct > 100",
+      "entity": "Facility",
+      "severity": "high",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "action": "BLOCK",
+      "explanation": "For non-limited impact RAS, applicable facility ratings must not be exceeded following any single RAS component malfunction causing inadvertent operation.",
+      "label": "R_1717",
+      "id": "Rule:R_1717"
+    },
+    {
+      "type": "Clause",
+      "text": "TPL-008-1, Table 1 (f)",
+      "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+      "label": "TPL-008-1, Table 1 (f)",
+      "id": "Clause:C_007"
+    },
+    {
+      "type": "Rule",
+      "rule_id": "R_2018",
+      "condition": "loading_pct > 100",
+      "entity": "Facility",
+      "severity": "high",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "action": "BLOCK",
+      "explanation": "Applicable Facility Ratings shall not be exceeded.",
+      "label": "R_2018",
+      "id": "Rule:R_2018"
+    },
+    {
+      "type": "Clause",
+      "text": "TPL-008-1, Section Steady State Only, f",
+      "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+      "label": "TPL-008-1, Section Steady State Only, f",
+      "id": "Clause:C_008"
+    },
+    {
+      "type": "Rule",
+      "rule_id": "R_2019",
+      "condition": "loading_pct > 100",
+      "entity": "Facility",
+      "severity": "high",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "action": "BLOCK",
+      "explanation": "Applicable facility ratings must not be exceeded during steady-state operation.",
+      "label": "R_2019",
+      "id": "Rule:R_2019"
+    },
+    {
+      "type": "Document",
+      "stem": "power-system-requirements",
+      "issuing_body": null,
+      "n_candidates": 11,
+      "label": "power-system-requirements",
+      "id": "Document:power-system-requirements"
+    },
+    {
+      "type": "Clause",
+      "text": "EMO Dispatch Computer Constraints, Section 3.1",
+      "document": "power-system-requirements",
+      "label": "EMO Dispatch Computer Constraints, Section …",
+      "id": "Clause:C_009"
+    },
+    {
+      "type": "Rule",
+      "rule_id": "R_2165",
+      "condition": "loading_pct > 100",
+      "entity": "Line",
+      "severity": "critical",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "action": "REDISPATCH",
+      "explanation": "Generation must be constrained to keep power flows within the technical limits of available network infrastructure.",
+      "label": "R_2165",
+      "id": "Rule:R_2165"
+    },
+    {
+      "type": "Document",
+      "stem": "TPL-001-5.1 — Transmission System Planning Performance Requirements",
+      "issuing_body": "NERC",
+      "n_candidates": 11,
+      "label": "TPL-001-5.1 — Transmission System…",
+      "id": "Document:TPL-001-5.1 — Transmission System Planning Performance Requirements"
+    },
+    {
+      "type": "Clause",
+      "text": "TPL-001-5.1, Section 5.1.f",
+      "document": "TPL-001-5.1 — Transmission System Planning Performance Requirements",
+      "label": "TPL-001-5.1, Section 5.1.f",
+      "id": "Clause:C_010"
+    },
+    {
+      "type": "Rule",
+      "rule_id": "R_167",
+      "condition": "loading_pct > 100",
+      "entity": "Facility",
+      "severity": "high",
+      "role": "CONSTRAINT",
+      "affirms": null,
+      "action": "BLOCK",
+      "explanation": "Applicable facility ratings must not be exceeded under steady-state conditions.",
+      "label": "R_167",
+      "id": "Rule:R_167"
+    }
+  ],
+  "edges": [
+    {
+      "type": "instantiates",
+      "source": "ServedRule:R_858",
+      "target": "Predicate:P_000"
+    },
+    {
+      "type": "reads",
+      "source": "Predicate:P_000",
+      "target": "Variable:loading_pct"
+    },
+    {
+      "type": "instantiates",
+      "source": "ServedRule:R_916",
+      "target": "Predicate:P_000"
+    },
+    {
+      "type": "instantiates",
+      "source": "ServedRule:R_1154",
+      "target": "Predicate:P_001"
+    },
+    {
+      "type": "reads",
+      "source": "Predicate:P_001",
+      "target": "Variable:voltage_pu_min"
+    },
+    {
+      "type": "reads",
+      "source": "Predicate:P_001",
+      "target": "Variable:voltage_pu_max"
+    },
+    {
+      "type": "instantiates",
+      "source": "ServedRule:R_1443",
+      "target": "Predicate:P_000"
+    },
+    {
+      "type": "contains",
+      "source": "Document:Bangladesh_Electricity-Grid-Code-regulations",
+      "target": "Clause:C_000"
+    },
+    {
+      "type": "contains",
+      "source": "Document:Bangladesh_Electricity-Grid-Code-regulations",
+      "target": "Clause:C_001"
+    },
+    {
+      "type": "states",
+      "source": "Clause:C_000",
+      "target": "Rule:R_858"
+    },
+    {
+      "type": "deduped_into",
+      "source": "Rule:R_858",
+      "target": "ServedRule:R_858"
+    },
+    {
+      "type": "states",
+      "source": "Clause:C_001",
+      "target": "Rule:R_916"
+    },
+    {
+      "type": "deduped_into",
+      "source": "Rule:R_916",
+      "target": "ServedRule:R_916"
+    },
+    {
+      "type": "contains",
+      "source": "Document:inverter-based_resource_performance_guideline",
+      "target": "Clause:C_002"
+    },
+    {
+      "type": "states",
+      "source": "Clause:C_002",
+      "target": "Rule:R_1154"
+    },
+    {
+      "type": "deduped_into",
+      "source": "Rule:R_1154",
+      "target": "ServedRule:R_1154"
+    },
+    {
+      "type": "contains",
+      "source": "Document:NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+      "target": "Clause:C_003"
+    },
+    {
+      "type": "contains",
+      "source": "Document:NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+      "target": "Clause:C_004"
+    },
+    {
+      "type": "contains",
+      "source": "Document:NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+      "target": "Clause:C_005"
+    },
+    {
+      "type": "contains",
+      "source": "Document:NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+      "target": "Clause:C_006"
+    },
+    {
+      "type": "contains",
+      "source": "Document:NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+      "target": "Clause:C_007"
+    },
+    {
+      "type": "contains",
+      "source": "Document:NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+      "target": "Clause:C_008"
+    },
+    {
+      "type": "states",
+      "source": "Clause:C_003",
+      "target": "Rule:R_1443"
+    },
+    {
+      "type": "deduped_into",
+      "source": "Rule:R_1443",
+      "target": "ServedRule:R_1443"
+    },
+    {
+      "type": "states",
+      "source": "Clause:C_004",
+      "target": "Rule:R_1492"
+    },
+    {
+      "type": "deduped_into",
+      "source": "Rule:R_1492",
+      "target": "ServedRule:R_1443"
+    },
+    {
+      "type": "states",
+      "source": "Clause:C_005",
+      "target": "Rule:R_1710"
+    },
+    {
+      "type": "deduped_into",
+      "source": "Rule:R_1710",
+      "target": "ServedRule:R_1443"
+    },
+    {
+      "type": "states",
+      "source": "Clause:C_006",
+      "target": "Rule:R_1717"
+    },
+    {
+      "type": "deduped_into",
+      "source": "Rule:R_1717",
+      "target": "ServedRule:R_1443"
+    },
+    {
+      "type": "states",
+      "source": "Clause:C_007",
+      "target": "Rule:R_2018"
+    },
+    {
+      "type": "deduped_into",
+      "source": "Rule:R_2018",
+      "target": "ServedRule:R_1443"
+    },
+    {
+      "type": "states",
+      "source": "Clause:C_008",
+      "target": "Rule:R_2019"
+    },
+    {
+      "type": "deduped_into",
+      "source": "Rule:R_2019",
+      "target": "ServedRule:R_1443"
+    },
+    {
+      "type": "contains",
+      "source": "Document:power-system-requirements",
+      "target": "Clause:C_009"
+    },
+    {
+      "type": "states",
+      "source": "Clause:C_009",
+      "target": "Rule:R_2165"
+    },
+    {
+      "type": "deduped_into",
+      "source": "Rule:R_2165",
+      "target": "ServedRule:R_916"
+    },
+    {
+      "type": "contains",
+      "source": "Document:TPL-001-5.1 — Transmission System Planning Performance Requirements",
+      "target": "Clause:C_010"
+    },
+    {
+      "type": "states",
+      "source": "Clause:C_010",
+      "target": "Rule:R_167"
+    },
+    {
+      "type": "deduped_into",
+      "source": "Rule:R_167",
+      "target": "ServedRule:R_1443"
+    }
+  ]
+}

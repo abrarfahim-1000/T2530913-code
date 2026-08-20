@@ -15,9 +15,9 @@ print(f"torch_geometric:  {torch_geometric.__version__}")
 print(f"networkx:         {nx.__version__}")
 if torch.cuda.is_available():
     print(f"CUDA version:      {torch.version.cuda}")
-    print(f"CUDA available:   {torch.cuda.is_available()}") # False on local, True on Research PC
+    print(f"CUDA available:   {torch.cuda.is_available()}") # True only on the LLM host
 elif torch.xpu.is_available():
-    print(f"XPU available:    {torch.xpu.is_available()}") # True on local, False on Research PC
+    print(f"XPU available:    {torch.xpu.is_available()}")  # the workstation path
 
 # Quick Grid2Op smoke test
 env = grid2op.make("l2rpn_neurips_2020_track1_small", backend=LightSimBackend())

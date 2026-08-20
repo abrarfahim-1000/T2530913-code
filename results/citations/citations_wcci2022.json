@@ -1,0 +1,105 @@
+{
+  "tag": "wcci2022",
+  "rules_kg": "kg/knowledge_graph.json",
+  "fired": [
+    {
+      "served_rule_id": "R_1443",
+      "condition": "loading_pct > 100",
+      "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+      "severity": "high",
+      "role": "CONSTRAINT",
+      "n_clauses": 7,
+      "n_documents": 2,
+      "n_bodies": 1,
+      "sources": [
+        {
+          "rule_id": "R_1443",
+          "clause": "Guidelines and Technical Basis, Page 465, Example criteria (a)",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1492",
+          "clause": "NERC PRC-005, Section 6.2.1",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_2019",
+          "clause": "TPL-008-1, Section Steady State Only, f",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_2018",
+          "clause": "TPL-008-1, Table 1 (f)",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1710",
+          "clause": "Text Section 6.c",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1717",
+          "clause": "Text Section 7c, Non-Limited Impact RAS Ratings",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_167",
+          "clause": "TPL-001-5.1, Section 5.1.f",
+          "document": "TPL-001-5.1 — Transmission System Planning Performance Requirements",
+          "issuing_body": "NERC"
+        }
+      ],
+      "n_blocks": 22559
+    },
+    {
+      "served_rule_id": "R_858",
+      "condition": "loading_pct > 100.0",
+      "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+      "severity": "high",
+      "role": "CONSTRAINT",
+      "n_clauses": 1,
+      "n_documents": 1,
+      "n_bodies": 1,
+      "sources": [
+        {
+          "rule_id": "R_858",
+          "clause": "Section 8.3.1.2",
+          "document": "Bangladesh_Electricity-Grid-Code-regulations",
+          "issuing_body": "Bangladesh Energy Regulatory Commission"
+        }
+      ],
+      "n_blocks": 22559
+    },
+    {
+      "served_rule_id": "R_916",
+      "condition": "loading_pct > 100",
+      "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+      "severity": "medium",
+      "role": "CONSTRAINT",
+      "n_clauses": 2,
+      "n_documents": 2,
+      "n_bodies": 1,
+      "sources": [
+        {
+          "rule_id": "R_916",
+          "clause": "Grid Code Section 11.4.1, Item ix",
+          "document": "Bangladesh_Electricity-Grid-Code-regulations",
+          "issuing_body": "Bangladesh Energy Regulatory Commission"
+        },
+        {
+          "rule_id": "R_2165",
+          "clause": "EMO Dispatch Computer Constraints, Section 3.1",
+          "document": "power-system-requirements",
+          "issuing_body": null
+        }
+      ],
+      "n_blocks": 22559
+    }
+  ]
+}
