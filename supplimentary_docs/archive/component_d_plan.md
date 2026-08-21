@@ -1,3 +1,42 @@
+> # ⚠️ RETIRED 2026-08-21 — FOLDED INTO `thesis_findings.md`. DO NOT FOLLOW, DO NOT CITE.
+>
+> This was the operative build plan from 2026-08-15 to 2026-08-21. **All four components are now
+> built and measured, so there is nothing left to plan.** Every section that carried live content
+> was moved into a document that is still maintained:
+>
+> | what was here | where it lives now |
+> |---|---|
+> | §1.1, §2 — task selection, the two rejected forecast targets, the closed-form classify finding | `thesis_findings.md` §9 |
+> | §3, §3.1–§3.5 — extraction pipeline, corpus measurements, the stage-2 parsing bug | `thesis_findings.md` §10.1–§10.2 |
+> | §4, §4.2 — the polarity guard, the audit, variable coverage | `thesis_findings.md` §10.3–§10.4 |
+> | §5, §5.1 — the binding voltage contract and base-kV derivation | `thesis_findings.md` §11 |
+> | §6 — the shield's gating logic and Option A semantics | `revised_thesis_claim.md` §5.1 |
+> | §6.1 — the forecast-task shield change | **dropped** — that task was rejected and never trained |
+> | §7 — interpretability controls, designed but never run | `thesis_findings.md` §17.1 · `revised_thesis_claim.md` §9 |
+> | §7.5 — the agenda | `thesis_findings.md` §17 (only the open items survive) |
+> | §7.6 — cross-topology raw-model table and the untested hypothesis | `thesis_findings.md` §14 |
+> | §8 — metrics and verification gates | `thesis_findings.md` §13.5 |
+> | §9 — landmines | `thesis_findings.md` §18 |
+> | §10, §13.1 — runbooks | `CLAUDE.md` (Development Commands) |
+> | §11, §11.3, §11.4 — guarded-corpus shield result, structural ceiling, tautology caveat | `thesis_findings.md` §13.1, §13.3, §13.4 |
+> | §12 — document alignment, and why re-extraction is not recommended | `thesis_findings.md` §15 |
+> | §13, §14 — decisions, run-3 guard, the invariance result | `thesis_findings.md` §10.3, §13.6 |
+> | §15 — the validation A/B and the fabricated reasoning | `thesis_findings.md` §12 |
+> | §16 — the provenance knowledge graph | `thesis_findings.md` §16 · `revised_thesis_claim.md` §8 |
+> | §17 — the pre-commit cleanup ledger | **stays here only** — a one-time historical record, cited by nothing |
+>
+> **Two sections below are actively WRONG and were corrected during the fold.** §11.2's
+> "the shield's overrides are coin flips in-distribution" reading is **void** (see
+> `thesis_findings.md` §13.2), and §1.1/§2 quote "100% agreement on 55,000 records" and "100% of
+> frames are mixed", both superseded (315,000 records / 0 disagreements, and 96–99% mixed).
+> The §6.1 forecast design describes a task that was rejected and never built.
+>
+> Retained unedited as the working journal: it records the order things were discovered in, the
+> predictions made before the fact, and the reasoning behind decisions that the folded documents
+> state only as conclusions.
+
+---
+
 # Neuro-Symbolic Grid Project — Current Plan
 
 **Supersedes `archive/component_d_handoff_archive.md`** (retired 2026-08-15, kept for the v1/v2
@@ -7,7 +46,7 @@ negative-results record only). Everything still operative is in this file.
 negative results — note §2 below reopens Component A).
 
 **For the narrative account** — what was found and what it means, readable without the
-codebase open — see [`thesis_findings.md`](thesis_findings.md). This file is the
+codebase open — see [`thesis_findings.md`](../thesis_findings.md). This file is the
 operational record: runbooks, derivations, landmines. Where the two disagree, this one
 is authoritative and the findings doc needs correcting.
 
@@ -776,7 +815,7 @@ likely under the forecast task, but check and flag rather than quietly count.
 
 Component A is **done and trained**: N-1 screening, held-out test F1 **0.8874**, AP 0.9550, 1.91×
 the best single-rule baseline (0.4639); message passing contributes +0.058 over endpoint features.
-See [`gnn_n1_tightening.md`](gnn_n1_tightening.md). Everything below is what remains.
+See [`gnn_n1_tightening.md`](../gnn_n1_tightening.md). Everything below is what remains.
 
 | # | Task | Blocked on | Notes |
 |---|---|---|---|
@@ -827,7 +866,7 @@ Voltage class is the obvious suspect, and §5.1 supplies the numbers. Backend ba
 | wcci2022 | 138, **161**, 345 | almost entirely |
 | case14 | **14, 20**, 138 | mostly **not** |
 
-The `mean_v` node feature is `v/150.0` ([pyg_data.py](../scripts/pyg_data.py) `build_node_features`),
+The `mean_v` node feature is `v/150.0` ([pyg_data.py](../../scripts/pyg_data.py) `build_node_features`),
 so a 20 kV case14 line enters at ≈0.13 where training saw ≈1.0 — a feature the model has never
 observed in that range, and foreign features are normalized with 36-bus stats. wcci sits inside the
 training distribution on this axis; case14 does not.

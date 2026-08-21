@@ -11,7 +11,7 @@ Foreign features are normalized with the **36-bus train-split stats**, matching
 the classify protocol: the quantities are physical and share scale across grids.
 
 Every number is reported against the two baselines that decide whether the model
-earned anything (component_d_plan.md §1.1):
+earned anything (supplimentary_docs/thesis_findings.md §9.3):
 
   all-positive           is the target non-vacuous?
   rho of the removed line   does the model beat the best single rule?
@@ -47,6 +47,31 @@ from training.train_gnn import GridGNN, compute_normalization_stats
 CKPT = "gnn_checkpoint_n1.pt"
 HOME = "neurips2020"
 
+# ── EVAL BATCH SIZE — a RECORDED DECISION, not an incidental default ──────────
+# Settled 2026-08-21: keep 64. Every number reported anywhere in this project was
+# measured at this value.
+#
+# It is load-bearing. GridGNN uses BatchNorm(track_running_stats=False), so the
+# network normalizes with LIVE BATCH STATISTICS at inference, not stored running
+# averages. Batch composition therefore changes the logits, and the same
+# checkpoint on the same split scores:
+#
+#     batch  64 -> F1 0.8972   (this default; the source of every reported figure)
+#     batch 128 -> F1 0.9088
+#     batch 256 -> F1 0.9241
+#     batch 512 -> F1 0.9255   (TRAIN_CONFIG's value, what training evaluated at)
+#
+# Positives (20,801) and the rule baseline (0.4639) are constant across all four,
+# so this is the forward pass, not the data.
+#
+# Shield DELTAS are stable across the same change (+0.0082 -> +0.0072) because
+# both arms share one forward pass; absolute F1 is not. Report deltas, not levels.
+#
+# Changing this invalidates comparison with every recorded result. See
+# supplimentary_docs/gnn_n1_tightening.md §8.
+EVAL_BATCH_SIZE = 64
+
+
 
 def best_f1_and_thr(score: np.ndarray, y: np.ndarray) -> tuple[float, float]:
     order = np.argsort(-score)
@@ -64,8 +89,18 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--tag", default="case14")
     ap.add_argument("--checkpoint", default=CKPT)
-    ap.add_argument("--batch-size", type=int, default=64)
+    ap.add_argument("--batch-size", type=int, default=EVAL_BATCH_SIZE,
+                    help=f"Eval batch size (default {EVAL_BATCH_SIZE}). LOAD-BEARING — "
+                         "BatchNorm uses live batch stats, so changing this changes the "
+                         "absolute F1. See gnn_n1_tightening.md §8.")
     args = ap.parse_args()
+
+    if args.batch_size != EVAL_BATCH_SIZE:
+        print(f"\n  !! WARNING: --batch-size {args.batch_size} != {EVAL_BATCH_SIZE}. "
+              f"BatchNorm uses live batch statistics, so absolute F1 will NOT match "
+              f"any recorded result. Deltas remain comparable. "
+              f"(gnn_n1_tightening.md §8)\n")
+
 
     jsonl = os.path.join(DATA_DIR, f"grid_dataset_{args.tag}_n1.jsonl")
     meta_path = os.path.join(DATA_DIR, f"grid_dataset_{args.tag}_n1_meta.json")

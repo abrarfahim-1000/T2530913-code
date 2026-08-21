@@ -51,7 +51,8 @@ SEVERITY_VALUES = {"critical", "high", "medium", "low"}
 #                 The shield BLOCKs.
 #   AFFIRMATION — condition TRUE means the telemetry is consistent with the
 #                 predicted class named in `affirms`. Supporting evidence, never a
-#                 block on its own (Option A semantics, component_d_plan.md).
+#                 block on its own (Option A semantics; supplimentary_docs/
+#                 revised_thesis_claim.md §5.1).
 #
 # Forcing every rule into CONSTRAINT polarity is what mangled healthy-band clauses
 # in v1 and v2: "voltage shall remain within 0.95-1.05" is an AFFIRMATION of

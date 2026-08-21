@@ -214,3 +214,23 @@ def test_load_rules_exits_with_guidance_when_stage_three_has_not_run(tmp_path):
     with pytest.raises(SystemExit) as exc:
         load_rules(str(tmp_path / "nope.jsonl"))
     assert "validate.py" in str(exc.value)
+
+
+def test_eval_batch_size_is_pinned_at_64():
+    """The eval batch size is a recorded decision, not a tunable.
+
+    GridGNN uses BatchNorm(track_running_stats=False), so the network normalizes
+    with live batch statistics at inference. Batch composition therefore changes
+    the logits: the same checkpoint on the same split scores F1 0.8972 at batch 64
+    and 0.9255 at batch 512. Every number recorded anywhere in this project was
+    measured at 64.
+
+    Changing this constant silently invalidates comparison with every recorded
+    result, so it is pinned here. If it is ever changed deliberately, regenerate
+    every reported figure in the same pass — a mixed table is the failure this
+    test exists to prevent. See supplimentary_docs/gnn_n1_tightening.md section 8.
+    """
+    from evaluation import eval_n1_cross_topology, eval_shield_n1
+
+    assert eval_shield_n1.EVAL_BATCH_SIZE == 64
+    assert eval_n1_cross_topology.EVAL_BATCH_SIZE == 64

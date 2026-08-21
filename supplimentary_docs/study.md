@@ -283,16 +283,26 @@ and no per-bus localizer; both belonged to the retired classify model.
 
 Trained on 12,000 frames / 576 chronics / 702,618 contingency labels, chronic-level 70/15/15 split.
 
-| topology | lines | contingencies | best single rule | **model** | AP |
-|---|---:|---:|---:|---:|---:|
-| neurips2020 *(in-dist, test split)* | 59 | 113,205 | 0.4639 | **0.8972** — 1.93× | 0.9615 |
-| case14 *(unseen, smaller)* | 20 | 118,502 | 0.5392 | **0.4477** — **0.83×, FAILS** | 0.4270 |
-| wcci2022 *(unseen, larger)* | 186 | 742,472 | 0.4915 | **0.5721** — 1.16× | 0.6419 |
+Threshold **0.8849, selected once on the neurips2020 validation split and applied unchanged to all
+three grids** — the same protocol the shield table uses.
+
+| topology | lines | contingencies | all-positive | best single rule | **model (held)** | *oracle* |
+|---|---:|---:|---:|---:|---:|---:|
+| neurips2020 *(in-dist, test split)* | 59 | 113,205 | 0.3104 | 0.4639 | **0.8956** — 1.93× | *0.8972* |
+| case14 *(unseen, smaller)* | 20 | 118,502 | 0.4345 | 0.5392 | **0.4167** — **0.77×, FAILS** | *0.4477* |
+| wcci2022 *(unseen, larger)* | 186 | 742,472 | 0.3969 | 0.4915 | **0.5577** — 1.13× | *0.5721* |
 
 **Generalisation is partial and asymmetric, and the direction is the opposite of the naive
 expectation:** scaling *up* (36 → 118 buses) costs far less than scaling *down* (36 → 14). On the
-smaller grid the model loses to a single-threshold baseline outright. Report it as such — it is
-the degradation the §0 claim predicts, and it is what the shield is measured against.
+smaller grid the model loses to a single-threshold baseline outright — and to the all-positive
+baseline as well (0.4167 vs 0.4345, **0.96×**), so on case14 it is beaten by answering "violation"
+unconditionally. Report it as such: it is the degradation the §0 claim predicts, and it is what the
+shield is measured against.
+
+⚠ The *oracle* column is best-threshold on each grid individually, selected with the answer key and
+therefore unobtainable in deployment. It is kept only because the shield's headline claim is
+measured against it. Its optimism grows off-distribution — +0.0015 at home, +0.0310 on case14 —
+which is why the held column is the one to quote.
 
 ---
 
@@ -1113,8 +1123,8 @@ third more — but only if a rule existed that fires where the thermal check doe
 The agreed analysis (node-count ratio, average degree, diameter, density vs F1, to find the
 breakpoint) was **not run**; only three topologies exist, which is too few to fit a trend. The one
 thing the three points do show is that the naive predictor is wrong: **scaling up cost far less
-than scaling down** (0.5721 at 118 buses vs 0.4477 at 14, from a 36-bus model). Do not present
-node count as the driver.
+than scaling down** (0.5577 at 118 buses vs 0.4167 at 14, from a 36-bus model, at the held
+threshold). Do not present node count as the driver.
 
 ---
 

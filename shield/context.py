@@ -1,5 +1,5 @@
 """
-context.py — the binding voltage contract (component_d_plan.md §5).
+context.py — the binding voltage contract (supplimentary_docs/thesis_findings.md §11).
 
 Turns one raw telemetry frame into the exact namespace a rule condition is
 evaluated against. This is the single definition of "what a context is"; the
@@ -23,7 +23,7 @@ from typing import Any, Optional
 
 import numpy as np
 
-# The six variables a rule condition may reference (extraction.common.CONDITION_VOCABULARY).
+# The 14 variables a rule condition may reference (extraction.common.CONDITION_VOCABULARY).
 # Duplicated as a plain tuple so shield/ imports nothing from extraction/ at inference time.
 CONTEXT_VARIABLES = (
     "voltage_pu_min",

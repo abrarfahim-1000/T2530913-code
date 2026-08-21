@@ -14,7 +14,7 @@ The GNN is trained on one topology (36-bus) and evaluated on unseen topologies (
 
 ---
 
-## Current Status (2026-08-15)
+## Current Status (2026-08-21)
 
 > **Start here for results:** [`supplimentary_docs/thesis_findings.md`](supplimentary_docs/thesis_findings.md)
 > — the plain-language account of every measured finding, with the caveats that must travel
@@ -22,23 +22,32 @@ The GNN is trained on one topology (36-bus) and evaluated on unseen topologies (
 >
 > **ALL FOUR COMPONENTS ARE BUILT as of 2026-08-20.** Every Component B stage has run; the
 > corpus to cite is `validated_translated/all_rules_deduped.jsonl` (4 rules), and Component C is
-> `kg/knowledge_graph.json` — see `component_d_plan.md` §16. What remains is optional robustness,
-> not construction (§16.8).
+> `kg/knowledge_graph.json` — see `thesis_findings.md` §16. What remains is optional robustness,
+> not construction (`thesis_findings.md` §17).
 >
-> **The operative plan is [`supplimentary_docs/component_d_plan.md`](supplimentary_docs/component_d_plan.md).**
-> Read it before starting work — it carries the task redesign, the runbook, and the landmines.
-> This file describes the *architecture*; the plan describes *what to do next*.
-> `archive/component_d_handoff_archive.md` is retired — do not follow it.
+> **New to this project? Read
+> [`thesis_walkthrough.md`](supplimentary_docs/thesis_walkthrough.md) first** — a plain-English walkthrough
+> of every stage in the order it was built, written for readers who know CS but not power grids.
+>
+> **The two live reference documents are [`thesis_findings.md`](supplimentary_docs/thesis_findings.md)
+> and [`revised_thesis_claim.md`](supplimentary_docs/revised_thesis_claim.md).** The first is the
+> complete record: §1–§8 narrative, §9–§18 the derivations, landmines and open items. The second
+> says what the thesis may and may not claim. This file describes the *architecture and the
+> commands*; those describe *what was found and what it means*.
+> ⚠ `component_d_plan.md` was the operative plan until 2026-08-21. It has been folded into
+> `thesis_findings.md` §9–§18 and archived at `archive/component_d_plan.md` — **do not follow it**,
+> and do not cite it: every section it carried now lives in a live document.
 
 > **2026-08-16 — the task is now N-1 CONTINGENCY SCREENING (`--task n1`).** Two earlier task
 > designs were built, probed and rejected *before* generating against them; the full evidence chain
-> is [`component_d_plan.md`](supplimentary_docs/component_d_plan.md) §1.1. Short version: the
+> is [`thesis_findings.md`](supplimentary_docs/thesis_findings.md) §9. Short version: the
 > 4-class `classify` target is closed-form (4 if/else rules = **100% agreement, 0 disagreements
 > in 315,000 records** — see "Why classification was abandoned" below), and the binary `forecast`
 > target is either unlearnable (any-fault: 1.00× the all-positive baseline at every H ≥ 3, because
 > trip onset is an unconditional coin flip) or exhausted by one threshold (overload-only: model
-> 0.163 vs rule 0.160). N-1 screening is neither — global `rho_max` scores 1.04× baseline, 100% of
-> frames are mixed, and a network-aware model reaches 0.868 against a best-rule 0.608. **No rule
+> 0.163 vs rule 0.160). N-1 screening is neither — global `rho_max` scores 1.04× baseline, 96–99%
+> of frames are strictly mixed (⚠ **not** 100% — see "Why no global pooling" below), and a
+> network-aware model reaches 0.868 against a best-rule 0.608. **No rule
 > over the present observation can restate an N-1 label, because producing it needs a power-flow
 > solve** — which is what permanently un-rigs the shield comparison.
 >
@@ -48,20 +57,36 @@ The GNN is trained on one topology (36-bus) and evaluated on unseen topologies (
 > in [`gnn_n1_tightening.md`](supplimentary_docs/gnn_n1_tightening.md).
 >
 > **CROSS-TOPOLOGY, measured 2026-08-16 — generalisation is PARTIAL and ASYMMETRIC.** Full table,
-> caveats and an untested hypothesis in [`component_d_plan.md`](supplimentary_docs/component_d_plan.md) §7.6.
+> caveats and an untested hypothesis in [`thesis_findings.md`](supplimentary_docs/thesis_findings.md) §14.
 >
-> | topology | lines | contingencies | best rule | **model** | AP |
-> |---|---:|---:|---:|---:|---:|
-> | neurips2020 *(in-dist)* | 59 | 113,205 | 0.4639 | **0.8972** — 1.93× | 0.9615 |
-> | case14 *(unseen, smaller)* | 20 | 118,502 | 0.5392 | **0.4477** — **0.83×, FAILS** | 0.4270 |
-> | wcci2022 *(unseen, larger)* | 186 | 742,472 | 0.4915 | **0.5721** — 1.16× | 0.6419 |
+> **Held threshold (0.8849, selected on the neurips2020 val split, applied unchanged everywhere) —
+> the protocol to cite:**
+>
+> | topology | lines | contingencies | all-positive | best rule | **model (held)** | oracle |
+> |---|---:|---:|---:|---:|---:|---:|
+> | neurips2020 *(in-dist)* | 59 | 113,205 | 0.3104 | 0.4639 | **0.8956** — 1.93× | *0.8972* |
+> | case14 *(unseen, smaller)* | 20 | 118,502 | 0.4345 | 0.5392 | **0.4167** — **0.77×, FAILS** | *0.4477* |
+> | wcci2022 *(unseen, larger)* | 186 | 742,472 | 0.3969 | 0.4915 | **0.5577** — 1.13× | *0.5721* |
 >
 > Scaling **up** costs far less than scaling **down** — the opposite of the naive expectation.
-> On case14 the model loses to the single-rule baseline outright; report it as such. Every figure
-> is best-threshold *on its own topology* (agenda item 6 would lower all three). Note the eval
-> script reads 0.8972/0.9615 in-distribution where the tightening doc records 0.8872/0.9549 —
-> the checkpoint on disk is from a different run than the one written up; treat the checkpoint as
-> authoritative.
+> ⚠ **On case14 the model scores 0.77× the rule baseline AND 0.96× the all-positive baseline** —
+> it loses to answering "violation" every time. Report it as a failure.
+> The *oracle* column is best-threshold on each grid, chosen with the answer key. It is not
+> obtainable in deployment; it is retained only because the shield's headline claim is measured
+> against it. **Never mix the two columns.**
+>
+> 🚨 **TWO PROTOCOL CAVEATS, and every figure above carries both.** (a) Best-threshold *on its own
+> topology* — optimistic; selecting on val and holding fixed would lower all three rows.
+> (b) **Eval batch size 64.** Measured 2026-08-21: the tracked checkpoint scores **0.8972 at batch
+> 64 and 0.9255 at batch 512** on the identical split, because `BatchNorm(track_running_stats=False)`
+> uses live batch statistics at inference, so batch composition changes the logits. Positives
+> (20,801) and the rule baseline (0.4639) are constant throughout, so it is the forward pass, not
+> the data. **Never quote a model F1 without its batch size.** The shield's delta and intervention
+> precision are stable across the same change (+0.0082 to +0.0072; 0.938 to 0.930) because both
+> arms share one forward pass — report deltas, not levels. Full table:
+> `gnn_n1_tightening.md` §8. ⚠ This supersedes the note that said the 0.8972/0.8872 gap was
+> "a different run": it is a protocol difference, and 0.8872 does not reproduce from the tracked
+> checkpoint at any batch size tested.
 >
 > 🚨 **That doc also records a normalization bug affecting EVERY task, including the frozen
 > classify checkpoint.** `compute_normalization_stats()` populates PyG's `_data_list` cache, so the
@@ -147,7 +172,7 @@ architecture experiments remain documented in
 > very prompt. **The verdicts were stable across runs while the reasoning was fabricated;
 > only persisting the reasons exposed it.** The 21 shared rejections are substantive (PRC-024
 > ride-through curves, ENTSO-E time-bound envelopes, role inversions) — though ≥3 are wrong
-> and 4 more should have been CORRECT. Full account: `component_d_plan.md` §15.
+> and 4 more should have been CORRECT. Full account: `thesis_findings.md` §12.
 >
 > **The validated 4-rule corpus BEATS the guarded 32 on every metric on every topology:**
 >
@@ -162,7 +187,7 @@ architecture experiments remain documented in
 > the voltage rules on textual grounds, having never seen fire-rate data, and precision is then
 > **flat at 0.938 / 0.922 / 0.934**. What changes off-distribution is how *often* the gate can
 > speak (0.31% → 0.087% → 3.04%) and how much model error it can reach (16.2% / 0.51% / 30.9%),
-> not how right it is. See `component_d_plan.md` §15.7 — do not restate the old version.
+> not how right it is. See `thesis_findings.md` §13.2 — do not restate the old version.
 >
 > **Convergence (§15.8):** an empirical filter (fire rates on real grid data, no LLM) and a
 > textual auditor (source standards, no grid data) independently kept the same family. Neither
@@ -172,7 +197,7 @@ architecture experiments remain documented in
 > Run 2: `total_no_verdict: 0`, `total_unparseable: 0` — every one of the 2,463 rules got a verdict.
 > **82 translated (3.3%) → guard 33 kept (59.8% rejected) → audit 11 distinct rules can do work**,
 > of which the only unambiguously useful family is `loading_pct > 100`. Surviving rules cover
-> **4 of 14** observable variables and **nothing about topology** — see `component_d_plan.md` §4.2
+> **4 of 14** observable variables and **nothing about topology** — see `thesis_findings.md` §10.4
 > for the headline finding (the standards/simulator mismatch runs both ways) and the two caveats
 > that must travel with it. New: `evaluation/audit_rules.py`. History of the original bug follows.
 >
@@ -184,7 +209,7 @@ architecture experiments remain documented in
 > about the corpus** — only 233 rules (9.5%) ever received a verdict. Fixed in
 > `common.py` (rule_id in every example) and `translate.py` (`build_result_map`, positional
 > fallback, no silent drops, `--debug-raw`, NO_VERDICT tripwire). Guarded by
-> `tests/test_translate_mapping.py`. Full account: `component_d_plan.md` §3.5.
+> `tests/test_translate_mapping.py`. Full account: `thesis_findings.md` §10.2.
 > ⚠️ `translated_rules/` on disk is the FAILED run — evidence only, do not feed it to stage 2.5.
 
 **Component B (LLM extraction) — ALL FOUR STAGES DONE (2026-08-20).** 2,463 candidates across 16
@@ -256,7 +281,7 @@ changes off-distribution is how *often* it can act and how much of the model's e
 where the doctrine can reach it. ⚠ Two caveats travel with this: `loading_pct > 100` on the
 base case is close to a physical tautology (P(violation | base overloaded) = 91–96%, not
 100%), and the N-1 doctrine it enforces is hand-written in `validate_n1`, not extracted.
-Full account and both caveats: `component_d_plan.md` §15.6–§15.9. The guarded-32 numbers in
+Full account and both caveats: `thesis_findings.md` §13. The guarded-32 numbers in
 §11 are superseded but retained — the diff between the two corpora is itself the evidence.
 
 **Live harness is `evaluation/eval_shield_n1.py`.** The classify-era `eval_shield.py` was
@@ -310,7 +335,7 @@ pip install -r requirements.txt
 # only the environment differs. At the old stride 4 a 12k-frame budget would have
 # covered only ~210 of neurips's 576 chronics instead of all of them.
 #
-# All three sets below are GENERATED and verified (component_d_plan.md §7.6).
+# All three sets below are GENERATED and verified (thesis_findings.md §14).
 # Measured throughput, not estimates:
 python scripts/generate_dataset.py --env neurips --n_records 12000   # 20 min, 10 rec/s, 702k labels
 python scripts/generate_dataset.py --env case14  --n_records 6000    #  5 min, 21 rec/s, 119k labels
@@ -324,7 +349,7 @@ python scripts/generate_dataset.py --env case14 --smoke
 # ⚠️ Forecast task — BUILT, PROBED, REJECTED. Retained ONLY to reproduce the
 # negative result; do not train against it, and do not delete it to "finish" the
 # classify cleanup — no forecast dataset exists on disk, so the code is the only
-# way to reproduce component_d_plan.md §1.1 steps 1-2. Any-fault scores 1.00x the
+# way to reproduce thesis_findings.md §9.2. Any-fault scores 1.00x the
 # all-positive baseline at every H >= 3 (line-trip onset is an unconditional coin
 # flip); overload-only is exhausted by a single rho threshold (model 0.163 vs rule
 # 0.160, trend features do not help).
@@ -347,7 +372,7 @@ python extraction/extract.py --docs data/documents/ --out rules/     # DONE - do
 # ⚠️ Check `total_no_verdict` in translation_run_summary.json before believing the
 #    yield: NO_VERDICT means the rule was never assessed (a parsing failure), which
 #    is a different claim from "not expressible" and looks identical in the totals.
-#    The run logs an ERROR above 20%. See component_d_plan.md §3.5.
+#    The run logs an ERROR above 20%. See thesis_findings.md §10.2.
 python extraction/translate.py --candidates rules_35b/ --out rules/
 
 # Stage 2.5: polarity guard (deterministic, no LLM/GPU) — --report first to pick the cutoff
@@ -357,7 +382,7 @@ python extraction/polarity_guard.py --translated rules/ --report
 python extraction/polarity_guard.py --translated rules/
 
 # Stage 3: Validate guarded rules (Nemotron-3 Nano 30B) — reads guarded/*_translated.jsonl
-# DONE 2026-08-20 — do not re-run without reading component_d_plan.md §15 first.
+# DONE 2026-08-20 — do not re-run without reading thesis_findings.md §12 first.
 #
 # ⚠️ --prompt-variant is LOAD-BEARING. 'strict' asks whether the constraint is *stated* in
 #    the source text, which a translated condition never is; it rejected 31 of 32 rules,
@@ -415,14 +440,25 @@ python scripts/verify_n1_dataset.py --tag neurips2020
 
 # Per-contingency metrics vs both baselines. neurips2020 scores the held-out
 # test split; foreign topologies score every frame. All three RUN — results and
-# caveats in component_d_plan.md §7.6.
-python evaluation/eval_n1_cross_topology.py --tag neurips2020   # F1 0.8972  (1.93x rule)
-python evaluation/eval_n1_cross_topology.py --tag case14        # F1 0.4477  (0.83x rule — FAILS)
-python evaluation/eval_n1_cross_topology.py --tag wcci2022      # F1 0.5721  (1.16x rule)
+# caveats in thesis_findings.md §14.
+# ⚠️ This script reports BEST-THRESHOLD on each grid — the ORACLE figure, chosen with
+#    the answer key. The held-threshold figures that the docs cite are the `gnn` arm of
+#    eval_shield_n1.py below: 0.8956 / 0.4167 / 0.5577.
+python evaluation/eval_n1_cross_topology.py --tag neurips2020   # oracle F1 0.8972  (held 0.8956)
+python evaluation/eval_n1_cross_topology.py --tag case14        # oracle F1 0.4477  (held 0.4167 — FAILS, 0.77x rule)
+python evaluation/eval_n1_cross_topology.py --tag wcci2022      # oracle F1 0.5721  (held 0.5577)
+
+# Threshold trade curve — how the cutoff's SELECTION OBJECTIVE changes the outcome.
+# Threshold is always chosen on the neurips2020 val split and held across grids; only
+# the objective varies (F-beta, beta>1 prices a missed violation at beta^2 false alarms).
+# Scores each grid ONCE and reuses the logits, so it is one forward pass per grid.
+# DONE 2026-08-21 — results in thesis_findings.md §14.2, artifact in results/threshold/.
+# F1 is the RETAINED protocol; this exists to disclose the trade, not to replace it.
+python evaluation/sweep_threshold.py
 
 # Shield (Component D) vs the raw model, per contingency. --rules MUST point at the
 # validated corpus; the default is the stale rules/ path and the guarded folder is
-# superseded (component_d_plan.md §15.6). Threshold is selected on the neurips2020 val
+# superseded (thesis_findings.md §13.1). Threshold is selected on the neurips2020 val
 # split and held fixed across all three — do not pass --threshold.
 python evaluation/eval_shield_n1.py --tag neurips2020 --rules validated_translated/all_rules_deduped.jsonl --json results/shield/shield_neurips2020_validated.json  # +0.0082, prec 0.938
 python evaluation/eval_shield_n1.py --tag case14      --rules validated_translated/all_rules_deduped.jsonl --json results/shield/shield_case14_validated.json       # +0.0021, prec 0.922
@@ -486,6 +522,7 @@ results/                           # every artifact the eval harness writes (was
   shield/     shield_<tag>[_run3|_validated|_kg].json   # tracked — the recorded result
   citations/  citations_<tag>.json                      # tracked — provenance chains
   audit/      audit_run3.json                           # tracked — evaluation/audit_rules.py
+  threshold/  threshold_sweep.json                      # tracked — evaluation/sweep_threshold.py
   failures/   failures_<tag>.jsonl                      # GITIGNORED — ~14 MB, rebuilt by re-running
 
 docs/                              # the 16 source PDFs (gitignored)
@@ -534,16 +571,20 @@ training/
 evaluation/
   eval_n1_cross_topology.py        # per-contingency metrics vs the all-positive and rule baselines
   eval_shield_n1.py                # the live shield harness — writes into results/
+  sweep_threshold.py               # F-beta threshold trade curve (thesis_findings.md §14.2)
   audit_rules.py                   # offline rule audit (INERT/UNINFORMATIVE/USEFUL), no LLM
 
 notebooks/thesis_figures.ipynb     # 14 report figures -> figures/*.{svg,png}
 sanity/                            # standalone environment checks + the LLM throughput bench
 supplimentary_docs/
-  component_d_plan.md · study.md · formula.md · thesis_findings.md ·
-  gnn_n1_tightening.md · revised_thesis_claim.md      # LIVE
+  thesis_walkthrough.md            # ⭐ START HERE — plain-English walkthrough of every stage
+  thesis_findings.md               # ⭐ THE RECORD — §1-8 narrative, §9-18 derivations/landmines
+  revised_thesis_claim.md          # what the thesis may and may not claim
+  gnn_n1_tightening.md · study.md · formula.md                       # LIVE
   env_selection/                   # why these Grid2Op environments (Apr 2026, bannered)
   Architecture.svg                 # the four components on one page — REDRAWN 2026-08-20
-  archive/                         # retired: gnn_final_results, lever_A, CASCADE journal,
+  archive/                         # retired: component_d_plan (folded into thesis_findings
+                                   #   2026-08-21), gnn_final_results, lever_A, CASCADE journal,
                                    #   shield_necessity, study3(integration),
                                    #   component_d_handoff_archive
 ```
@@ -718,7 +759,7 @@ PDF chunks → Qwen3-14B → JSON candidates → Pydantic validation → Nemotro
 v2 ran all four stages: **2,463 candidates** (`rules_35b/`) → 58 translated → 32 guarded →
 **4 distinct validated rules** (`validated_translated/all_rules_deduped.jsonl`). 0.16% yield —
 a finding about the standards/simulator mismatch, not a success metric. See
-`component_d_plan.md` §12 for why, and §15 for the validation run.
+`thesis_findings.md` §15 for why, and §12 for the validation run.
 
 ### Rule Schema
 
@@ -798,12 +839,15 @@ forward-pass nondeterminism, not the graph. No count ever moved.
 
 **BUILT (2026-08-15) — but the pseudocode below is the OLD design and no longer matches the code.**
 The real implementation is `shield/{context,evaluator,shield}.py`; read those and
-`supplimentary_docs/component_d_plan.md` §5–§6 instead. Three differences that matter:
+`supplimentary_docs/thesis_findings.md` §11 (the voltage contract) and
+`revised_thesis_claim.md` §5 (the gate's logic and its four limits) instead. Three differences
+that matter:
 
 1. **Rule retrieval is not KG-based.** `validate(context, rules)` takes a plain rule list behind a
    `RuleProvider` protocol. The KG is an opt-in provider, never a dependency — nothing under
    `shield/` imports anything from `kg/`, and citation rendering lives in `kg/cite.py`.
-2. **`voltage_pu = min(v_or)/150.0` is wrong** — per-line base kV with energized-line masking (§5).
+2. **`voltage_pu = min(v_or)/150.0` is wrong** — per-line base kV with energized-line masking
+   (`thesis_findings.md` §11.1).
 3. **Rules have roles.** Only `CONSTRAINT` violations block; `AFFIRMATION` rules supply supporting
    evidence and never block on their own (Option A).
 
@@ -934,12 +978,13 @@ checkpoint, so training off the LLM host is the safer choice, not a compromise.
 |---|---|---|
 | `num_workers` | `0` | Windows PyG DataLoader constraint |
 | ~~Nominal voltage~~ | ~~`150.0 kV`~~ | **SUPERSEDED** — the shield uses per-line base kV from `data/grid_dataset_<tag>_basekv.json`. A flat divisor gives ~100% false blocks. Still used only for the GNN's `mean_v` node feature. |
-| Base kV method | `backend`, all 3 tags | **Settled 2026-08-16** (`component_d_plan.md` §5.1). Backend nominals: neurips 138/345, case14 14/20/138, wcci2022 138/161/345. These grids *operate* ~6% above nominal, so healthy frames read ~1.06 pu, **not ~1.00**. Empirical originals kept as `*_basekv_empirical.json` — do not delete, they are the counterfactual arm. Never pass `--empirical` again. |
+| Base kV method | `backend`, all 3 tags | **Settled 2026-08-16** (`thesis_findings.md` §11.2). Backend nominals: neurips 138/345, case14 14/20/138, wcci2022 138/161/345. These grids *operate* ~6% above nominal, so healthy frames read ~1.06 pu, **not ~1.00**. Empirical originals kept as `*_basekv_empirical.json` — do not delete, they are the counterfactual arm. Never pass `--empirical` again. |
 | FAULT_PROB | `0.05` | Grid2Op fault injection rate (`scripts/generate_dataset.py`) |
 | RECONNECT_PROB | `0.20` | Grid2Op reconnect probability |
 | `--n1-stride` | `12` | Labels every 12th step. The protocol on **all three** topologies — see the sizing note under Dataset Generation |
 | ~~NORMAL_KEEP_PROB~~ / ~~LINE_TRIP_KEEP_PROB~~ | — | **REMOVED 2026-08-16** with the classify generator. They drove that task's subsampling quotas; N-1 does not subsample by class. In git history only. |
 | Random seed | `42` | Model init + in-memory shuffle before training — deployed init is seed-sensitive, see Component A |
+| Eval batch size | `64` | **LOAD-BEARING and PINNED (decided 2026-08-21).** `EVAL_BATCH_SIZE` in both `eval_n1_cross_topology.py` and `eval_shield_n1.py`; the source of every reported model figure. `BatchNorm(track_running_stats=False)` uses live batch stats at inference, so the same checkpoint scores 0.8972 at 64 and 0.9255 at 512. Overriding `--batch-size` prints a warning. Shield deltas are stable; absolute F1 is not. Guarded by `tests/test_eval_shield_n1.py`. See `gnn_n1_tightening.md` §8 |
 | Checkpoint filename | `gnn_checkpoint_n1.pt` (repo root) — the ONLY model. Loads into the current `GridGNN` (8 node / 8 edge features, `line_head`). | Saved on best F1 during N-1 training |
 | ~~Logit margin~~ | ~~`gnn_logit_margin.json`~~ | **DELETED 2026-08-20** — Lever A was classify-only; recoverable from git history |
 | ~~Normalization stats~~ | ~~`normalization_stats.pt`~~ | **DELETED 2026-08-20** — nothing read it. Every live eval calls `compute_normalization_stats()` inline from the training split. `training/config.py` still defines `NORM_STATS_FILE`, which nothing references — dead config |

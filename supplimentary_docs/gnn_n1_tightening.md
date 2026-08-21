@@ -1,15 +1,31 @@
 # Tightening the N-1 GNN — diagnosis and fixes
 
-> ### ✅ STATUS 2026-08-20 — CURRENT. One number to reconcile before citing.
+> ### ✅ STATUS 2026-08-21 — CURRENT. Two things to know before citing.
 >
-> This is the live record of the N-1 model and its normalization fix. ⚠️ The held-out figures
-> here (**F1 0.8872 / AP 0.9549**) come from a different run than the checkpoint now on disk,
-> which the evaluation harness scores at **0.8972 / 0.9615**. **Treat the checkpoint as
-> authoritative** and cite the harness numbers; the gap is run-to-run variance, not a
-> methodological difference.
+> This is the live record of the N-1 model and its normalization fix.
 >
-> §3's normalization bug is the important part and applies to **every GNN run in this project**,
-> including the retired classify checkpoints — read it before citing any pre-2026-08-16 result.
+> **1. EVERY ABSOLUTE MODEL F1 IN THIS PROJECT IS CONDITIONAL ON THE EVAL BATCH SIZE.**
+> Measured 2026-08-21 on the tracked checkpoint — see §8. `BatchNorm(track_running_stats=False)`
+> uses **live batch statistics at inference**, so batch composition changes the logits. The same
+> weights on the same data score **0.8972 at batch 64 and 0.9255 at batch 512**. Both eval scripts
+> default to 64, which is where every reported figure comes from.
+> **Report deltas, not levels** — the shield's delta and its intervention precision are stable
+> (§8); the absolute F1 is not. Quote any model F1 with its batch size attached.
+>
+> This supersedes the note that stood here, which said the §1/harness gap was "run-to-run variance,
+> not a methodological difference." **That was wrong** — it is methodological, and the batch-size
+> effect (0.028) is larger than the gap it was explaining (0.010). §1's **0.8872 / AP 0.9549** does
+> not reproduce from the tracked checkpoint at any batch size tested; treat it as the record of the
+> run that produced the fix, not as a citable figure.
+>
+> **2. §3's normalization bug is the important part.** It applies to **every GNN run in this
+> project**, including the retired classify checkpoints — read it before citing any
+> pre-2026-08-16 result. ⚠️ §3 was corrected on 2026-08-21: it previously named
+> `eval_n1_cross_topology.py` as the script with the train/inference mismatch. That is wrong.
+> That script scores the **N-1** checkpoint, which was trained *after* the fix and carries no
+> mismatch. The affected script was the classify cross-topology script, since deleted.
+>
+> §4, §5 and §7 were also updated on 2026-08-21; §1, §2 and §6 are unchanged.
 
 
 **Date:** 2026-08-16
@@ -33,6 +49,11 @@ selection):
 
 At the best threshold: recall 0.870, precision 0.905, **2,714 missed violations** out of 20,801 —
 the error class the shield's asymmetric gate exists to catch.
+
+⚠ **These are best-threshold (oracle) figures**, chosen with the answer key on this split. Every
+table outside this section now reports the **held** threshold instead (0.8849, selected once on
+val) — see §7. For the tracked checkpoint the held in-distribution figure is **0.8956**. Do not
+mix the two protocols in one table.
 
 **Message passing contributes +0.058** (0.8411 → 0.8987 on val). This matters for the thesis: it is
 direct evidence that the graph structure carries information beyond the endpoint features, which is
@@ -109,29 +130,36 @@ model, identical split — so the difference had to be the tensors themselves.
 
 ## 3. Impact on the frozen classify artifacts — read this before citing them
 
+> ⚠️ **RESOLVED 2026-08-20 — the decision below was taken, and option 1 is no longer available.**
+> Classify was demoted to a page of methodology (`revised_thesis_claim.md` §2) and **all its
+> artifacts were deleted**: `gnn_checkpoint_best.pt`, `gnn_checkpoint_leverA.pt`,
+> `normalization_stats.pt` and both datasets. They were untracked, so a retrain would no longer
+> reproduce them. Option 2 is what stands, and this section is the statement it requires.
+> The analysis below is retained because it is the reason for that decision.
+
 `gnn_checkpoint_best.pt` (macro F1 0.8277) was trained through this same code path, so **it was
 trained on unnormalized features.**
 
-`evaluation/eval_n1_cross_topology.py` normalizes correctly, per batch, at inference:
+The **classify cross-topology script** normalized correctly, per batch, at inference:
 
 ```python
 batch.x         = (batch.x         - node_mean) / node_std
 batch.edge_attr = (batch.edge_attr - edge_mean) / edge_std
 ```
 
-That is a **train/inference mismatch**: the frozen checkpoint was fitted on raw magnitudes and is
+That is a **train/inference mismatch**: the frozen checkpoint was fitted on raw magnitudes and was
 then evaluated on z-scored ones. Cross-topology degradation was a headline finding of Component A,
 and some unknown share of it is attributable to this mismatch rather than to topology transfer.
 
-**Do not silently re-run and replace the classify numbers.** Options, in order of preference:
-
-1. Retrain classify with the fix and report both, framing the difference as a methodological
-   finding. This is honest and adds a result rather than removing one.
-2. If the frozen numbers must stand, state the mismatch explicitly wherever cross-topology
-   degradation is discussed.
+⚠️ **That script no longer exists** — it was deleted on 2026-08-20 and is recoverable only from
+`git show a5c5199:`. Do not read the surviving `evaluation/eval_n1_cross_topology.py` as the
+script described here: it carries the same per-batch normalization, but it scores the **N-1**
+checkpoint, which was trained *after* the fix. Train and inference agree there, so **the N-1 arm
+carries no mismatch.**
 
 The in-distribution classify number is less affected — train and eval were both unnormalized there,
-so it is at least self-consistent. It is the *cross-topology* comparison that is compromised.
+so it is at least self-consistent. It is the *cross-topology* comparison that is compromised, and
+it must not be presented as evidence about generalisation.
 
 ---
 
@@ -142,14 +170,17 @@ so it is at least self-consistent. It is the *cross-topology* comparison that is
 | **Train/val remix** — `Force Shuffle` concatenated train+val and re-split at random, destroying chronic separation | Val contained near-duplicate frames of training chronics; every reported score was partly memorised. Kept for `classify` only, to preserve reproducibility of the frozen deliverable. |
 | **`chronic_id` was the episode counter**, not the scenario id, while `set_id` used `chronic_idx % n_chronics` | Past 576 episodes the loop wraps; the same load profile would be written under a fresh id and land in both train and test. Now records the true scenario, with `episode_id` kept for debugging. |
 | **`--task n1` wrote to `grid_dataset_<tag>.jsonl`** | Would have overwritten the frozen classify dataset. Every task now carries its own suffix. |
-| **Ablation checkpoints overwrote the main one** | `--n1-head-only` has a narrower `line_head`, so the eval script died on a shape mismatch. Ablations now write `*_headonly.pt`. |
+| **Ablation checkpoints overwrote the main one** | `--head-only` has a narrower `line_head`, so the eval script died on a shape mismatch. Ablations now write `*_headonly.pt`. |
 | **Stale split files** | A split from a smaller run silently mis-indexes a larger regeneration. Now detected by record count and rebuilt. |
 
 ---
 
 ## 5. Feature changes (kept, but not the fix)
 
-Added for `n1` only — `classify`/`forecast` stay at 5/4 so the frozen checkpoint keeps loading:
+Added for `n1`. ⚠️ The note that stood here — *"`classify`/`forecast` stay at 5/4 so the frozen
+checkpoint keeps loading"* — is **obsolete**. The classify generator and its checkpoints were
+removed on 2026-08-16/20, and `scripts/pyg_data.py` now declares `NODE_FEATURES = 8` /
+`EDGE_FEATURES = 8` unconditionally, with no task branch. Nothing is held back for compatibility.
 
 - edge: `|p_or|`, `|q_or|`, apparent power, `headroom = max(0, 1-rho)`
 - node: `sum_headroom`, `sum_abs_p`, `degree` — per-bus spare capacity, throughput, alternative paths
@@ -183,12 +214,88 @@ working. Only comparing `dataset[i]` against `_data` revealed otherwise.
 
 ---
 
-## 7. Still open
+## 7. Still open — reviewed 2026-08-21
 
-- **Cross-topology evaluation** — `case14` n1 set not yet generated; `wcci2022` env not downloaded.
-- **Classify retrain** under the normalization fix (§3) — a decision for the thesis, not a bug fix.
-- **Shield integration** on real n1 predictions — `validate_n1` is built and tested (9 tests) but has
-  not run against model output, because the rule corpus still needs the LLM stages.
-- **Threshold selection** — all model numbers are best-threshold. A deployment threshold should be
-  chosen on val and reported on test, especially since the shield's asymmetric gate cares about the
-  missed-violation count specifically.
+Three of the four items below closed. Kept with their outcomes rather than deleted, so the
+sequence stays legible.
+
+| item | status |
+|---|---|
+| **Cross-topology evaluation** | ✅ **DONE 2026-08-16**, re-reported at the held threshold 2026-08-21. neurips2020 **0.8956** · case14 **0.4167 — loses to the rule baseline (0.77×) and to the all-positive baseline (0.96×)** · wcci2022 **0.5577**. Oracle (best-threshold) figures were 0.8972 / 0.4477 / 0.5721; they are retained only as a labelled ceiling. Table and caveats: `thesis_findings.md` §14. |
+| **Classify retrain** under the normalization fix | ✅ **DECIDED 2026-08-20 — not retrained.** Classify was demoted and its artifacts deleted; see the §3 banner. |
+| **Shield integration** on real n1 predictions | ✅ **DONE 2026-08-20.** Ran on all three topologies against the validated 4-rule corpus: +0.0082 / +0.0021 / **+0.0676** F1 at 0.938 / 0.922 / 0.934 intervention precision. `thesis_findings.md` §13. |
+| **Threshold selection** | ✅ **CLOSED 2026-08-21** for reporting. One held threshold — 0.8849, selected on the neurips2020 val split — is now used for the shield arm *and* the raw-model tables everywhere (`thesis_findings.md` §14, `revised_thesis_claim.md` §4.2, `study.md`, `CLAUDE.md`). Best-threshold figures are retained only as a labelled oracle ceiling. The recorded prediction that this "would lower all three rows, and lower case14 and wcci2022 most" held: −0.0015 / −0.0310 / −0.0144. **case14 falls to 0.77× the rule baseline and 0.96× the all-positive baseline** — it loses to answering "violation" every time. ✅ The selection *objective* is closed too (2026-08-21): the full F-beta trade curve is measured in `thesis_findings.md` §14.2 via `evaluation/sweep_threshold.py`. **F1 is retained** — choosing any beta > 1 needs an operator cost ratio nobody has measured — with the alternative reported alongside. Verified that intervention precision stays flat (0.932–0.937) at an F2 threshold, so the headline claim does not depend on the objective. ⚠ Note §14.2's incidental finding: on case14 a recall-weighted threshold *improves* F1 (0.4167 → 0.4428), so that grid's held-vs-oracle gap is largely threshold mis-transfer. §1's figures remain best-threshold and are labelled as such. |
+
+See §8: the absolute figures are not a stable property of the checkpoint at all.
+
+---
+
+## 8. The eval is not batch-invariant — measured 2026-08-21
+
+`gnn_checkpoint_n1.pt` is tracked (committed at `f9c5328`) and both `eval_n1_cross_topology.py` and
+`eval_shield_n1.py` load it, so every reported number does come from one fixed set of weights.
+**The scores are still not a stable property of those weights.**
+
+Scored on the held-out neurips2020 test split, varying **only** the eval batch size:
+
+| eval batch size | model F1 | AP | recall | precision | missed violations |
+|---:|---:|---:|---:|---:|---:|
+| **64** — both scripts' default, and the source of every reported figure | **0.8972** | 0.9615 | 0.885 | 0.910 | 2,397 |
+| 128 | 0.9088 | 0.9684 | 0.905 | 0.913 | 1,979 |
+| 256 | 0.9241 | 0.9772 | 0.925 | 0.924 | 1,590 |
+| 512 — `TRAIN_CONFIG` batch size, what training evaluated at | **0.9255** | 0.9780 | 0.918 | 0.934 | 1,716 |
+
+A spread of **0.028 F1** on identical weights and identical data.
+
+**Cause: `BatchNorm(track_running_stats=False)`.** The choice is deliberate and defensible —
+running statistics flatten the overload spikes at `rho > 1.0` that the task is about — but the
+consequence is that the network uses **live batch statistics at inference**, so batch composition
+changes the logits. It is not a bug; it is a property of the architecture that was never written
+down.
+
+**Isolated, not assumed.** Across all four runs the positive count is constant at 20,801 and the
+rule baseline is constant at 0.4639, so the split, the labels and the label alignment are
+identical. The variation is entirely in the model's forward pass.
+
+### What survives, and what does not
+
+**Does not survive:** any absolute model F1 quoted without its batch size. That includes §1, the
+cross-topology table, and the raw-model column everywhere else.
+
+**Survives:** the shield comparison, because both arms share one forward pass.
+
+| | model | +shield | **delta** | **intervention precision** |
+|---|---:|---:|---:|---:|
+| batch 64 | 0.8956 | 0.9038 | **+0.0082** | **0.938** |
+| batch 512 | 0.9216 | 0.9288 | **+0.0072** | **0.930** |
+
+The delta moves by 0.001 and the precision by 0.008 across a batch-size change that moves the raw
+model by 0.026. **The thesis claim is a claim about deltas and about precision, and both are
+stable.** Report it that way.
+
+### DECIDED 2026-08-21 — keep 64, and it is now pinned in code
+
+The batch size **stays at 64**. It is what every recorded result was measured at, and the shield
+deltas — the quantities the thesis actually claims — are stable regardless.
+
+It is no longer an incidental argparse default. Both `evaluation/eval_n1_cross_topology.py` and
+`evaluation/eval_shield_n1.py` now declare:
+
+```python
+EVAL_BATCH_SIZE = 64
+```
+
+with the table above in a comment beside it, and both **print a warning if the value is
+overridden** on the command line, saying that absolute F1 will not match any recorded result while
+deltas remain comparable. Pinned by
+`tests/test_eval_shield_n1.py::test_eval_batch_size_is_pinned_at_64`.
+
+Standing consequences:
+
+1. **Quote the batch size with any model F1.** Everything in the docs is batch 64.
+2. **This is a second protocol axis, on top of threshold selection (§7).** Threshold is closed for
+   the shield arm and open for the raw-model table; batch size is now closed for both.
+3. **Do not "fix" this by switching to running statistics** without re-measuring — that changes
+   the model's behaviour on exactly the overload spikes the task is about.
+4. If the batch size is ever changed, **every recorded number must be regenerated together.** A
+   mixed table is the failure this pinning exists to prevent.

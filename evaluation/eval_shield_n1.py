@@ -71,6 +71,31 @@ from training.train_gnn import GridGNN, compute_normalization_stats
 
 CKPT = "gnn_checkpoint_n1.pt"
 HOME = "neurips2020"
+
+# ── EVAL BATCH SIZE — a RECORDED DECISION, not an incidental default ──────────
+# Settled 2026-08-21: keep 64. Every number reported anywhere in this project was
+# measured at this value.
+#
+# It is load-bearing. GridGNN uses BatchNorm(track_running_stats=False), so the
+# network normalizes with LIVE BATCH STATISTICS at inference, not stored running
+# averages. Batch composition therefore changes the logits, and the same
+# checkpoint on the same split scores:
+#
+#     batch  64 -> F1 0.8972   (this default; the source of every reported figure)
+#     batch 128 -> F1 0.9088
+#     batch 256 -> F1 0.9241
+#     batch 512 -> F1 0.9255   (TRAIN_CONFIG's value, what training evaluated at)
+#
+# Positives (20,801) and the rule baseline (0.4639) are constant across all four,
+# so this is the forward pass, not the data.
+#
+# Shield DELTAS are stable across the same change (+0.0082 -> +0.0072) because
+# both arms share one forward pass; absolute F1 is not. Report deltas, not levels.
+#
+# Changing this invalidates comparison with every recorded result. See
+# supplimentary_docs/gnn_n1_tightening.md §8.
+EVAL_BATCH_SIZE = 64
+
 # The stage-3 corpus. This used to point at `rules/`, which was the v1 output
 # directory and has held no live corpus since the v2 pipeline; the default
 # silently resolved to a file that does not exist.
@@ -350,16 +375,27 @@ def main() -> None:
                          "(requires --rules-kg). One record per distinct rule, not "
                          "per contingency.")
     ap.add_argument("--checkpoint", default=CKPT)
-    ap.add_argument("--batch-size", type=int, default=64)
+    ap.add_argument("--batch-size", type=int, default=EVAL_BATCH_SIZE,
+                    help=f"Eval batch size (default {EVAL_BATCH_SIZE}). LOAD-BEARING — "
+                         "BatchNorm uses live batch stats, so changing this changes the "
+                         "absolute F1. Deltas stay comparable. See gnn_n1_tightening.md §8.")
     ap.add_argument("--threshold", type=float, default=None,
                     help="Fixed decision threshold. Default: selected on the "
-                         "neurips2020 VAL split and held across topologies (plan §7.5 item 6)")
+                         "neurips2020 VAL split and held across topologies "
+                         "(thesis_findings.md §13)")
     ap.add_argument("--json", default=None)
     ap.add_argument("--failures", default=None,
                     help="Write per-contingency failure records here (jsonl)")
     ap.add_argument("--max-failures", type=int, default=50_000,
                     help="Cap on logged failure records (wcci2022 misses ~86k)")
     args = ap.parse_args()
+
+    if args.batch_size != EVAL_BATCH_SIZE:
+        print(f"\n  !! WARNING: --batch-size {args.batch_size} != {EVAL_BATCH_SIZE}. "
+              f"BatchNorm uses live batch statistics, so absolute F1 will NOT match "
+              f"any recorded result. Deltas remain comparable. "
+              f"(gnn_n1_tightening.md §8)\n")
+
 
     if not os.path.exists(args.checkpoint):
         sys.exit(f"Missing {args.checkpoint} — train the N-1 model first.")

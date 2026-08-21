@@ -18,14 +18,16 @@ RETIRED TASK PATHS
 ------------------
 The 4-class `classify` generator was removed on 2026-08-16, mirroring the same cleanup in
 `training/train_gnn.py`. Its target was a CLOSED-FORM function of the observation — four
-threshold rules on `rho_max` and `n_tripped_lines` reproduce the stored labels with 100%
-agreement on 55,000 records — so it could not distinguish a learned model from a threshold
-and rigged the neuro-symbolic comparison before it ran (component_d_plan.md §2.1).
+threshold rules on `rho_max` and `n_tripped_lines` reproduce the stored labels with ZERO
+disagreements across all 315,000 records of both datasets — so it could not distinguish a learned
+model from a threshold, and rigged the neuro-symbolic comparison before it ran
+(supplimentary_docs/thesis_findings.md §9.1).
 Its code is in git history; the datasets it produced stay frozen on disk and are still cited.
 
 `--task forecast` is DELIBERATELY RETAINED even though it was also rejected. No forecast
 dataset was ever written to disk, so deleting the generator would make the negative result of
-component_d_plan.md §1.1 steps 1-2 irreproducible. Do not "finish the cleanup" by removing it.
+supplimentary_docs/thesis_findings.md §9.2 irreproducible. Do not "finish the cleanup" by
+removing it.
 """
 
 import warnings
@@ -93,10 +95,10 @@ LABEL_MAP = {"normal": 0, "overload": 1, "line_trip": 2, "cascade": 3}
 # The 4-class `label` above is a CLOSED-FORM function of the observation:
 #     rho_max >= 1.0 -> overload;  n_tripped == 0 -> normal;  == 1 -> line_trip;
 #     else cascade
-# Verified: 4 rules reproduce it on 55,000 records across both topologies with
-# 100% agreement. A model cannot demonstrate anything on that target that a
-# threshold does not already do, which makes the neuro-symbolic comparison
-# degenerate (see supplimentary_docs/component_d_plan.md §2).
+# Verified: 4 rules reproduce it across ALL 315,000 records of both topologies
+# with zero disagreements. A model cannot demonstrate anything on that target
+# that a threshold does not already do, which makes the neuro-symbolic
+# comparison degenerate (supplimentary_docs/thesis_findings.md §9.1).
 #
 # The forecast task asks a question the present state does NOT determine:
 #     will the grid leave the `normal` state within the next HORIZON steps?
@@ -162,7 +164,7 @@ def parse_args():
              "observation, because producing it requires a power-flow solve. "
              "forecast: binary 'fault within --horizon steps' - REJECTED as degenerate, "
              "retained only so that negative result stays reproducible; do not train "
-             "against it (see label_n1 docstring and component_d_plan.md §1.1).",
+             "against it (see label_n1 docstring and thesis_findings.md §9.2).",
     )
     parser.add_argument(
         "--n1-stride", type=int, default=DEFAULT_N1_STRIDE,

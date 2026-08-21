@@ -20,7 +20,7 @@ RHO_CLIP  = 2.0
 #   edge: rho, p_or, q_or, near_limit, |p_or|, |q_or|, apparent_s, headroom
 #
 # The last three of each were added for N-1 screening, chosen from what actually
-# predicted post-contingency violation in the probe (component_d_plan.md §1.1):
+# predicted post-contingency violation in the probe (thesis_findings.md §9.3):
 #
 #   |p_or| — the single strongest predictor there (F1 ~0.61 alone). p_or itself
 #     is RAW AND SIGNED; flow direction is arbitrary and only magnitude predicts,
@@ -90,9 +90,10 @@ def build_node_features(r, meta: GridEnvMetadata):
 
     ⚠️ Feature 1 divides by a flat 150.0. That is fine as a GNN input scale factor, but
     it is NOT the per-unit conversion — the shield uses per-line base kV from
-    `data/grid_dataset_<tag>_basekv.json` (component_d_plan.md §5). The two must not be
+    `data/grid_dataset_<tag>_basekv.json` (thesis_findings.md §11.1). The two must not be
     conflated. It is also the most likely reason case14 transfers badly: its 14/20 kV
-    lines enter here at ~0.13 where the 138/345 kV training grid gave ~1.0 (§7.6).
+    lines enter here at ~0.13 where the 138/345 kV training grid gave ~1.0 — an UNTESTED
+    hypothesis, see thesis_findings.md §14.1.
 
     HISTORICAL: a 6th binary `overloaded` feature (max_rho >= 1.0) was tried during the
     retired 4-class classify task and collapsed the `normal` class to 0.0 F1 on the small

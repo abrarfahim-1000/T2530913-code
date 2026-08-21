@@ -3,13 +3,13 @@ Trains the N-1 contingency-screening GNN â€” the project's only model.
 
 For each energized line: if that line trips right now, does the grid violate a
 thermal limit? The prediction is EDGE-level (one logit per line), not
-graph-level, because 100% of frames are mixed â€” within a single frame some
+graph-level, because 96-99% of frames are strictly mixed — within a single frame some
 contingencies violate and others do not, so a pooled graph embedding cannot
 express the answer.
 
 The 4-class classifier and the binary forecast model that preceded this were
 built, measured to be degenerate, and retired; see
-supplimentary_docs/revised_thesis_claim.md Â§2. Their code is in git history.
+supplimentary_docs/revised_thesis_claim.md §2. Their code is in git history.
 """
 import argparse
 import json
@@ -69,7 +69,7 @@ class GridGNN(nn.Module):
         #   [h_or || h_ex || edge_attr]
         # Nothing is pooled: the answer to "is losing line k safe" is local to k
         # and its neighbourhood, and global pooling would erase exactly the
-        # per-line distinction the task is about (100% of frames are mixed â€”
+        # per-line distinction the task is about (96-99% of frames are mixed —
         # some contingencies violate, others do not, in the same frame).
         # It is also topology-agnostic: one logit per line present, so 20-line
         # case14 and 186-line WCCI run on this checkpoint unchanged.
@@ -187,9 +187,9 @@ def evaluate(model, loader, device):
 
     Scored over individual (frame, line) pairs, masking the entries the power
     flow could not evaluate. Reported against the two baselines that decide
-    whether the model earned anything (component_d_plan.md Â§1.1):
-      - all-positive, F1 = 2p/(1+p)   â€” is the target non-vacuous?
-      - `rho` of the removed line     â€” does the model beat the best local rule?
+    whether the model earned anything (supplimentary_docs/thesis_findings.md §9.3):
+      - all-positive, F1 = 2p/(1+p)   — is the target non-vacuous?
+      - `rho` of the removed line     — does the model beat the best local rule?
     A model that ties the second one has learned nothing a rule cannot state.
     """
     model.eval()
