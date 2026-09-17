@@ -1,0 +1,42 @@
+{
+  "andes_version": "2.0.0",
+  "case": "ieee14_full",
+  "f_base_hz": 60,
+  "window_s": 20.0,
+  "trip_t_s": 1.0,
+  "governors": "TGOV1 present",
+  "uf_thresholds": [
+    59.4,
+    59.0,
+    58.0,
+    57.0
+  ],
+  "of_thresholds": [
+    60.6,
+    61.0,
+    61.8,
+    63.0
+  ],
+  "line_trip_deviations_hz": [
+    0.12098306012541116,
+    0.0669594253419632,
+    0.329345426470411,
+    0.03212854532816323,
+    0.02514312472052893,
+    0.013675474933698695,
+    0.020193341706217893,
+    0.01801282029402529
+  ],
+  "worst_line_trip_dev_hz": 0.329345426470411,
+  "gen_trip_dev_hz": 0.3152723345131463,
+  "island_dev_hz": 0.12508297666999368,
+  "escalation_ladder_dev_hz": {
+    "1 generator out (N-1)": 0.3152723345131463,
+    "2 generators out (N-2)": 0.7975160271098645,
+    "3 generators out (N-3)": 1.89176699583561,
+    "1 load out (N-1)": 0.22079000442006702,
+    "3 loads out (N-3)": 1.6229296769209327
+  },
+  "mildest_threshold_dev_hz": 0.6,
+  "verdict": "frequency rules INERT under N-1; require N-2+ to fire"
+}

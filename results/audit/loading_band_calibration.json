@@ -1,0 +1,156 @@
+{
+  "bands": [
+    "0.00-0.60",
+    "0.60-0.70",
+    "0.70-0.80",
+    "0.80-0.90",
+    "0.90-0.95",
+    "0.95-1.00",
+    ">= 1.00"
+  ],
+  "max_frames": null,
+  "grids": {
+    "neurips2020": {
+      "n_frames": 12000,
+      "bands": {
+        "0.00-0.60": {
+          "frames": 45,
+          "contingencies": 2628,
+          "violations": 275,
+          "p_violation": 0.10464231354642313
+        },
+        "0.60-0.70": {
+          "frames": 4603,
+          "contingencies": 269879,
+          "violations": 34355,
+          "p_violation": 0.12729778900914854
+        },
+        "0.70-0.80": {
+          "frames": 3778,
+          "contingencies": 221439,
+          "violations": 39869,
+          "p_violation": 0.1800450688451447
+        },
+        "0.80-0.90": {
+          "frames": 2528,
+          "contingencies": 148046,
+          "violations": 33827,
+          "p_violation": 0.22848979371276495
+        },
+        "0.90-0.95": {
+          "frames": 543,
+          "contingencies": 31668,
+          "violations": 8979,
+          "p_violation": 0.2835354300871542
+        },
+        "0.95-1.00": {
+          "frames": 253,
+          "contingencies": 14661,
+          "violations": 6332,
+          "p_violation": 0.431894140918082
+        },
+        ">= 1.00": {
+          "frames": 250,
+          "contingencies": 14297,
+          "violations": 13678,
+          "p_violation": 0.9567042036790935
+        }
+      }
+    },
+    "case14": {
+      "n_frames": 6000,
+      "bands": {
+        "0.00-0.60": {
+          "frames": 44,
+          "contingencies": 873,
+          "violations": 108,
+          "p_violation": 0.12371134020618557
+        },
+        "0.60-0.70": {
+          "frames": 1982,
+          "contingencies": 39453,
+          "violations": 6928,
+          "p_violation": 0.17560134843991584
+        },
+        "0.70-0.80": {
+          "frames": 2597,
+          "contingencies": 51462,
+          "violations": 13094,
+          "p_violation": 0.25444016944541603
+        },
+        "0.80-0.90": {
+          "frames": 962,
+          "contingencies": 18862,
+          "violations": 7464,
+          "p_violation": 0.3957162549040399
+        },
+        "0.90-0.95": {
+          "frames": 179,
+          "contingencies": 3453,
+          "violations": 1832,
+          "p_violation": 0.5305531421951926
+        },
+        "0.95-1.00": {
+          "frames": 98,
+          "contingencies": 1853,
+          "violations": 1141,
+          "p_violation": 0.6157582298974635
+        },
+        ">= 1.00": {
+          "frames": 138,
+          "contingencies": 2546,
+          "violations": 2321,
+          "p_violation": 0.9116260801256874
+        }
+      }
+    },
+    "wcci2022": {
+      "n_frames": 4000,
+      "bands": {
+        "0.00-0.60": {
+          "frames": 0,
+          "contingencies": 0,
+          "violations": 0,
+          "p_violation": null
+        },
+        "0.60-0.70": {
+          "frames": 301,
+          "contingencies": 55897,
+          "violations": 7193,
+          "p_violation": 0.12868311358391327
+        },
+        "0.70-0.80": {
+          "frames": 1254,
+          "contingencies": 232846,
+          "violations": 37412,
+          "p_violation": 0.1606727193080405
+        },
+        "0.80-0.90": {
+          "frames": 1547,
+          "contingencies": 287273,
+          "violations": 59012,
+          "p_violation": 0.2054213239670975
+        },
+        "0.90-0.95": {
+          "frames": 403,
+          "contingencies": 74740,
+          "violations": 18906,
+          "p_violation": 0.25295691731335296
+        },
+        "0.95-1.00": {
+          "frames": 244,
+          "contingencies": 45247,
+          "violations": 17290,
+          "p_violation": 0.3821247817534864
+        },
+        ">= 1.00": {
+          "frames": 251,
+          "contingencies": 46469,
+          "violations": 44027,
+          "p_violation": 0.9474488368589813
+        }
+      }
+    }
+  },
+  "note": "Calibration source for the WARN channel (findings 19.3) and the full-curve extension of findings 13.4. -1 labels are excluded as missing, never counted as secure."
+}
