@@ -443,6 +443,13 @@ three evaluations and comparing every reported number.
 seeds, and re-reporting the raw model under the same held-threshold protocol this document uses.
 Neither changes the shape of the result. Sequence: §17.
 
+**Added 2026-09-17 (§19):** an exhaustive accounting that assigns all 2,463 candidates to one
+terminal bucket each, and a deterministic re-partition of the 58 expressible rules into four
+output channels. **46 rules (20 distinct predicates) now speak, against 5 today**, and 54 of 58
+are documented rather than dropped. No measured result moved: BLOCK is deliberately unchanged, so
+§13's 92–94% intervention precision stands as reported. The accounting also found that
+`rule_id` is **not unique** across the corpus (§19.2) — the served four-rule corpus is unaffected.
+
 ---
 
 ## 8. Where the evidence lives
@@ -468,6 +475,16 @@ Neither changes the shape of the result. Sequence: §17.
 | voltage base-kV contract and why it matters | §11 | `data/grid_dataset_<tag>_basekv.json` |
 | the four surviving rules themselves | §12.5 | `validated_translated/all_rules_deduped.jsonl` |
 | what was designed but never run | §17.1 | — |
+| every candidate accounted for, one terminal bucket each | §19.1 | `evaluation/corpus_accounting.py` · `results/audit/corpus_accounting.json` |
+| stage-1 `rule_id` collisions, and the served corpus is clean | §19.2 | same artifact |
+| the four-channel re-admission (41 rules speak, 17 distinct after §21) | §19.3 | `evaluation/readmit_rules.py` · `results/audit/readmission.json` |
+| the loading-band cliff — why 100 is not arbitrary | §20.1 | `evaluation/loading_band_calibration.py` · `results/audit/loading_band_calibration.json` |
+| model-conditional WARN calibration; no predicate changed sign | §23.1 | `evaluation/warn_rule_calibration_conditional.py` · `results/audit/warn_n1_calibration_conditional.json` |
+| why no dynamic simulator (standalone, plain-language) | §20.2 | `supplimentary_docs/andes_investigation.md` |
+| shield v2: channels implemented, 58 rules reproduce the 4-rule numbers | §22.3 | `shield/channels.py` · `shield_corpus/all_rules_channels.jsonl` · `results/shield/shield_<tag>_v2channels.json` · `tests/test_shield_channels.py` |
+| every WARN rule carries a measured N-1 rate; 2 predicates INVERTED | §21.2 | `evaluation/warn_rule_calibration.py` · `results/audit/warn_n1_calibration.json` |
+| ANDES investigated and rejected on evidence | §20.2 | `sanity/andes_{frequency,voltage}_spike.py` · `results/audit/andes_*_spike.json` |
+| the live forward plan | §20.3 | — |
 
 **Reproducing §2:** the evaluation harness is `evaluation/eval_shield_n1.py`. To reproduce the
 numbers in this document exactly, point it at the validated four-rule corpus:
@@ -1470,6 +1487,10 @@ question. State it as such.
 
 Read before editing anything in the pipeline. Each of these cost a round trip at least once.
 
+- **Never key on `rule_id` alone** (§19.2). It is not unique: five documents restarted numbering,
+  so `R_001`..`R_172` are reused across five documents — 2,463 records, 2,291 distinct ids. Use
+  `(document, rule_id)`. A bare-`rule_id` join reports 12 rules as both translated *and*
+  untranslatable, which looks like a pipeline bug and is not one.
 - **Never re-close `EXTRACT_PROMPT` against `CONDITION_VOCABULARY`.** Tried twice, both times
   extraction returned **zero rules**: on frequency/timing-heavy standards the model correctly
   answers `[]` for nearly every chunk, starving stage 2. Guarded by
@@ -1495,3 +1516,561 @@ Read before editing anything in the pipeline. Each of these cost a round trip at
 - **Every command runs under the repo venv** — `.venv\Scripts\python.exe`. A bare `python` on
   Windows resolves to the Microsoft Store stub. Set `PYTHONIOENCODING=utf-8` when redirecting or
   piping: these scripts print `→` and the cp1252 pipe encoding kills them mid-run.
+
+---
+
+## 19. Corpus accounting and the four-channel shield
+
+**Added 2026-09-17.** Two deterministic passes over artifacts already on disk. No stage was
+re-run, no model was called, and **no measured result moved**.
+
+This section exists to answer one objection directly: *a pipeline that turns 2,463 candidates
+into 4 rules did not find a signal, it found noise.* The answer is not a better yield. It is that
+the yield was never the finding — the **partition** is.
+
+### 19.1 Every candidate is accounted for
+
+`evaluation/corpus_accounting.py` assigns all 2,463 stage-1 candidates to exactly one terminal
+bucket and **asserts the partition** at every stage rather than assuming it. Artifact:
+`results/audit/corpus_accounting.json`.
+
+| terminal fate | n | share |
+|---|---:|---:|
+| not expressible — time / dynamics | 635 | 25.8% |
+| not expressible — frequency | 617 | 25.1% |
+| not expressible — quantity not modelled by the simulator | 562 | 22.8% |
+| not expressible — equipment-internal | 315 | 12.8% |
+| **not expressible — scope / aggregation  [RECOVERABLE]** | **142** | **5.8%** |
+| not expressible — administrative / process | 115 | 4.7% |
+| expressible, rejected by the polarity guard | 26 | 1.1% |
+| expressible and clean, rejected by the validator | 21 | 0.9% |
+| not expressible — unclassified | 13 | 0.5% |
+| **VALIDATED (served to the shield)** | **11** | **0.4%** |
+| not expressible — free variable / no number | 6 | 0.2% |
+| **TOTAL** | **2,463** | **100.0%** |
+
+Buckets are first-match-wins in a declared order, so they are disjoint by construction. The
+ordering is load-bearing and documented in the script: frequency precedes time (Grid2Op models no
+frequency at all, whereas a duration could in principle be mapped onto steps), and
+equipment-internal precedes scope (*"stator current, not grid-wide observable"* mentions scope, but
+the real blocker is that the simulator has no stator).
+
+**The distinction that carries the argument is the emphasized row.** `scope / aggregation` marks
+rules whose quantity **is in every record** and which the 14-variable vocabulary flattens to a
+grid-wide min/max — per-generator power factor from `gen_p`/`gen_q`, per-line loading from `rho`,
+per-voltage-level bands from the existing `*_basekv.json` sidecars. Those 142 are blocked by
+**vocabulary design, not by physics**, and are the only bucket recoverable without a new simulator.
+Everything above them is a property of what a quasi-static power-flow simulator represents.
+
+### 19.2 A stage-1 invariant is broken — and the headline corpus is clean
+
+The accounting asserts identity before it counts, and the assertion failed. `rules_35b/` holds
+**2,463 records but only 2,291 distinct `rule_id`s**: five documents restarted numbering, so
+**R_001..R_172 are reused across five documents**. The documented invariant — *"rule IDs are
+globally sequential across all chunks and documents"* — does not hold.
+
+Consequences, traced rather than assumed:
+
+| stage | rules carrying a colliding id |
+|---|---:|
+| translated (58) | 12 |
+| guarded (32) | 6 |
+| confirmed (11) | 1 — `R_167` |
+| **served (4)** | **0** |
+
+**No served rule carries a colliding id, and `R_167`'s provenance is correct.** Each record keeps
+its own `source` string and the per-document files never merge, so the confirmed `R_167` is the
+TPL-001-5.1 §5.1.f rule (`loading_pct > 100`), not the ENTSO-E `power_factor_step` rule that shares
+its number. The KG chain `Clause:C_010 → Rule:R_167 → ServedRule:R_1443` was checked directly and
+is right.
+
+⚠ **Nothing downstream may key on `rule_id` alone.** Use `(document, rule_id)`. This is why §19.1's
+partition verifies only under a composite key; under a bare `rule_id` it reports 12 rules as
+simultaneously translated and untranslatable, which is an artifact of the collision and not a
+pipeline defect.
+
+### 19.3 The shield had one channel, which is why 54 of 58 rules were on the floor
+
+`evaluation/readmit_rules.py` re-partitions all 58 expressible rules by **measured behaviour**,
+deterministically. Artifact: `results/audit/readmission.json`.
+
+⚠️ **The WARN row below is PRE-CALIBRATION and is superseded by §21.** It was assigned on
+classify-label fire rates — the retired 4-class target. Calibrated against the N-1 label, 5 of the
+25 WARN records do not survive (2 predicates INVERTED, 1 INSUFFICIENT), so the figure to quote is
+**41 speaking / 17 distinct**, not 46 / 20. The other four channels are unchanged.
+
+A rule was discarded whenever it could not justify a veto — because vetoing was the only thing a
+rule was permitted to do. That is a property of the gate's design, not of the rules.
+
+| channel | rules | distinct | today | what it does |
+|---|---:|---:|---:|---|
+| **BLOCK** | 10 | 2 | 4 | vetoes an over-permissive prediction |
+| **WARN** | 25 | 11 | 0 | annotates, never vetoes; carries its measured rate |
+| **NORMAL** | 11 | 9 | 1 | affirms telemetry is consistent with normal operation |
+| **NOT_APPLICABLE** | 8 | 8 | 0 | correct rule whose calibration does not transfer (§11.2) |
+| **INERT** | 4 | 4 | 0 | cannot fire on any class on any grid; excluded and counted |
+| **rules that SPEAK** | **46** | **20** | **5** | BLOCK + WARN + NORMAL |
+| **documented** | **54** | **25** | **5** | + NOT_APPLICABLE, cited rather than dropped |
+
+**Quote the `distinct` column.** Ten BLOCK records are two distinct conditions
+(`loading_pct > 100` and `loading_pct > 100.0`) restated across standards, which the KG's
+`Predicate` layer collapses to one. Rule records are not predicates, and a count of records
+inflates.
+
+Three properties of the assignment:
+
+**BLOCK is deliberately unchanged.** It is the set the 92–94% intervention-precision result is
+measured on. Admitting anything to it moves that number, so nothing was admitted. §13's results
+stand exactly as reported.
+
+**Channel membership is decided per grid, not per corpus.** A rule that discriminates on two
+topologies and misfires on the third is a WARN scoped to those two, not a rejection. `R_128` fires
+on 0.1% of healthy neurips frames and 98.6% of healthy wcci2022 frames — one statement about the
+rule, three different statements about the grids. Collapsing to a single verdict loses it; an
+earlier version of this pass did exactly that and misfiled 14 rules into NOT_APPLICABLE.
+
+**NOT_APPLICABLE is a finding, not a bin.** Its eight members are almost all ±5% voltage bands,
+degenerate on every grid because these grids operate ~6% above nominal (§11.2). They are correct
+readings of their standards. Recording them with that reason converts eight silent drops into
+eight cited exclusions with a measured cause.
+
+### 19.4 What this does and does not change
+
+**Does not change:** F1, blocking precision, the shield's measured deltas, or any number in §13
+or §14. The served corpus is the same four rules.
+
+**Does change what the system says.** The shield currently speaks on 0.31% / 0.087% / 3.04% of
+contingencies — it is silent on 97–99.9% of predictions. Four channels let it annotate every one,
+with three verdict types, each traceable to a clause and each carrying a measured firing rate.
+For a neuro-symbolic system that is the contribution; blocking is one of its modes, not the whole.
+
+**Two guardrails, both load-bearing.** Channels must be structurally incapable of crossing — a
+WARN rule that can reach the veto path moves the headline number. And **every WARN must carry its
+measured rate**: a warning without a rate is an alarm, a warning with one is evidence. §13.4's
+conditional table, extended per band, is the calibration source.
+
+### 19.5 Reproduce
+
+```powershell
+.venv\Scripts\python.exe evaluation\corpus_accounting.py   # exits non-zero if the partition breaks
+.venv\Scripts\python.exe evaluation\readmit_rules.py
+```
+
+---
+
+## 20. The loading-band cliff, the ANDES investigation, and what is next
+
+**Added 2026-09-17.** §20.1 is a new measurement. §20.2 records a route that was investigated
+and **rejected on evidence**, so it is not re-opened. §20.3 is the live plan.
+
+### 20.1 The threshold 100 sits on a physical cliff
+
+`evaluation/loading_band_calibration.py`, every frame of all three N-1 datasets. Artifact:
+`results/audit/loading_band_calibration.json`. This is §13.4's single number
+(P(violation | base overloaded) = 91–96%) extended to the full curve.
+
+| base-case `rho_max` | neurips2020 | case14 | wcci2022 |
+|---|---:|---:|---:|
+| 0.60 – 0.70 | 0.127 | 0.176 | 0.129 |
+| 0.70 – 0.80 | 0.180 | 0.254 | 0.161 |
+| 0.80 – 0.90 | 0.228 | 0.396 | 0.205 |
+| 0.90 – 0.95 | 0.284 | 0.531 | 0.253 |
+| 0.95 – 1.00 | 0.432 | 0.616 | 0.382 |
+| **≥ 1.00 — the served rule** | **0.957** | **0.912** | **0.947** |
+
+**It is a cliff, not a slope.** In the 0.95–1.00 band, immediately below the threshold, the
+predicate is near a coin flip. Crossing 1.00 it jumps to 92–97% — which is where the shield's
+measured 0.938 / 0.922 / 0.934 intervention precision comes from.
+
+Two consequences, and both belong in the write-up:
+
+**Lower-threshold thermal rules cannot be admitted to BLOCK.** The corpus carries them at 84, 90,
+95, 110, 116 and 125%. The 110/116/125 rules are logically subsumed by `> 100` and add no block.
+The 84/90/95 rules would add coverage at 38–62% precision, trading the headline result for volume.
+They belong in WARN, carrying the row above as their rate.
+
+**The corpus converged on the one threshold that is physically load-bearing.** Four standards
+bodies wrote 100; the pipeline independently kept only 100; and the grid data shows 100 is where
+the predicate starts working. This reframes §5: the yield is not thin because extraction was weak,
+it is thin because **the task has approximately one governing predicate and the pipeline found it.**
+
+### 20.2 ANDES / dynamic simulation — INVESTIGATED AND REJECTED, do not re-open
+
+A dynamic simulator (ANDES 2.0, installed, `sanity/andes_*_spike.py`) was proposed to recover the
+1,300+ candidates blocked on frequency and sub-second time. It was measured, not argued about.
+
+**Frequency arm** (`results/audit/andes_frequency_spike.json`) — IEEE-14 with TGOV1 governors,
+permanent trips at t=1.0 s, 20 s window:
+
+| disturbance | frequency excursion | fires a corpus threshold? |
+|---|---:|---|
+| 8 most-loaded **line** trips (the task) | 0.014 – **0.329 Hz** | **no** |
+| **generator** trip, N-1 (positive control) | 0.315 Hz | **no** |
+| shipped islanding case | 0.125 Hz | **no** |
+| 2 generators out (N-2) | 0.798 Hz | yes — 59.4 |
+| 3 loads out (N-3) | 1.623 Hz | yes — 60.6, 61.0 |
+
+**No N-1 contingency of any kind reaches the mildest of the 457 numeric frequency thresholds.**
+The corpus tests 47–52 Hz and 57–63 Hz — system-wide imbalance bars, ~1% off nominal at their
+mildest. N-1 produces at most 0.55%. Firing them requires N-2 or worse. The positive control
+works (a generator trip produces a sustained offset), so this is physics, not instrumentation.
+
+**Voltage arm** (`results/audit/andes_voltage_spike.json`) — 103 voltage-and-time rules, 94 with
+numeric thresholds on both sides. Clean line opening enters **no** envelope (deepest dip 0.9557 pu
+rebased against a mildest bar of 0.95). Under a bolted three-phase fault the deep envelopes *are*
+entered — but voltage recovers above 0.9 pu within ~50 ms of clearing, and the surviving
+post-clearing crossings clear only 0.0016–0.033 s durations, missing the corpus's own
+0.14/0.15/0.16 s band entirely. **The ride-through envelopes are reachable by the EVENT, never by
+a STATE.** A shield that reads telemetry sees the post-event state, not the fault window.
+
+The one genuine positive is a post-fault **over-voltage overshoot** surviving clearing (1.05–1.15 pu
+for up to 0.65 s rebased; R_1081, R_1831, R_1832). Three rules — and observing them requires ANDES
+at inference, because Grid2Op is a 5-minute steady-state snapshot in which a 0.65 s overshoot does
+not exist.
+
+**Verdict: 726 evaluable → 3 usable, at the cost of a 2–4 week dynamic pipeline, describing a fault
+event while the task is a clean outage.** The finding that replaces it is sharper than the rules
+would have been: *grid-code frequency limits are calibrated for N-2-and-beyond emergencies and
+grid-code ride-through limits for fault transients; N-1 thermal screening reaches neither, so no
+simulator upgrade makes them applicable — the gap is subject matter, not instrumentation.*
+
+### 20.3 What is next
+
+Ordered. Nothing here changes a measured result.
+
+1. ~~**N-1 calibration per WARN rule**~~ — **DONE 2026-09-17, see §21.** 8 of 11 predicates
+   calibrated (+0.23 to +0.73 discrimination); **2 came back INVERTED** — the entire power-factor
+   family fires more often when N-1 risk is *lower* — and 1 INSUFFICIENT. Those 5 records left the
+   WARN channel, so the banked figure is **17 distinct conditions speaking, not 20**. What remains
+   is the model-conditional version (§21.4), which needs a forward pass.
+2. ~~**Implement the channels in `shield/`**~~ — **DONE 2026-09-17, see §22.** Original note:
+   `ShieldResult` already carries `violated_rules`,
+   `supporting_rules`, `contradicting_rules` and `unsupported`; what is missing is a
+   `warning_rules` channel and a `build_explanation` that renders the PASS path (it currently
+   returns "No applicable rule was violated."). Pin with a test that a non-BLOCK rule can never
+   reach the veto path — if it can, §13's precision moves.
+3. **Optional: stage-2/3 re-run** (user-sanctioned, not yet started). Target is the 142
+   `scope / aggregation` rules of §19.1 plus the unexplained gap between the documented
+   693-expressible estimate and the 58 stage 2 produced. Needs a vocabulary extension for
+   per-generator (`gen_p`/`gen_q`), per-line (`rho`) and per-kV-level (`*_basekv.json`) accessors,
+   and a channel assigned at translation time. Projected **+15–25 distinct conditions**, low
+   confidence. Stage 1 stays frozen.
+4. **Still open from §17.1:** the expert-written rule baseline and the ceiling analysis. Neither
+   was run, and the expert baseline is what separates "extraction is the bottleneck" from "gating
+   is the bottleneck".
+
+**Where the count stands.** Served today: 4 records, **3 distinct conditions**, 2 KG predicates.
+After §19.3's re-admission *as calibrated in §21*: **41 rules speaking, 17 distinct conditions**,
+54 documented. ⚠ §19.3's 46/20 is the pre-calibration figure and is superseded — quote 41/17. The
+re-run would roughly double the distinct count; it does not change the order of magnitude, and the
+**5.7×** is already banked and measured.
+
+---
+
+## 21. Calibrating the WARN channel against the N-1 label
+
+§19.3 admitted 25 rule records to a WARN channel on the strength of their **classify-label** fire
+rates — the rule separates `normal` frames from `overload`/`line_trip`/`cascade` frames. That is a
+statement about the *retired* 4-class target (§9.1), not about the task the shield gates. §20.3
+listed calibrating them against the N-1 label as the highest-value remaining item, on the grounds
+that an uncalibrated warning is an alarm wearing a citation. It has now been run.
+
+`evaluation/warn_rule_calibration.py`, every frame of all three N-1 datasets (12,000 / 6,000 /
+4,000), no model and no LLM. Artifact: `results/audit/warn_n1_calibration.json`.
+
+### 21.1 The statistic, and two corrections made while measuring
+
+For each of the **11 distinct WARN predicates** (the 25 records are restatements; calibrating each
+record would report one measurement as though it were 25), the base-case context is built exactly
+as the shield builds it, the predicate is evaluated, and the frame's per-line N-1 labels are
+assigned to the firing or the silent arm.
+
+**The reported statistic is `P(violation | fires) − P(violation | silent)`, not lift against the
+base rate.** §20.1 uses lift-against-base, which is correct for a partition into seven `rho_max`
+bands and wrong for a binary predicate. The first full run showed why: the power-factor rule fires
+on **97.5%** of wcci2022 frames at P|fire 0.242 against P|silent 0.478, and lift-against-base still
+reads −0.006 — because a predicate that fires on nearly every frame *is* the base rate. Against its
+own silent arm it is **−0.236**. Both are persisted; the verdict is taken on the difference.
+
+**Pooled values are stratified by grid, and weighted by frames.** Two traps, both caught by
+measurement rather than by argument:
+
+- *Simpson.* `voltage_pu_min <= 0.90 or voltage_pu_max >= 1.10` fires on 100% of case14 frames and
+  on ~0% of the other two. Its within-case14 discrimination is undefined — it never stays silent —
+  yet naive pooling scored it **+0.067**, purely because case14's base violation rate (0.278) is
+  higher than neurips2020's (0.195). The predicate was being credited for identifying a topology.
+- *Frames, not contingencies.* Weighting a grid's contribution by contingencies let three firing
+  wcci2022 frames carry 558 votes against neurips2020's 71 frames. Lines in one frame share a grid
+  state. The pool now weights by **frames**, and a grid that did not earn its own verdict gets no
+  vote at all.
+
+A predicate needs **≥30 firing frames and ≥30 silent frames on a grid** to be scored there. A rule
+that fires on everything has no silent arm, and "it is always true" is a statement about the grid's
+operating point, not about risk.
+
+### 21.2 The result
+
+| predicate | grids scoring | P(violation \| fires) | P \| silent | **P\|f − P\|q** | verdict |
+|---|---:|---:|---:|---:|---|
+| `voltage_pu_min < 0.917` | case14 | **0.843** | 0.226 | **+0.726** | ELEVATED |
+| `voltage_pu_min < 0.95` | case14, wcci2022 | **0.592** | 0.225 | **+0.537** | ELEVATED |
+| `voltage_pu_min < 0.9 or voltage_pu_max > 1.1` | neurips2020 | **0.562** | 0.225 | **+0.297** | ELEVATED |
+| `voltage_pu_min < 0.90 or voltage_pu_max > 1.10` | neurips2020 | 0.562 | 0.225 | +0.297 | ELEVATED |
+| `voltage_pu_min <= 0.90 or voltage_pu_max >= 1.10` | neurips2020 | 0.287 | 0.221 | +0.297 | ELEVATED |
+| `voltage_pu_min < 0.85 or voltage_pu_max > 1.10` | neurips2020 | 0.522 | 0.226 | +0.297 | ELEVATED |
+| `voltage_pu_max > 1.10` | neurips2020 | 0.491 | 0.226 | +0.297 | ELEVATED |
+| `voltage_pu_min < 0.95 or voltage_pu_max > 1.05` | wcci2022 | 0.474 | 0.245 | +0.229 | ELEVATED |
+| `power_factor_at_max_load < −0.95 or > 0.95` | all three | 0.247 | 0.208 | **−0.163** | **INVERTED** |
+| `power_factor_at_max_load < −0.95 or > 0.90` | neurips2020, wcci2022 | 0.252 | 0.195 | **−0.070** | **INVERTED** |
+| `voltage_pu_min < 0.90` | *none* | 0.855 | 0.226 | — | INSUFFICIENT |
+
+**8 of 11 predicates (20 of 25 records) are calibrated.** Firing genuinely predicts a higher N-1
+violation rate, by between +0.23 and +0.73 against the predicate's own silent arm — against a base
+rate of 0.195–0.278. These may quote P|fire in their warning text.
+
+**Two predicates are INVERTED, and they are the whole power-factor family** (4 records: `R_909`,
+`R_128`, `R_1291`, `R_157`). On wcci2022, `power_factor_at_max_load > 0.95` fires on 97.5% of
+frames and firing is associated with a violation rate **0.236 lower** than staying silent. This is
+not a weak warning; it is a warning that points the wrong way, and no phrasing repairs it. They are
+factually true statements about the telemetry and stay documented — they must not be shown as risk
+warnings. Note the classify-label audit had them as discriminating: this is the clearest case in
+the corpus of a rule that separates the *retired* target and not the live one.
+
+**One is INSUFFICIENT** (`voltage_pu_min < 0.90`, `R_1835`): 26 firing frames pooled, under the
+bar. Its two-sided sibling `voltage_pu_min < 0.9 or voltage_pu_max > 1.1` clears it at 97 frames —
+on neurips2020 the overvoltage arm does all the work, which is §11.2 again (these grids operate
+~1.06 pu, so it is the upper band that trips, not the lower).
+
+### 21.3 What this does to the count
+
+| channel | §19.3 records | **calibrated** | §19.3 distinct | **calibrated** |
+|---|---:|---:|---:|---:|
+| BLOCK | 10 | **10** | 2 | **2** |
+| WARN | 25 | **20** | 11 | **8** |
+| NORMAL | 11 | **11** | 9 | **9** |
+| NOT_APPLICABLE | 8 | **13** | 8 | **11** |
+| INERT | 4 | 4 | 4 | 4 |
+| **speaking** | **46** | **41** | **20** | **17** |
+| documented | 54 | 54 | 25 | 25 |
+
+**3 → 17 distinct conditions speaking (5.7×), not 6.7×.** The calibration cost three distinct
+conditions and five records. It bought the thing those 20 records did not have: every WARN rule now
+quotes a number measured on the task the shield actually gates, and the five that could not earn
+one were found *before* a reviewer found them. Nothing moved in BLOCK, so §13's 92–94%
+intervention precision is untouched.
+
+### 21.4 The limit that remains — CLOSED 2026-09-17, see §23
+
+This is a **grid-conditional** calibration: P(violation | rule fires) over base-case frames. The
+WARN channel's semantic is narrower — *"this prediction was let through, but according to this
+rule, that could happen"* — which is P(violation | rule fires **and** the model predicted secure).
+That needs a forward pass and is a strictly smaller conditioning set. The direction is unlikely to
+flip, but the magnitudes will move, and the honest phrasing until it is run is the grid-conditional
+one. Do not attribute the numbers above to the model's error set.
+
+```
+.venv\Scripts\python.exe evaluation\warn_rule_calibration.py
+.venv\Scripts\python.exe evaluation\warn_rule_calibration.py --channel NORMAL
+```
+
+---
+
+## 22. Shield v2 — the explanation channels, implemented
+
+§19.3 diagnosed the problem and §21 calibrated the fix. This is the implementation:
+`SHIELD_VERSION = "2.0"`, new module `shield/channels.py`, new corpus
+`shield_corpus/all_rules_channels.jsonl`, new suite `tests/test_shield_channels.py`
+(22 tests). **245 tests pass.**
+
+### 22.1 What v1 could say, and what v2 says
+
+v1 had one channel. A rule vetoed a prediction or it was discarded — which is why 54 of the 58
+expressible rules never spoke. On a PASS it emitted a single string, `"No applicable rule was
+violated."`, which is true and carries no information: it cannot distinguish a grid where nine
+standards affirmatively hold from a grid no rule could evaluate.
+
+v2 renders three registers, in the order an operator reads them:
+
+| register | v2 output |
+|---|---|
+| **BLOCK** | `Prediction blocked by N rule violation(s): [HIGH] R_858 (Section 8.3.1.2): ... — condition: loading_pct > 100.0` |
+| **WARN** | `Warning - let through, but 10 rule(s) report a condition that raises N-1 risk: [WARN] R_351 (...): ... — 47.4% of contingencies violated a limit when this fired, against 24.5% when it did not; measured on wcci2022` |
+| **NORMAL** | `Environment normal according to N rule(s): [OK] R_1154 (NERC ...): ... — condition holds: ...` |
+
+The rate in the WARN line is not decoration — it is §21.2's measurement, and a warning that cannot
+produce one renders `no measured rate on this task` rather than implying it has one.
+
+### 22.2 The veto path is barred structurally, not by convention
+
+`partition_by_channel()` buckets rules before anything is evaluated, and the veto loop iterates
+`buckets[BLOCK]` and nothing else. A WARN rule cannot reach `violated_rules` by being mislabelled,
+mis-sorted or mis-ordered, because it is not in the list being iterated. An unrecognised `channel`
+value resolves to `NOT_APPLICABLE`, never to `BLOCK` — a typo silences a rule, it never promotes
+one.
+
+This is worth the ceremony because the failure would be **silent**: a WARN rule in the veto path
+still returns `BLOCK`, the harness still computes an F1, and nothing looks broken — but §13's
+92–94% intervention precision would be measured on a wider set than the one it was validated on.
+`tests/test_shield_channels.py::test_no_non_block_rule_can_ever_veto` and
+`::test_shipped_corpus_never_vetoes_outside_the_block_channel` pin it.
+
+Back-compatibility is exact: a rule with **no** `channel` key keeps v1 behaviour
+(CONSTRAINT → BLOCK, AFFIRMATION → NORMAL), so `validated_translated/all_rules_deduped.jsonl`
+behaves identically under v2.
+
+### 22.3 The proof: 58 rules, same numbers
+
+`evaluation/eval_shield_n1.py` run on all three grids against the 58-rule channel corpus, compared
+field by field with the recorded 4-rule results:
+
+| grid | rules | F1 model → shielded | delta | every metric arm |
+|---|---:|---|---:|---|
+| neurips2020 | 4 → **58** | 0.8956 → 0.9038 | +0.0082 | **identical** |
+| case14 | 4 → **58** | 0.4167 → 0.4188 | +0.0021 | **identical** |
+| wcci2022 | 4 → **58** | 0.5577 → 0.6253 | +0.0676 | **identical** |
+
+`arms`, `shield_health`, and every scalar (`eligible`, `blocked`, `corrections`, `regressions`,
+`missed_violations`, `missed_reachable_by_rule`, `violation_rate`, `f1_rule_baseline`) match
+exactly. `ap` and `threshold` differ at 1e-9 and 1e-6 — the forward-pass nondeterminism already
+documented in CLAUDE.md, reproducible between two runs of the *same* file. Artifacts:
+`results/shield/shield_<tag>_v2channels.json`.
+
+**One reported figure does move, and it is not a metric.** Block severity reads `critical` instead
+of `high` (353 / 103 / 22 559 blocks — the same blocks). The served corpus deduplicated ten
+validated restatements of `loading_pct > 100` down to three records, none of which was
+`R_2165`; serving all ten surfaces that **`R_2165` (EMO Dispatch Computer Constraints, §3.1)
+labels the same physical limit `critical` where nine other clauses call it `high` or `medium`**.
+That is a real disagreement between standards about the severity of one thermal limit, not a
+defect. The block *decisions* are identical. Supersedes "blocks are `high` severity only".
+
+### 22.4 Two defects found by looking at the rendered output
+
+Both were mine, both were invisible in the tests, and both were caught only by reading an
+explanation rendered from a real case14 frame.
+
+1. **The warning quoted the confounded rate.** The corpus builder shipped
+   `pooled.p_violation_given_fires` next to `pooled.discrimination`. Only the discrimination is
+   stratified (§21.1), so an ELEVATED rule rendered as *"21.0% when this fired against 24.5% when
+   it did not"* — the pair backwards, on a rule whose whole claim is that firing raises risk. Rates
+   are now taken from the grids that actually scored the predicate: **47.4% against 24.5%**, which
+   is §21.2's wcci2022 row.
+2. **A vocabulary mismatch rendered as contradiction.** Nine NORMAL rules affirm `normal` — the
+   retired 4-class label — while an N-1 verdict is `secure`. Same physical state, different task
+   vocabulary, so v1 filed all nine as *contradicting* and v2 dutifully printed "affirm a state
+   other than the one predicted". The labels are **not** aliased (that would move
+   `supporting_rules` and therefore the Option B counterfactual §13 reports); instead the text now
+   says what they are: *"affirm a state in the retired 4-class vocabulary, which does not compare
+   with an N-1 verdict — reported, not counted either way."*
+
+### 22.5 The limit a reader should know — the model-conditional half is now CLOSED (§23)
+
+A warning names the grid its rate was measured on, and that grid may not be the grid it is running
+on. `voltage_pu_min < 0.95 or voltage_pu_max > 1.05` is calibrated on wcci2022 only — on
+neurips2020 and case14 it fires on 100% of frames and has no silent arm (§21.2). The shield does
+not know which topology it is deployed on, so it cannot suppress the rule there; naming the
+measurement grid in the text is the honest minimum, not a full answer. The remaining item is
+§21.4's model-conditional calibration.
+
+```
+.venv\Scripts\python.exe evaluation\build_channel_corpus.py
+.venv\Scripts\python.exe evaluation\eval_shield_n1.py --tag wcci2022 --rules shield_corpus\all_rules_channels.jsonl --json results\shield\shield_wcci2022_v2channels.json
+.venv\Scripts\python.exe -m pytest tests\test_shield_channels.py -v
+```
+
+---
+
+## 23. The model-conditional calibration — the last open item on the WARN channel
+
+§21 measured P(N-1 violation | rule fires) over *all* base-case frames. §21.4 flagged that as
+narrower than the channel's actual semantic: a warning says *"this prediction was **let through**,
+but that could happen"*, so the conditioning set is the contingencies the model predicted `secure`
+— not every contingency. §22.5 carried it as the last open item. This is it, run.
+
+`evaluation/warn_rule_calibration_conditional.py`, every frame of all three grids, held threshold
+0.8849, eval batch size 64. Artifact: `results/audit/warn_n1_calibration_conditional.json`. All
+statistics are **imported** from `warn_rule_calibration.py` rather than copied, so the two passes
+cannot drift apart.
+
+### 23.1 No predicate changed sign
+
+| condition | shipped | grid-cond. | **model-cond.** | verdict |
+|---|---|---:|---:|---|
+| `voltage_pu_min < 0.95` | Y | +0.537 | **+0.290** | ELEVATED |
+| `voltage_pu_min < 0.95 or voltage_pu_max > 1.05` | Y | +0.229 | **+0.216** | ELEVATED |
+| the five ±10%/±15% voltage bands | Y | +0.297 | **+0.152** | ELEVATED |
+| `voltage_pu_min < 0.917` | Y | +0.726 | *sample lost* | **ELEVATED → INSUFFICIENT** |
+| `power_factor_at_max_load > 0.95` | n | −0.163 | **−0.151** | INVERTED |
+| `power_factor_at_max_load > 0.90` | n | −0.070 | **−0.051** | INVERTED |
+
+**Every ELEVATED predicate that keeps a sample stays ELEVATED; both INVERTED predicates stay
+INVERTED.** §21.4's stated expectation — *direction unlikely to flip, magnitudes will move* — held.
+**19 of the 20 shipped WARN records, and 7 of the 8 shipped distinct conditions, survive.**
+
+**The absolute rates a warning may quote drop sharply and must be restated.** The ±10% family goes
+from "49.1% when it fired against 19.4% when it did not" to **18.2% against 3.0%**. But the
+baseline falls further than the rate does: the violation rate among model-secure contingencies is
+0.030 / 0.225 / 0.133 against 0.195 / 0.278 / 0.248 grid-wide. On neurips2020 the warning is
+therefore **6.0× the base rate** where the grid-conditional pair was 2.5×. The *relative* signal
+gets stronger; the number printed to an operator gets smaller. Both must be restated together.
+
+### 23.2 Why one rule lost its sample — the substantive finding
+
+`voltage_pu_min < 0.917` scored only on case14 in §21. Under model conditioning its firing frames
+go **35 → 2**, and the whole undervoltage family collapses the same way on that grid (`< 0.9 or
+> 1.1`: 23 → 0; `< 0.95`: 38 → 2).
+
+The cause is not arithmetic. **180 case14 frames drop out because the model predicted `violation`
+on every single contingency in them** — and those 180 frames contain essentially all the
+undervoltage-firing frames. On case14, when the base case is deeply undervolted, the model already
+flags everything. There is no prediction being "let through" for the rule to warn about: *its
+information is already inside the model's output.*
+
+That is the most interesting thing this pass found, and it cuts both ways. It is a limit on the
+rule (nothing left to add) and a credit to the model (it saw what the standard saw). The voltage
+predicates that survive are the ones whose signal sits in the model's **blind spot** rather than
+beside its strength — which is the only place a shield can add anything at all, and is the same
+mechanism §13.3's structural ceiling describes.
+
+### 23.3 Three caveats that travel with this
+
+1. **`voltage_pu_min < 0.95` clears the bar on wcci2022 with exactly 30 firing frames**, the
+   minimum. Its ELEVATED verdict is one frame from INSUFFICIENT. Do not present it as robust.
+2. **~70% of the neurips2020 frames scanned are in-sample for the checkpoint.** `score_topology`
+   restricts the home grid to its held-out test split (1,800 frames), which at a 30-frame bar
+   reports INSUFFICIENT for arithmetic reasons and would confound "model-conditional" with
+   "different frames". All 12,000 were scanned instead, and the leak is disclosed rather than
+   hidden. The uncontaminated arm (`--neurips-scope test`) was run as a sensitivity check:
+   **every sign is preserved and the magnitudes are larger, not smaller** (+0.209 against +0.152 on
+   the voltage family). The all-frames choice is therefore conservative, not flattering.
+3. **Frames with no model-secure contingency contribute to neither arm**, and are counted
+   (`frames_no_secure_contingency`: 15 / 180 / 0). That counter turned out to be the entire
+   explanation of §23.2, which is why it is reported rather than swept into a denominator.
+
+### 23.4 The one decision this left open — SETTLED: `R_1098` stays in WARN
+
+`R_1098` (`voltage_pu_min < 0.917`) ships in the WARN channel on its grid-conditional verdict.
+The model-conditional pass cannot score it. Two readings were available:
+
+- **Keep it in WARN.** Its grid-conditional discrimination is **+0.726, the strongest in the
+  corpus**, and the model-conditional pass did not *contradict* it — it ran out of sample. Absence
+  of evidence under a narrower test is not evidence of absence, and the same reasoning already
+  governs `partition()` in the polarity guard, which keeps rules that cannot be measured anywhere.
+- *(rejected)* Demote it to NOT_APPLICABLE, on the ground that §21's rule was that an uncalibrated
+  warning does not ship.
+
+**Decision, 2026-09-17: it stays.** The shipped figures therefore remain **41 speaking /
+17 distinct**. Two things must travel with that choice and are not optional:
+
+1. `R_1098`'s quoted rate is the **grid-conditional** one (P|fire 0.843 on case14), and the
+   explanation text names the grid, as it does for every warning.
+2. §23.2 is the reason it cannot be scored model-conditionally — on case14 the model already flags
+   every contingency when voltage is that low. A reader who asks "why is this one not in the
+   §23.1 table?" must be able to find that answer, which is why it is stated there and not only
+   here.
+
+No measured result depends on this either way.
+
+```
+.venv\Scripts\python.exe evaluation\warn_rule_calibration_conditional.py
+.venv\Scripts\python.exe evaluation\warn_rule_calibration_conditional.py --neurips-scope test
+```

@@ -284,13 +284,43 @@ base case is close to a physical tautology (P(violation | base overloaded) = 91�
 Full account and both caveats: `thesis_findings.md` §13. The guarded-32 numbers in
 §11 are superseded but retained — the diff between the two corpora is itself the evidence.
 
+> **2026-09-17 — SHIELD v2: the explanation channels are BUILT (`SHIELD_VERSION = "2.0"`).**
+> v1 had one channel: a rule vetoed a prediction or it was discarded, which is why 54 of 58
+> expressible rules never spoke, and every PASS rendered the same empty string. v2 adds
+> `shield/channels.py` (BLOCK / WARN / NORMAL / NOT_APPLICABLE / INERT), renders the PASS path,
+> and ships `shield_corpus/all_rules_channels.jsonl` — **58 rules, 41 speaking, 17 distinct
+> conditions**, against the served corpus's 4 records / 3 distinct. Full account:
+> `thesis_findings.md` §19.3, §21, §22.
+>
+> **Every metric arm is IDENTICAL between the 4-rule and 58-rule corpora on all three grids**
+> (§22.3) — `arms`, `shield_health`, and every scalar. Deltas still +0.0082 / +0.0021 / +0.0676.
+> `ap`/`threshold` drift at 1e-9/1e-6 is the usual forward-pass nondeterminism.
+>
+> ⚠️ **Block severity now reads `critical`, not `high`** — the same 353 / 103 / 22,559 blocks.
+> Serving all ten validated restatements of `loading_pct > 100` (rather than the three the dedup
+> kept) surfaces `R_2165`, which labels the same limit `critical` where nine other clauses say
+> `high`/`medium`. A real disagreement between standards, not a defect. **This supersedes "blocks
+> are `high` severity only" below.**
+>
+> ⚠️ **Only the BLOCK channel can veto, and that is structural** — `partition_by_channel()` buckets
+> before evaluation and the veto loop iterates `buckets[BLOCK]` alone. An unrecognised `channel`
+> resolves to `NOT_APPLICABLE`, never `BLOCK`. A rule with **no** `channel` key keeps v1 behaviour
+> exactly, which is why the served corpus is unaffected. Guarded by
+> `tests/test_shield_channels.py`. **Never widen `VETO_CHANNELS`** — §13's 92–94% intervention
+> precision is measured on that set, and a WARN rule reaching it fails silently.
+>
+> ⚠️ **A WARN rule may not ship without its N-1 calibration.** `assert_warnings_calibrated()`
+> refuses a corpus whose warnings carry no rate or a non-positive discrimination. §21.2 measured
+> **two INVERTED predicates** — the entire power-factor family fires *more* often when N-1 risk is
+> lower — so `build_channel_corpus.py` demotes 5 records out of WARN on the measurement.
+
 **Live harness is `evaluation/eval_shield_n1.py`.** The classify-era `eval_shield.py` was
 DELETED on 2026-08-20 along with the artifacts it needed (recoverable from git history).
 `shield/` (context, evaluator, shield), `extraction/polarity_guard.py`, `kg/` (Component C).
 `evaluation/summarize_shield_results.py` was DELETED on 2026-08-20 — it read a retired schema
 from a `results/` directory that did not then exist. Now that `results/` *does* exist it would
 have half-worked, which is worse than being orphaned; recoverable from git history.
-**222 tests green.**
+**245 tests green.**
 Rule retrieval sits behind a `RuleProvider` protocol (`JsonlRuleProvider` by default,
 `kg.provider.KgRuleProvider` opt-in),
 so the KG redesign cannot invalidate it. Pending: the binary/asymmetric update for the forecast
@@ -519,7 +549,7 @@ data/                              # gitignored in full — 423 MB, all of it re
 # 36-bus training split by every eval script — see Component A below.
 
 results/                           # every artifact the eval harness writes (was the repo root)
-  shield/     shield_<tag>[_run3|_validated|_kg].json   # tracked — the recorded result
+  shield/     shield_<tag>[_run3|_validated|_kg|_v2channels].json  # tracked — the recorded result
   citations/  citations_<tag>.json                      # tracked — provenance chains
   audit/      audit_run3.json                           # tracked — evaluation/audit_rules.py
   threshold/  threshold_sweep.json                      # tracked — evaluation/sweep_threshold.py
@@ -539,6 +569,10 @@ rules_35b/                         # stage 1, 2,463 candidates across 16 docs (P
 translated_rules/                  # stage 2 run 3 output; guarded/ is the stage-2.5 corpus (32 rules)
 validated_translated/              # ⭐ STAGE 3, the CORPUS TO CITE — all_rules_deduped.jsonl = 4 rules
 validated_strict/                  # stage 3 counterfactual arm (1 rule) — evidence, never an input
+shield_corpus/                     # ⭐ SHIELD v2 corpus — all_rules_channels.jsonl, 58 rules stamped
+                                   #   with channel + N-1 calibration (evaluation/build_channel_corpus.py).
+                                   #   A SUPERSET of validated_translated/, not a replacement: its BLOCK
+                                   #   channel is asserted identical to the served corpus at build time.
 # NOTE: validated_rules/ was stage 3 run 1 (rejections not persisted). DELETED 2026-08-20 —
 # validated_strict/ reproduces it exactly and keeps the reasons. In git history at a5c5199.
   all_rules_deduped.jsonl          # merged, deduplicated confirmed rules
@@ -569,6 +603,11 @@ training/
   config.py                        # TRAIN_CONFIG (auto-selected by device), artifact paths, GRID_DEVICE override
 
 evaluation/
+  build_channel_corpus.py          # shield v2 — joins readmission + calibration into the served corpus
+  warn_rule_calibration.py         # P(N-1 violation | rule fires) per channel (findings §21)
+  corpus_accounting.py             # exhaustive partition of all 2,463 candidates (findings §19.1)
+  readmit_rules.py                 # four-channel re-admission by measured behaviour (findings §19.3)
+  loading_band_calibration.py      # P(violation | base rho_max band) (findings §20.1)
   eval_n1_cross_topology.py        # per-contingency metrics vs the all-positive and rule baselines
   eval_shield_n1.py                # the live shield harness — writes into results/
   sweep_threshold.py               # F-beta threshold trade curve (thesis_findings.md §14.2)
@@ -580,6 +619,7 @@ supplimentary_docs/
   thesis_walkthrough.md            # ⭐ START HERE — plain-English walkthrough of every stage
   thesis_findings.md               # ⭐ THE RECORD — §1-8 narrative, §9-18 derivations/landmines
   revised_thesis_claim.md          # what the thesis may and may not claim
+  andes_investigation.md           # why no dynamic simulator — standalone, plain language
   gnn_n1_tightening.md · study.md · formula.md                       # LIVE
   env_selection/                   # why these Grid2Op environments (Apr 2026, bannered)
   Architecture.svg                 # the four components on one page — REDRAWN 2026-08-20
@@ -779,7 +819,12 @@ a finding about the standards/simulator mismatch, not a success metric. See
 
 - `strip_think()` regex applied to all model output before JSON parsing — Qwen3 occasionally leaks `<think>` tokens despite `/no_think`
 - GBNF grammar enforcement on array output prevents malformed JSON
-- Rule IDs are globally sequential (`R_001`, `R_002`, ...) across all chunks/documents before validation
+- ⚠️ **Rule IDs are NOT globally unique — this note previously claimed they were.** Measured
+  2026-09-17 (`thesis_findings.md` §19.2): `rules_35b/` holds **2,463 records but 2,291 distinct
+  `rule_id`s**, because five documents restarted numbering, so **`R_001`..`R_172` are reused across
+  five documents**. **Key on `(document, rule_id)`, never on `rule_id` alone.** The served
+  four-rule corpus carries no colliding id and `R_167`'s provenance was verified correct, so no
+  reported result is affected — but any new join over rule_id will silently mismatch.
 
 ---
 
@@ -848,8 +893,10 @@ that matter:
    `shield/` imports anything from `kg/`, and citation rendering lives in `kg/cite.py`.
 2. **`voltage_pu = min(v_or)/150.0` is wrong** — per-line base kV with energized-line masking
    (`thesis_findings.md` §11.1).
-3. **Rules have roles.** Only `CONSTRAINT` violations block; `AFFIRMATION` rules supply supporting
-   evidence and never block on their own (Option A).
+3. **Rules have roles, and now channels.** Only `CONSTRAINT` violations block; `AFFIRMATION` rules
+   supply supporting evidence and never block on their own (Option A). As of v2 a rule may also
+   carry an explicit `channel` — see the shield v2 note under Current Status and
+   `thesis_findings.md` §22.
 
 Every GNN prediction passes through the shield; there is no bypass mode.
 
