@@ -116,6 +116,75 @@ def partition_by_channel(rules: Iterable[dict]) -> dict[str, list[dict]]:
     return buckets
 
 
+#: Coverage at or above which a rule is treated as DEGENERATE on a grid: it
+#: fires on essentially every frame there, so its output carries no information.
+#: A warning is only a warning if it is sometimes silent - the meaning is in the
+#: contrast, and a predicate with no silent arm has none to offer. 0.999 rather
+#: than 1.0 so a rule that stays quiet on a handful of frames out of 12,000 is
+#: still counted as the alarm it plainly is.
+DEGENERATE_COVERAGE = 0.999
+
+
+def coverage_on(rule: dict, tag: str) -> float | None:
+    """Fraction of frames this rule fired on, on ONE grid. `None` if unmeasured.
+
+    Written by `evaluation/stamp_warn_coverage.py` from the per-grid arm of
+    `results/audit/warn_n1_calibration.json`. Kept per grid rather than pooled
+    because that is exactly the distinction the channel was getting wrong.
+    """
+    cov = rule.get("coverage")
+    if not isinstance(cov, dict):
+        return None
+    value = cov.get(tag)
+    return float(value) if isinstance(value, (int, float)) else None
+
+
+def is_degenerate_on(rule: dict, tag: str) -> bool:
+    """True when this rule fires on ~every frame of `tag` and so says nothing.
+
+    Unmeasured is NOT degenerate. Silencing a rule because nobody measured it
+    would be the same overreach in the other direction, and the stamper reports
+    every WARN rule it could not measure rather than leaving it implicit.
+    """
+    coverage = coverage_on(rule, tag)
+    return coverage is not None and coverage >= DEGENERATE_COVERAGE
+
+
+def resolve_channels_for_grid(rules: Iterable[dict], tag: str) -> list[dict]:
+    """Re-channel a corpus for the grid it is about to be evaluated on.
+
+    A rule earns the WARN channel by discriminating on *any* grid, which is how
+    `voltage_pu_min < 0.95 or voltage_pu_max > 1.05` ships as a warning on
+    neurips2020 and case14 while firing on 100% of their contingencies. It is
+    stated in 10 clauses across 4 documents, so it is not a mis-extraction - the
+    standard is fine and the binding is wrong. Rather than drop it, this sends it
+    to NOT_APPLICABLE **on the grids where it was measured to be vacuous**, where
+    it stays carried, counted and citable but is never rendered as a warning. On
+    wcci2022 the same record still warns, unchanged.
+
+    Returns COPIES; the input corpus is never mutated. `channel_was` records what
+    the rule shipped as, so the demotion is visible in the artifact instead of
+    looking like the corpus always said NOT_APPLICABLE.
+
+    This cannot move a reported number: WARN never reaches the veto path, so no
+    rule that could block is touched. `tests/test_warn_degeneracy.py` pins that.
+    """
+    out: list[dict] = []
+    for rule in rules:
+        if channel_of(rule) == WARN and is_degenerate_on(rule, tag):
+            demoted = dict(rule)
+            demoted["channel"] = NOT_APPLICABLE
+            demoted["channel_was"] = WARN
+            demoted["demoted_because"] = (
+                f"fires on {coverage_on(rule, tag):.1%} of {tag} frames - "
+                f"degenerate there, so it carries no information on this grid"
+            )
+            out.append(demoted)
+        else:
+            out.append(dict(rule))
+    return out
+
+
 def calibration_of(rule: dict) -> dict | None:
     """The N-1 calibration a WARN rule must carry before it may claim risk.
 

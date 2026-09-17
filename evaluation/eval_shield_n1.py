@@ -65,6 +65,13 @@ from torch_geometric.loader import DataLoader
 
 from scripts.pyg_data import GridDataset, GridEnvMetadata, PreloadedGridDataset
 from shield.context import build_context, load_base_kv
+from kg.schema import EXPLANATORY_RULE  # noqa: E402
+from shield.channels import (  # noqa: E402
+    BLOCK,
+    WARN,
+    partition_by_channel,
+    resolve_channels_for_grid,
+)
 from shield.shield import SECURE, VIOLATION, validate_n1
 from training.config import DATA_DIR, DEVICE, EDGE_FEATURES, NODE_FEATURES, TRAIN_CONFIG
 from training.train_gnn import GridGNN, compute_normalization_stats
@@ -278,6 +285,14 @@ def run_shield(scored: dict, pred: np.ndarray, rules: list[dict], tag: str,
     n_frames_seen = n_logged = 0
     severities: Counter = Counter()
     fired: Counter = Counter()      # served rule_id -> blocks it produced
+    # Rules that SPOKE without vetoing. `fired` alone covered only the veto
+    # path, so a WARN rule could be rendered to a reader and still never
+    # appear in the citation block — a warning nobody could attribute.
+    # Keyed by the ShieldResult FIELD, not by the rule's channel. `supporting`
+    # is NOT the NORMAL channel: on the VIOLATION branch validate_n1 folds
+    # fired CONSTRAINTs into it, so a BLOCK-channel rule legitimately appears
+    # there and calling the bucket NORMAL would misreport what it holds.
+    spoke: dict[str, Counter] = {WARN: Counter(), "supporting": Counter()}
     fh = failures_path.open("w", encoding="utf-8") if failures_path else None
 
     cache: dict[tuple[int, str], object] = {}
@@ -308,6 +323,10 @@ def run_shield(scored: dict, pred: np.ndarray, rules: list[dict], tag: str,
                 severities[str(res.highest_severity)] += 1
                 for r in res.violated_rules:
                     fired[str(r.get("rule_id"))] += 1
+            for r in res.warning_rules:
+                spoke[WARN][str(r.get("rule_id"))] += 1
+            for r in res.supporting_rules:
+                spoke["supporting"][str(r.get("rule_id"))] += 1
             # Only meaningful on the SECURE branch, which is the only branch either
             # consumer reads: `eligible` and the structural ceiling both gate on
             # pred == 0. On the VIOLATION branch validate_n1 folds fired constraints
@@ -342,6 +361,7 @@ def run_shield(scored: dict, pred: np.ndarray, rules: list[dict], tag: str,
         "base_violates": base_violates,
         "n_frames": n_frames_seen,
         "fired": fired,
+        "spoke": spoke,
         "n_not_evaluable": n_not_evaluable,
         "n_error": n_error,
         "n_unsupported": n_unsupported,
@@ -370,6 +390,16 @@ def main() -> None:
                          "(kg/knowledge_graph.json). Returns the same set as --rules "
                          "by construction — pinned by tests/test_kg.py — so the "
                          "reported numbers must not move. Overrides --rules.")
+    ap.add_argument("--keep-degenerate-warnings", action="store_true",
+                    help="Do NOT silence WARN rules that fire on ~every frame of\n"
+                         "this grid. Off by default: such a rule produces the same\n"
+                         "output as printing WARNING unconditionally. Use it to\n"
+                         "reproduce the pre-fix behaviour."),
+    ap.add_argument("--kg-explanatory", action="store_true",
+                    help="With --rules-kg, also serve the graph's ExplanatoryRule\n"
+                         "layer (the four-channel corpus). Only BLOCK can veto, so\n"
+                         "this adds WARN/NORMAL output and their citations without\n"
+                         "widening the veto path — assert-checked below."),
     ap.add_argument("--citations", default=None,
                     help="Write the provenance chain for every rule that fired "
                          "(requires --rules-kg). One record per distinct rule, not "
@@ -403,13 +433,40 @@ def main() -> None:
     if args.rules_kg:
         from kg.provider import KgRuleProvider
 
-        provider = KgRuleProvider.from_json(args.rules_kg)
+        provider = KgRuleProvider.from_json(
+            args.rules_kg, include_explanatory=args.kg_explanatory)
         rules = provider.rules_for(SECURE)
-        print(f"Rules from knowledge graph {args.rules_kg} ({len(rules)} served)")
+        n_veto = len(partition_by_channel(rules)[BLOCK])
+        print(f"Rules from knowledge graph {args.rules_kg} ({len(rules)} served, "
+              f"{n_veto} on the veto path)")
     else:
         rules = load_rules(args.rules)
         if args.citations:
             sys.exit("--citations requires --rules-kg (provenance lives in the graph).")
+
+    # A rule earns WARN by discriminating on ANY grid, so a predicate that
+    # fires on 100% of this grid's frames still shipped as a warning here.
+    # Silence those on this grid only; they keep their voice where they were
+    # measured to have one. BLOCK is untouched, so no reported number moves.
+    if not args.keep_degenerate_warnings:
+        before = partition_by_channel(rules)[WARN]
+        # A corpus with no coverage makes the demotion a silent no-op that
+        # looks exactly like a clean run. Say so rather than let a reader
+        # conclude no rule was degenerate.
+        if before and not any(isinstance(r.get('coverage'), dict) for r in before):
+            print(f"WARNING: none of the {len(before)} WARN rules carry per-grid "
+                  f"coverage, so no degenerate warning can be silenced. Run "
+                  f"evaluation/stamp_warn_coverage.py, then rebuild the graph "
+                  f"if you are serving one (scripts/build_kg.py --channels).")
+        rules = resolve_channels_for_grid(rules, args.tag)
+        after = partition_by_channel(rules)[WARN]
+        if len(before) != len(after):
+            silenced = sorted({str(r.get("rule_id")) for r in before}
+                              - {str(r.get("rule_id")) for r in after})
+            print(f"Degenerate on {args.tag}: {len(silenced)} of {len(before)} "
+                  f"WARN rules fire on ~every frame here and are demoted to "
+                  f"NOT_APPLICABLE on this grid only "
+                  f"({', '.join(silenced)})")
 
     print("Computing 36-bus N-1 train-split normalization stats...")
     home_pt = os.path.join(DATA_DIR, "processed_grid_data_n1.pt")
@@ -509,21 +566,61 @@ def main() -> None:
         print(f"  blocks by severity     : {sh['severities']}")
     print(f"\n  failure log -> {failures_path}")
 
-    if provider is not None and sh["fired"]:
+    if provider is not None and (sh["fired"] or any(sh["spoke"].values())):
         from kg.schema import format_citation
 
-        print("\n  ── WHICH RULES ACTED, AND ON WHOSE AUTHORITY ──────────────────")
         records = []
+        if sh["fired"]:
+            print("\n  ── WHICH RULES ACTED, AND ON WHOSE AUTHORITY ──────────────────")
         for rid, n in sh["fired"].most_common():
             cit = provider.cite(rid)
             records.append({**cit.to_dict(), "n_blocks": n})
             print(f"\n  {n:,} block(s):")
             for line in format_citation(cit).splitlines():
                 print(f"  {line}")
+        # The explanation channels. `fired` above is the veto path only; these
+        # are the rules that spoke WITHOUT blocking. Reported separately rather
+        # than merged, because merging would put a WARN rule into a list a
+        # reader is entitled to read as "this is what stopped the prediction".
+        spoken: dict[str, list] = {}
+        for channel in (WARN, "supporting"):
+            counts = sh["spoke"].get(channel) or Counter()
+            if not counts:
+                continue
+            heading = ("WARN CHANNEL" if channel == WARN else
+                       "SUPPORTING EVIDENCE (affirmations, plus constraints "
+                       "folded in on the violation branch)")
+            print(f"\n  -- {heading}: WHAT SPOKE, AND ON WHOSE AUTHORITY --")
+            rows = []
+            for rid, n in counts.most_common():
+                try:
+                    # Attribute to the record that spoke, not to the served
+                    # group it would dedup into - R_1492 warning is R_1492,
+                    # not R_1443 saying the same thing a fourth time.
+                    cit = provider.cite(rid, layer=EXPLANATORY_RULE)
+                except KeyError:
+                    try:
+                        cit = provider.cite(rid)
+                    except KeyError:
+                        cit = None
+                if cit is None:
+                    # A rule the graph cannot attribute. Counted, never quietly
+                    # dropped: an uncitable warning is the defect this fixes.
+                    print(f"\n  {n:,} x {rid}: NOT CITABLE - absent from the graph")
+                    rows.append({"served_rule_id": rid, "n_spoke": n,
+                                 "citable": False})
+                    continue
+                rows.append({**cit.to_dict(), "n_spoke": n, "citable": True})
+                print(f"\n  {n:,} x")
+                for line in format_citation(cit).splitlines():
+                    print(f"  {line}")
+            spoken[channel] = rows
+
         if args.citations:
             _mkparent(args.citations).write_text(
                 json.dumps({"tag": args.tag, "rules_kg": args.rules_kg,
-                            "fired": records}, indent=2, ensure_ascii=False),
+                            "fired": records, "spoke": spoken},
+                           indent=2, ensure_ascii=False),
                 encoding="utf-8",
             )
             print(f"\n  citations -> {args.citations}")

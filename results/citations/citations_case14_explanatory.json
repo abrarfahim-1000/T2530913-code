@@ -1,0 +1,875 @@
+{
+  "tag": "case14",
+  "rules_kg": "kg/knowledge_graph.json",
+  "fired": [
+    {
+      "served_rule_id": "R_916",
+      "condition": "loading_pct > 100",
+      "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+      "severity": "medium",
+      "role": "CONSTRAINT",
+      "channel": null,
+      "n_clauses": 2,
+      "n_documents": 2,
+      "n_bodies": 1,
+      "sources": [
+        {
+          "rule_id": "R_916",
+          "clause": "Grid Code Section 11.4.1, Item ix",
+          "document": "Bangladesh_Electricity-Grid-Code-regulations",
+          "issuing_body": "Bangladesh Energy Regulatory Commission"
+        },
+        {
+          "rule_id": "R_2165",
+          "clause": "EMO Dispatch Computer Constraints, Section 3.1",
+          "document": "power-system-requirements",
+          "issuing_body": null
+        }
+      ],
+      "n_blocks": 103
+    },
+    {
+      "served_rule_id": "R_1443",
+      "condition": "loading_pct > 100",
+      "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+      "severity": "high",
+      "role": "CONSTRAINT",
+      "channel": null,
+      "n_clauses": 7,
+      "n_documents": 2,
+      "n_bodies": 1,
+      "sources": [
+        {
+          "rule_id": "R_1443",
+          "clause": "Guidelines and Technical Basis, Page 465, Example criteria (a)",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1492",
+          "clause": "NERC PRC-005, Section 6.2.1",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_2019",
+          "clause": "TPL-008-1, Section Steady State Only, f",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_2018",
+          "clause": "TPL-008-1, Table 1 (f)",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1710",
+          "clause": "Text Section 6.c",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1717",
+          "clause": "Text Section 7c, Non-Limited Impact RAS Ratings",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_167",
+          "clause": "TPL-001-5.1, Section 5.1.f",
+          "document": "TPL-001-5.1 — Transmission System Planning Performance Requirements",
+          "issuing_body": "NERC"
+        }
+      ],
+      "n_blocks": 103
+    },
+    {
+      "served_rule_id": "R_858",
+      "condition": "loading_pct > 100.0",
+      "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+      "severity": "high",
+      "role": "CONSTRAINT",
+      "channel": null,
+      "n_clauses": 1,
+      "n_documents": 1,
+      "n_bodies": 1,
+      "sources": [
+        {
+          "rule_id": "R_858",
+          "clause": "Section 8.3.1.2",
+          "document": "Bangladesh_Electricity-Grid-Code-regulations",
+          "issuing_body": "Bangladesh Energy Regulatory Commission"
+        }
+      ],
+      "n_blocks": 103
+    },
+    {
+      "served_rule_id": "R_1443",
+      "condition": "loading_pct > 100",
+      "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+      "severity": "high",
+      "role": "CONSTRAINT",
+      "channel": null,
+      "n_clauses": 7,
+      "n_documents": 2,
+      "n_bodies": 1,
+      "sources": [
+        {
+          "rule_id": "R_1443",
+          "clause": "Guidelines and Technical Basis, Page 465, Example criteria (a)",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1492",
+          "clause": "NERC PRC-005, Section 6.2.1",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_2019",
+          "clause": "TPL-008-1, Section Steady State Only, f",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_2018",
+          "clause": "TPL-008-1, Table 1 (f)",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1710",
+          "clause": "Text Section 6.c",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1717",
+          "clause": "Text Section 7c, Non-Limited Impact RAS Ratings",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_167",
+          "clause": "TPL-001-5.1, Section 5.1.f",
+          "document": "TPL-001-5.1 — Transmission System Planning Performance Requirements",
+          "issuing_body": "NERC"
+        }
+      ],
+      "n_blocks": 103
+    },
+    {
+      "served_rule_id": "R_1443",
+      "condition": "loading_pct > 100",
+      "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+      "severity": "high",
+      "role": "CONSTRAINT",
+      "channel": null,
+      "n_clauses": 7,
+      "n_documents": 2,
+      "n_bodies": 1,
+      "sources": [
+        {
+          "rule_id": "R_1443",
+          "clause": "Guidelines and Technical Basis, Page 465, Example criteria (a)",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1492",
+          "clause": "NERC PRC-005, Section 6.2.1",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_2019",
+          "clause": "TPL-008-1, Section Steady State Only, f",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_2018",
+          "clause": "TPL-008-1, Table 1 (f)",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1710",
+          "clause": "Text Section 6.c",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1717",
+          "clause": "Text Section 7c, Non-Limited Impact RAS Ratings",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_167",
+          "clause": "TPL-001-5.1, Section 5.1.f",
+          "document": "TPL-001-5.1 — Transmission System Planning Performance Requirements",
+          "issuing_body": "NERC"
+        }
+      ],
+      "n_blocks": 103
+    },
+    {
+      "served_rule_id": "R_1443",
+      "condition": "loading_pct > 100",
+      "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+      "severity": "high",
+      "role": "CONSTRAINT",
+      "channel": null,
+      "n_clauses": 7,
+      "n_documents": 2,
+      "n_bodies": 1,
+      "sources": [
+        {
+          "rule_id": "R_1443",
+          "clause": "Guidelines and Technical Basis, Page 465, Example criteria (a)",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1492",
+          "clause": "NERC PRC-005, Section 6.2.1",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_2019",
+          "clause": "TPL-008-1, Section Steady State Only, f",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_2018",
+          "clause": "TPL-008-1, Table 1 (f)",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1710",
+          "clause": "Text Section 6.c",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1717",
+          "clause": "Text Section 7c, Non-Limited Impact RAS Ratings",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_167",
+          "clause": "TPL-001-5.1, Section 5.1.f",
+          "document": "TPL-001-5.1 — Transmission System Planning Performance Requirements",
+          "issuing_body": "NERC"
+        }
+      ],
+      "n_blocks": 103
+    },
+    {
+      "served_rule_id": "R_1443",
+      "condition": "loading_pct > 100",
+      "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+      "severity": "high",
+      "role": "CONSTRAINT",
+      "channel": null,
+      "n_clauses": 7,
+      "n_documents": 2,
+      "n_bodies": 1,
+      "sources": [
+        {
+          "rule_id": "R_1443",
+          "clause": "Guidelines and Technical Basis, Page 465, Example criteria (a)",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1492",
+          "clause": "NERC PRC-005, Section 6.2.1",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_2019",
+          "clause": "TPL-008-1, Section Steady State Only, f",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_2018",
+          "clause": "TPL-008-1, Table 1 (f)",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1710",
+          "clause": "Text Section 6.c",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1717",
+          "clause": "Text Section 7c, Non-Limited Impact RAS Ratings",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_167",
+          "clause": "TPL-001-5.1, Section 5.1.f",
+          "document": "TPL-001-5.1 — Transmission System Planning Performance Requirements",
+          "issuing_body": "NERC"
+        }
+      ],
+      "n_blocks": 103
+    },
+    {
+      "served_rule_id": "R_1443",
+      "condition": "loading_pct > 100",
+      "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+      "severity": "high",
+      "role": "CONSTRAINT",
+      "channel": null,
+      "n_clauses": 7,
+      "n_documents": 2,
+      "n_bodies": 1,
+      "sources": [
+        {
+          "rule_id": "R_1443",
+          "clause": "Guidelines and Technical Basis, Page 465, Example criteria (a)",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1492",
+          "clause": "NERC PRC-005, Section 6.2.1",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_2019",
+          "clause": "TPL-008-1, Section Steady State Only, f",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_2018",
+          "clause": "TPL-008-1, Table 1 (f)",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1710",
+          "clause": "Text Section 6.c",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1717",
+          "clause": "Text Section 7c, Non-Limited Impact RAS Ratings",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_167",
+          "clause": "TPL-001-5.1, Section 5.1.f",
+          "document": "TPL-001-5.1 — Transmission System Planning Performance Requirements",
+          "issuing_body": "NERC"
+        }
+      ],
+      "n_blocks": 103
+    },
+    {
+      "served_rule_id": "R_1443",
+      "condition": "loading_pct > 100",
+      "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+      "severity": "high",
+      "role": "CONSTRAINT",
+      "channel": null,
+      "n_clauses": 7,
+      "n_documents": 2,
+      "n_bodies": 1,
+      "sources": [
+        {
+          "rule_id": "R_1443",
+          "clause": "Guidelines and Technical Basis, Page 465, Example criteria (a)",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1492",
+          "clause": "NERC PRC-005, Section 6.2.1",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_2019",
+          "clause": "TPL-008-1, Section Steady State Only, f",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_2018",
+          "clause": "TPL-008-1, Table 1 (f)",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1710",
+          "clause": "Text Section 6.c",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_1717",
+          "clause": "Text Section 7c, Non-Limited Impact RAS Ratings",
+          "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+          "issuing_body": "NERC"
+        },
+        {
+          "rule_id": "R_167",
+          "clause": "TPL-001-5.1, Section 5.1.f",
+          "document": "TPL-001-5.1 — Transmission System Planning Performance Requirements",
+          "issuing_body": "NERC"
+        }
+      ],
+      "n_blocks": 103
+    },
+    {
+      "served_rule_id": "R_916",
+      "condition": "loading_pct > 100",
+      "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+      "severity": "medium",
+      "role": "CONSTRAINT",
+      "channel": null,
+      "n_clauses": 2,
+      "n_documents": 2,
+      "n_bodies": 1,
+      "sources": [
+        {
+          "rule_id": "R_916",
+          "clause": "Grid Code Section 11.4.1, Item ix",
+          "document": "Bangladesh_Electricity-Grid-Code-regulations",
+          "issuing_body": "Bangladesh Energy Regulatory Commission"
+        },
+        {
+          "rule_id": "R_2165",
+          "clause": "EMO Dispatch Computer Constraints, Section 3.1",
+          "document": "power-system-requirements",
+          "issuing_body": null
+        }
+      ],
+      "n_blocks": 103
+    }
+  ],
+  "spoke": {
+    "WARN": [
+      {
+        "served_rule_id": "R_069",
+        "condition": "voltage_pu_min < 0.95",
+        "predicate": "lowest per-unit voltage across all energized lines is below 0.95",
+        "severity": "high",
+        "role": "CONSTRAINT",
+        "channel": "WARN",
+        "n_clauses": 1,
+        "n_documents": 1,
+        "n_bodies": 1,
+        "sources": [
+          {
+            "rule_id": "R_069",
+            "clause": "PRC-025-2 Application Guidelines, Example Calculations, Option 8a",
+            "document": "prc-025-2",
+            "issuing_body": "NERC"
+          }
+        ],
+        "n_spoke": 675,
+        "citable": true
+      },
+      {
+        "served_rule_id": "R_1926",
+        "condition": "voltage_pu_min < 0.95",
+        "predicate": "lowest per-unit voltage across all energized lines is below 0.95",
+        "severity": "high",
+        "role": "CONSTRAINT",
+        "channel": "WARN",
+        "n_clauses": 1,
+        "n_documents": 1,
+        "n_bodies": 1,
+        "sources": [
+          {
+            "rule_id": "R_1926",
+            "clause": "PRC-025-2 Application Guidelines, Example Calculations: Option 2a",
+            "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+            "issuing_body": "NERC"
+          }
+        ],
+        "n_spoke": 675,
+        "citable": true
+      },
+      {
+        "served_rule_id": "R_1927",
+        "condition": "voltage_pu_min < 0.95",
+        "predicate": "lowest per-unit voltage across all energized lines is below 0.95",
+        "severity": "high",
+        "role": "CONSTRAINT",
+        "channel": "WARN",
+        "n_clauses": 1,
+        "n_documents": 1,
+        "n_bodies": 1,
+        "sources": [
+          {
+            "rule_id": "R_1927",
+            "clause": "PRC-025-2 Application Guidelines, Option 2a, Table 1",
+            "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+            "issuing_body": "NERC"
+          }
+        ],
+        "n_spoke": 675,
+        "citable": true
+      },
+      {
+        "served_rule_id": "R_1098",
+        "condition": "voltage_pu_min < 0.917",
+        "predicate": "lowest per-unit voltage across all energized lines is below 0.917",
+        "severity": "critical",
+        "role": "CONSTRAINT",
+        "channel": "WARN",
+        "n_clauses": 1,
+        "n_documents": 1,
+        "n_bodies": 1,
+        "sources": [
+          {
+            "rule_id": "R_1098",
+            "clause": "IEEE 1547-2018, Table 2.7 (Enter Service Criteria), Applicable Voltage Minimum Value",
+            "document": "guideline-ieee_1547-2018_bps_perspectives_clean-1",
+            "issuing_body": "IEEE"
+          }
+        ],
+        "n_spoke": 623,
+        "citable": true
+      },
+      {
+        "served_rule_id": "R_1108",
+        "condition": "voltage_pu_min < 0.9 or voltage_pu_max > 1.1",
+        "predicate": "lowest per-unit voltage across all energized lines is below 0.9 or highest per-unit voltage across all energized lines exceeds 1.1",
+        "severity": "high",
+        "role": "CONSTRAINT",
+        "channel": "WARN",
+        "n_clauses": 1,
+        "n_documents": 1,
+        "n_bodies": 1,
+        "sources": [
+          {
+            "rule_id": "R_1108",
+            "clause": "Text Fragment, Voltage Range Specification",
+            "document": "inverter-based_resource_performance_guideline",
+            "issuing_body": "NERC"
+          }
+        ],
+        "n_spoke": 408,
+        "citable": true
+      },
+      {
+        "served_rule_id": "R_1444",
+        "condition": "voltage_pu_min < 0.9 or voltage_pu_max > 1.1",
+        "predicate": "lowest per-unit voltage across all energized lines is below 0.9 or highest per-unit voltage across all energized lines exceeds 1.1",
+        "severity": "high",
+        "role": "CONSTRAINT",
+        "channel": "WARN",
+        "n_clauses": 1,
+        "n_documents": 1,
+        "n_bodies": 1,
+        "sources": [
+          {
+            "rule_id": "R_1444",
+            "clause": "Guidelines and Technical Basis, Page 465, Example criteria (b)",
+            "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+            "issuing_body": "NERC"
+          }
+        ],
+        "n_spoke": 408,
+        "citable": true
+      },
+      {
+        "served_rule_id": "R_260",
+        "condition": "voltage_pu_min < 0.9 or voltage_pu_max > 1.1",
+        "predicate": "lowest per-unit voltage across all energized lines is below 0.9 or highest per-unit voltage across all energized lines exceeds 1.1",
+        "severity": "high",
+        "role": "CONSTRAINT",
+        "channel": "WARN",
+        "n_clauses": 1,
+        "n_documents": 1,
+        "n_bodies": 1,
+        "sources": [
+          {
+            "rule_id": "R_260",
+            "clause": "Text CC.6.1.4 Voltage Limits",
+            "document": "8589935310-Complete Grid Code",
+            "issuing_body": "National Grid ESO (GB)"
+          }
+        ],
+        "n_spoke": 408,
+        "citable": true
+      },
+      {
+        "served_rule_id": "R_797",
+        "condition": "voltage_pu_min < 0.90 or voltage_pu_max > 1.10",
+        "predicate": "lowest per-unit voltage across all energized lines is below 0.9 or highest per-unit voltage across all energized lines exceeds 1.1",
+        "severity": "critical",
+        "role": "CONSTRAINT",
+        "channel": "WARN",
+        "n_clauses": 1,
+        "n_documents": 1,
+        "n_bodies": 1,
+        "sources": [
+          {
+            "rule_id": "R_797",
+            "clause": "Section 5.4.4",
+            "document": "Bangladesh_Electricity-Grid-Code-regulations",
+            "issuing_body": "Bangladesh Energy Regulatory Commission"
+          }
+        ],
+        "n_spoke": 408,
+        "citable": true
+      },
+      {
+        "served_rule_id": "R_798",
+        "condition": "voltage_pu_min < 0.85 or voltage_pu_max > 1.10",
+        "predicate": "lowest per-unit voltage across all energized lines is below 0.85 or highest per-unit voltage across all energized lines exceeds 1.1",
+        "severity": "critical",
+        "role": "CONSTRAINT",
+        "channel": "WARN",
+        "n_clauses": 1,
+        "n_documents": 1,
+        "n_bodies": 1,
+        "sources": [
+          {
+            "rule_id": "R_798",
+            "clause": "Section 5.4.4",
+            "document": "Bangladesh_Electricity-Grid-Code-regulations",
+            "issuing_body": "Bangladesh Energy Regulatory Commission"
+          }
+        ],
+        "n_spoke": 71,
+        "citable": true
+      }
+    ],
+    "supporting": [
+      {
+        "served_rule_id": "R_2165",
+        "condition": "loading_pct > 100",
+        "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+        "severity": "critical",
+        "role": "CONSTRAINT",
+        "channel": "BLOCK",
+        "n_clauses": 1,
+        "n_documents": 1,
+        "n_bodies": 0,
+        "sources": [
+          {
+            "rule_id": "R_2165",
+            "clause": "EMO Dispatch Computer Constraints, Section 3.1",
+            "document": "power-system-requirements",
+            "issuing_body": null
+          }
+        ],
+        "n_spoke": 2443,
+        "citable": true
+      },
+      {
+        "served_rule_id": "R_1443",
+        "condition": "loading_pct > 100",
+        "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+        "severity": "high",
+        "role": "CONSTRAINT",
+        "channel": "BLOCK",
+        "n_clauses": 1,
+        "n_documents": 1,
+        "n_bodies": 1,
+        "sources": [
+          {
+            "rule_id": "R_1443",
+            "clause": "Guidelines and Technical Basis, Page 465, Example criteria (a)",
+            "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+            "issuing_body": "NERC"
+          }
+        ],
+        "n_spoke": 2443,
+        "citable": true
+      },
+      {
+        "served_rule_id": "R_858",
+        "condition": "loading_pct > 100.0",
+        "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+        "severity": "high",
+        "role": "CONSTRAINT",
+        "channel": "BLOCK",
+        "n_clauses": 1,
+        "n_documents": 1,
+        "n_bodies": 1,
+        "sources": [
+          {
+            "rule_id": "R_858",
+            "clause": "Section 8.3.1.2",
+            "document": "Bangladesh_Electricity-Grid-Code-regulations",
+            "issuing_body": "Bangladesh Energy Regulatory Commission"
+          }
+        ],
+        "n_spoke": 2443,
+        "citable": true
+      },
+      {
+        "served_rule_id": "R_1492",
+        "condition": "loading_pct > 100",
+        "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+        "severity": "high",
+        "role": "CONSTRAINT",
+        "channel": "BLOCK",
+        "n_clauses": 1,
+        "n_documents": 1,
+        "n_bodies": 1,
+        "sources": [
+          {
+            "rule_id": "R_1492",
+            "clause": "NERC PRC-005, Section 6.2.1",
+            "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+            "issuing_body": "NERC"
+          }
+        ],
+        "n_spoke": 2443,
+        "citable": true
+      },
+      {
+        "served_rule_id": "R_167",
+        "condition": "loading_pct > 100",
+        "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+        "severity": "high",
+        "role": "CONSTRAINT",
+        "channel": "BLOCK",
+        "n_clauses": 1,
+        "n_documents": 1,
+        "n_bodies": 1,
+        "sources": [
+          {
+            "rule_id": "R_167",
+            "clause": "TPL-001-5.1, Section 5.1.f",
+            "document": "TPL-001-5.1 — Transmission System Planning Performance Requirements",
+            "issuing_body": "NERC"
+          }
+        ],
+        "n_spoke": 2443,
+        "citable": true
+      },
+      {
+        "served_rule_id": "R_1710",
+        "condition": "loading_pct > 100",
+        "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+        "severity": "high",
+        "role": "CONSTRAINT",
+        "channel": "BLOCK",
+        "n_clauses": 1,
+        "n_documents": 1,
+        "n_bodies": 1,
+        "sources": [
+          {
+            "rule_id": "R_1710",
+            "clause": "Text Section 6.c",
+            "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+            "issuing_body": "NERC"
+          }
+        ],
+        "n_spoke": 2443,
+        "citable": true
+      },
+      {
+        "served_rule_id": "R_1717",
+        "condition": "loading_pct > 100",
+        "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+        "severity": "high",
+        "role": "CONSTRAINT",
+        "channel": "BLOCK",
+        "n_clauses": 1,
+        "n_documents": 1,
+        "n_bodies": 1,
+        "sources": [
+          {
+            "rule_id": "R_1717",
+            "clause": "Text Section 7c, Non-Limited Impact RAS Ratings",
+            "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+            "issuing_body": "NERC"
+          }
+        ],
+        "n_spoke": 2443,
+        "citable": true
+      },
+      {
+        "served_rule_id": "R_2018",
+        "condition": "loading_pct > 100",
+        "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+        "severity": "high",
+        "role": "CONSTRAINT",
+        "channel": "BLOCK",
+        "n_clauses": 1,
+        "n_documents": 1,
+        "n_bodies": 1,
+        "sources": [
+          {
+            "rule_id": "R_2018",
+            "clause": "TPL-008-1, Table 1 (f)",
+            "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+            "issuing_body": "NERC"
+          }
+        ],
+        "n_spoke": 2443,
+        "citable": true
+      },
+      {
+        "served_rule_id": "R_2019",
+        "condition": "loading_pct > 100",
+        "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+        "severity": "high",
+        "role": "CONSTRAINT",
+        "channel": "BLOCK",
+        "n_clauses": 1,
+        "n_documents": 1,
+        "n_bodies": 1,
+        "sources": [
+          {
+            "rule_id": "R_2019",
+            "clause": "TPL-008-1, Section Steady State Only, f",
+            "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+            "issuing_body": "NERC"
+          }
+        ],
+        "n_spoke": 2443,
+        "citable": true
+      },
+      {
+        "served_rule_id": "R_916",
+        "condition": "loading_pct > 100",
+        "predicate": "maximum line loading as percent of thermal limit exceeds 100",
+        "severity": "medium",
+        "role": "CONSTRAINT",
+        "channel": "BLOCK",
+        "n_clauses": 1,
+        "n_documents": 1,
+        "n_bodies": 1,
+        "sources": [
+          {
+            "rule_id": "R_916",
+            "clause": "Grid Code Section 11.4.1, Item ix",
+            "document": "Bangladesh_Electricity-Grid-Code-regulations",
+            "issuing_body": "Bangladesh Energy Regulatory Commission"
+          }
+        ],
+        "n_spoke": 2443,
+        "citable": true
+      }
+    ]
+  }
+}

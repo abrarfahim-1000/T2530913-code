@@ -518,7 +518,72 @@ python scripts/build_kg.py --out kg/knowledge_graph.json --figures
 # returns the identical rule set (tests/test_kg.py), so the numbers must not move;
 # --citations writes one provenance chain per rule that fired, not per contingency.
 python evaluation/eval_shield_n1.py --tag wcci2022 --rules-kg kg/knowledge_graph.json --json results/shield/shield_wcci2022_kg.json --citations results/citations/citations_wcci2022.json
+
+# --channels layers the 58-rule four-channel corpus in as ExplanatoryRule nodes,
+# so every rule that can SPEAK is citable and not just the four that can veto.
+# Without it the graph could cite 11 of 58 and the other 47 raised KeyError.
+# Strictly additive: ServedRule is untouched, so no reported number can move.
+python scripts/build_kg.py --channels --figures --out kg/knowledge_graph.json
+
+# --kg-explanatory serves that layer to the gate. Only BLOCK can veto, so this
+# adds WARN/NORMAL output and their citations without widening the veto path.
+python evaluation/eval_shield_n1.py --tag wcci2022 --rules-kg kg/knowledge_graph.json --kg-explanatory --json results/shield/shield_wcci2022_kg_explanatory.json --citations results/citations/citations_wcci2022_explanatory.json
 ```
+
+⚠️ **The graph stores each rule dict VERBATIM, so it is a snapshot and not a view.**
+Restamping `shield_corpus/all_rules_channels.jsonl` used to leave the gate served
+the *old* records while every count still reconciled — which is how a three-grid
+run applied no per-grid demotion at all and reported success. **This is now
+handled, not merely detected:**
+
+- the graph fingerprints the corpus it was built from;
+- `KgRuleProvider(..., include_explanatory=True)` **repairs a payload-only drift
+  in place** (`refresh_explanatory_payloads`) and serves current data, reporting
+  the count on `.refreshed` — so ordering is no longer something to remember;
+- `stamp_warn_coverage.py` also **rewrites the graph on disk**, so the artifact
+  a reader opens is not the one stale copy (`--no-sync-kg` opts out);
+- a drift that would move EDGES — a rule added, dropped, or its clause or
+  condition changed — is **refused**, because repairing that silently would be
+  inventing provenance. Run `scripts/build_kg.py --channels` for those.
+
+`tests/test_warn_degeneracy.py` pins all four, and `test_the_shipped_graph_is_current`
+guards the working tree. The served four-rule path never reads the layer and is
+unaffected either way.
+
+### Degenerate warnings — silenced per grid, never dropped
+```bash
+# A rule earns WARN by discriminating on ANY grid, and the channel is then fixed
+# for all of them. `voltage_pu_min < 0.95 or voltage_pu_max > 1.05` discriminates
+# on wcci2022 (coverage 1.12%) and fires on 100% of neurips2020 and case14 —
+# an alarm that never stops, which is the same output as printing WARNING
+# unconditionally. It is NOT a mis-extraction: that predicate is stated in 10
+# clauses across 4 documents, tied with the thermal check as the most corroborated
+# in the corpus. These grids rest at 1.05-1.08 pu, so a band written about the
+# POST-disturbance state is breached before anything has happened.
+python evaluation/stamp_warn_coverage.py --report   # measure, write nothing
+python evaluation/stamp_warn_coverage.py            # stamp per-grid coverage
+```
+The demotion happens at serving time in `shield.channels.resolve_channels_for_grid`,
+so the shipped corpus still reads **WARN 20** and the channel counts in
+`tests/test_shield_channels.py` are unchanged. A demoted record carries
+`channel_was` and `demoted_because` so the demotion is visible in the artifact.
+
+| grid | WARN speaking | silenced | firing on 100% of frames |
+|---|---:|---:|---:|
+| neurips2020 | 20 -> **7** | 9 | 9 -> **0** |
+| case14 | 20 -> **9** | 10 | 10 -> **0** |
+| wcci2022 | 20 -> **19** | 0 | 0 -> **0** |
+
+⚠️ **No reported number moves, and that is structural** — WARN never reaches the
+veto path (`VETO_CHANNELS = (BLOCK,)`), and `test_resolution_never_touches_the_veto_path`
+asserts the BLOCK bucket is identical before and after on all three grids. Deltas
+stay +0.0082 / +0.0021 / +0.0676 and intervention precision 0.938 / 0.922 / 0.934.
+`--keep-degenerate-warnings` reproduces the pre-fix behaviour.
+
+**The finding, which is worth more than the fix:** the same unmodified rule, stated
+by four standards bodies, is informative on one grid and vacuous on another, and
+which one it is depends on how the grid is *operated* rather than on anything in
+the standard.
 
 ### Data Inspection
 ```bash

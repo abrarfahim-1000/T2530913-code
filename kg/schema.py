@@ -31,22 +31,30 @@ DOCUMENT = "Document"
 CLAUSE = "Clause"
 RULE = "Rule"
 SERVED_RULE = "ServedRule"
+#: A rule from the four-channel corpus carried for EXPLANATION, not for the veto
+#: path. A sibling of ServedRule, never a substitute: only BLOCK can veto
+#: (shield/channels.py), and `KgRuleProvider` leaves this layer out unless it is
+#: asked for it, so the served set - and every number measured on it - is
+#: unchanged by the layer existing.
+EXPLANATORY_RULE = "ExplanatoryRule"
 PREDICATE = "Predicate"
 VARIABLE = "Variable"
 
-NODE_TYPES = (DOCUMENT, CLAUSE, RULE, SERVED_RULE, PREDICATE, VARIABLE)
+NODE_TYPES = (DOCUMENT, CLAUSE, RULE, SERVED_RULE, EXPLANATORY_RULE,
+              PREDICATE, VARIABLE)
 
 # ── EDGE TYPES ────────────────────────────────────────────────────────────────
 CONTAINS = "contains"            # Document  -> Clause
-STATES = "states"                # Clause    -> Rule
+STATES = "states"                # Clause    -> Rule | ExplanatoryRule
 DEDUPED_INTO = "deduped_into"    # Rule      -> ServedRule
-INSTANTIATES = "instantiates"    # ServedRule-> Predicate
+INSTANTIATES = "instantiates"    # ServedRule|ExplanatoryRule -> Predicate
 READS = "reads"                  # Predicate -> Variable
 
 EDGE_TYPES = (CONTAINS, STATES, DEDUPED_INTO, INSTANTIATES, READS)
 
 #: The layer order, used by the figures and by the orphan checks.
-LAYERS = (DOCUMENT, CLAUSE, RULE, SERVED_RULE, PREDICATE, VARIABLE)
+LAYERS = (DOCUMENT, CLAUSE, RULE, SERVED_RULE, EXPLANATORY_RULE,
+          PREDICATE, VARIABLE)
 
 
 # ── NODE IDS ──────────────────────────────────────────────────────────────────
@@ -67,6 +75,10 @@ def rule_id(rid: str) -> str:
 
 def served_id(rid: str) -> str:
     return f"{SERVED_RULE}:{rid}"
+
+
+def explanatory_id(rid: str) -> str:
+    return f"{EXPLANATORY_RULE}:{rid}"
 
 
 def predicate_id(n: int) -> str:
@@ -137,6 +149,9 @@ class Citation:
     severity: str
     role: str
     sources: list[ClauseRef] = field(default_factory=list)
+    #: Which channel this rule speaks on. `None` for a rule cited through the v1
+    #: served path - which is every rule that can actually veto.
+    channel: str | None = None
 
     @property
     def n_documents(self) -> int:
@@ -153,6 +168,7 @@ class Citation:
             "predicate": self.predicate,
             "severity": self.severity,
             "role": self.role,
+            "channel": self.channel,
             "n_clauses": len(self.sources),
             "n_documents": self.n_documents,
             "n_bodies": self.n_bodies,
@@ -170,8 +186,9 @@ class Citation:
 
 def format_citation(cit: Citation, indent: str = "  ") -> str:
     """Human-readable citation chain, for a block explanation or the console."""
+    channel = f" <{cit.channel}>" if cit.channel else ""
     head = (
-        f"{cit.served_rule_id} [{cit.severity.upper()}] {cit.role}: {cit.predicate}\n"
+        f"{cit.served_rule_id} [{cit.severity.upper()}]{channel} {cit.role}: {cit.predicate}\n"
         f"{indent}condition: {cit.condition}\n"
         f"{indent}stated in {len(cit.sources)} clause(s) across "
         f"{cit.n_documents} document(s)"
