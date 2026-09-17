@@ -479,6 +479,7 @@ are documented rather than dropped. No measured result moved: BLOCK is deliberat
 | stage-1 `rule_id` collisions, and the served corpus is clean | §19.2 | same artifact |
 | the four-channel re-admission (41 rules speak, 17 distinct after §21) | §19.3 | `evaluation/readmit_rules.py` · `results/audit/readmission.json` |
 | the loading-band cliff — why 100 is not arbitrary | §20.1 | `evaluation/loading_band_calibration.py` · `results/audit/loading_band_calibration.json` |
+| ⚠ NOT RUN — is the thin corpus the task's fault or the pipeline's? | §24 | *(spec only, no artifact — this is the disclosed gap)* |
 | model-conditional WARN calibration; no predicate changed sign | §23.1 | `evaluation/warn_rule_calibration_conditional.py` · `results/audit/warn_n1_calibration_conditional.json` |
 | why no dynamic simulator (standalone, plain-language) | §20.2 | `supplimentary_docs/andes_investigation.md` |
 | shield v2: channels implemented, 58 rules reproduce the 4-rule numbers | §22.3 | `shield/channels.py` · `shield_corpus/all_rules_channels.jsonl` · `results/shield/shield_<tag>_v2channels.json` · `tests/test_shield_channels.py` |
@@ -1481,6 +1482,10 @@ it a second way — a corpus can lose 29% of its rules and change nothing. The c
 the expert baseline were **never run**, and that is a real gap in the write-up rather than a settled
 question. State it as such.
 
+➡️ **§24 is the runnable spec for both**, written 2026-09-17 to be picked up cold: the exact target
+and split discipline for the tree, the contamination trap on the expert arm, what each outcome
+would license the thesis to claim, and what must be said if neither is run.
+
 ---
 
 ## 18. Landmines
@@ -1755,9 +1760,10 @@ Ordered. Nothing here changes a measured result.
    per-generator (`gen_p`/`gen_q`), per-line (`rho`) and per-kV-level (`*_basekv.json`) accessors,
    and a channel assigned at translation time. Projected **+15–25 distinct conditions**, low
    confidence. Stage 1 stays frozen.
-4. **Still open from §17.1:** the expert-written rule baseline and the ceiling analysis. Neither
-   was run, and the expert baseline is what separates "extraction is the bottleneck" from "gating
-   is the bottleneck".
+4. **Still open from §17.1 — now the LARGEST remaining hole, spec'd in §24.** The expert-written
+   rule baseline and the ceiling analysis. Neither was run. Together they are the only external
+   check on whether the thin corpus is the task's doing or the pipeline's — everything else in this
+   document argues the former from *inside* the pipeline that produced it.
 
 **Where the count stands.** Served today: 4 records, **3 distinct conditions**, 2 KG predicates.
 After §19.3's re-admission *as calibrated in §21*: **41 rules speaking, 17 distinct conditions**,
@@ -2074,3 +2080,100 @@ No measured result depends on this either way.
 .venv\Scripts\python.exe evaluation\warn_rule_calibration_conditional.py
 .venv\Scripts\python.exe evaluation\warn_rule_calibration_conditional.py --neurips-scope test
 ```
+
+---
+
+## 24. The unanswered question — is the thin corpus the pipeline's fault or the task's?
+
+**Status: NOT RUN. This is the largest remaining hole in the write-up, and it is the question a
+reviewer is most likely to ask.** §17.1 named the controls; this section is the pickup-ready spec,
+written so a cold reader can run it without reconstructing the reasoning.
+
+### 24.1 The question, stated so it can be answered
+
+The thesis reports a 0.16% end-to-end extraction yield and a shield built on 3 distinct predicates
+(17 after §21–§23). Two very different readings produce that same number:
+
+- **(a) The task is genuinely rule-poor.** The standards do not say much that is both expressible
+  over present-state telemetry and predictive of an N-1 contingency. A thin corpus is then a
+  *finding* about the standards/simulator mismatch, and the thesis's central claim survives.
+- **(b) The extraction pipeline is the bottleneck.** The knowledge is there and the LLM stages
+  failed to get it out. A thin corpus is then a *limitation of the method*, and every downstream
+  measurement inherits it.
+
+**Everything in this document argues (a) and nothing measures it.** §5, §10.4, §15 and §20.2 all
+support (a) by different routes — but every one of them is an argument about *why* the yield is
+low, made from inside the pipeline that produced it. None is an external check. That asymmetry is
+exactly what a sceptical reader will find, and reporting (b) dressed as (a) is the specific failure
+§17.1 was written to prevent.
+
+⚠️ **Do not let the §13.6 replication or the §13.3 ceiling stand in for this.** They establish that
+the result is *stable* under corpus change and that a *structural* limit exists — neither says
+whether a better corpus was obtainable.
+
+### 24.2 Arm 1 — the ceiling analysis (answers it without any rules at all)
+
+Fit a small decision tree (depth ≤ 4, so it stays a readable rule set) on the **14 context
+variables** from `shield/context.py`, targeting the error the shield is built to catch.
+
+- **Target: `model predicted secure AND the contingency was a violation`.** Not "any model error".
+  The gate is asymmetric (§13 / `validate_n1`) and only blocks the over-permissive direction, so
+  scoring against symmetric error would measure something the shield never tries to do.
+- **Fit on the neurips2020 *training* split only; evaluate on its test split and on the two foreign
+  grids.** Fitting and scoring on the same frames produces an oracle and answers nothing. This is
+  the same held-out discipline as the 0.8849 threshold, for the same reason.
+- Held threshold **0.8849**, eval batch size **64**. Non-negotiable — see CLAUDE.md.
+- Note the honest constraint on the tree: the context is **per frame** and the error is **per
+  contingency**. The tree therefore cannot distinguish two contingencies in the same frame — but
+  neither can any extracted rule, so this is the fair upper bound for frame-level symbolic gating,
+  not a handicap. Say so when reporting it.
+
+**Reading the outcome:**
+
+| tree result | conclusion |
+|---|---|
+| cannot beat chance | **(a), established without reference to rule count at all.** The strongest possible version of the result: the information simply is not in the present-state telemetry. |
+| does well, shield does not | the information *was* there and the extracted rules missed it — **(b)**, and the tree's splits name exactly which variables were missed |
+| does about as well as the shield | the shield is at the ceiling; extraction was not the binding constraint |
+
+### 24.3 Arm 2 — the expert baseline (sharper, and easy to contaminate)
+
+Hand-write **10–15 rules** against the same 14 variables, from domain knowledge and the source
+standards, and run them as a **third arm that is NEVER merged into the corpus**. Merging them
+destroys the provenance claim that is the thesis's actual contribution — every served rule must
+trace to a clause in a document.
+
+🚨 **The contamination trap, and it is easy to fall into.** Rules written *after* looking at fire
+rates, audit verdicts, or the §21 calibration are not an independent baseline — they are the
+extracted corpus laundered through a human. The expert rules must be written **before** consulting
+`results/audit/*`, and the write-up must record that ordering explicitly, or the arm proves
+nothing. If that ordering cannot be honoured, report the arm as *"a hand-written comparison, not a
+blind baseline"* and claim less.
+
+| expert-rule result | conclusion |
+|---|---|
+| ~0 delta, like the extracted rules | gating does not help *regardless of provenance* — **extraction thinness is exonerated**, and this is the cleanest possible (a) |
+| clearly beats the extracted corpus | **extraction is the bottleneck — (b)**, stated plainly and prominently |
+
+### 24.4 What already exists, and what a preview of the answer looks like
+
+Nothing needs generating. On disk: the three N-1 datasets, `gnn_checkpoint_n1.pt`,
+`shield/context.py`'s builder, and `evaluation/eval_shield_n1.py`'s scoring — the ceiling arm is a
+scikit-learn fit wrapped around machinery that already runs.
+
+**One result already points toward (a), and it arrived by accident.** §23.2: on case14, when the
+base case is deeply undervolted the model *already flags every contingency*, which is why
+`voltage_pu_min < 0.917` lost its sample. That is a single instance of the ceiling argument
+measured on real data — the rule's information was already inside the model's output. It is
+suggestive, it is one predicate on one grid, and it is **not** a substitute for the controls above.
+
+### 24.5 Effort, and the honest fallback
+
+The ceiling arm is roughly **a day** and needs no new data. The expert arm is a day of writing plus
+a harness run, and its cost is mostly the discipline of writing the rules before looking at the
+answers.
+
+**If neither is run, the thesis must say so in those words** — that the controls were specified and
+not executed, and that (a) is therefore argued rather than demonstrated. A disclosed gap is a
+limitation; an undisclosed one is the hole a reviewer falls into. §17.1 already states this; do not
+soften it.

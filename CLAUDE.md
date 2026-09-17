@@ -314,6 +314,16 @@ Full account and both caveats: `thesis_findings.md` §13. The guarded-32 numbers
 > **two INVERTED predicates** — the entire power-factor family fires *more* often when N-1 risk is
 > lower — so `build_channel_corpus.py` demotes 5 records out of WARN on the measurement.
 
+> **LARGEST OPEN ITEM, NOT RUN — `thesis_findings.md` §24.** Nothing measures whether the thin
+> rule corpus is the *task's* doing or the *pipeline's*. Every argument for the former (§5, §10.4,
+> §15, §20.2) is made from inside the pipeline that produced the corpus; none is an external check.
+> §24 is the pickup-ready spec for the two controls that would settle it — a depth-4 decision tree
+> on the 14 context variables targeting `predicted secure AND was a violation` (fit on the
+> neurips2020 **train** split only), and 10–15 hand-written expert rules run as a third arm that is
+> **never merged** into the corpus. ⚠️ Expert rules written after looking at `results/audit/*` are
+> not a baseline — they are the extracted corpus laundered through a human. Roughly a day each; no
+> new data needed. **If they are not run, the thesis must say so in those words.**
+
 **Live harness is `evaluation/eval_shield_n1.py`.** The classify-era `eval_shield.py` was
 DELETED on 2026-08-20 along with the artifacts it needed (recoverable from git history).
 `shield/` (context, evaluator, shield), `extraction/polarity_guard.py`, `kg/` (Component C).
