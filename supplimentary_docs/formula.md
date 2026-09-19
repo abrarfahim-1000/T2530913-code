@@ -271,11 +271,11 @@ $$ \mathbf{g} \leftarrow \min\left(1, \frac{\tau}{\|\mathbf{g}\|_2}\right) \math
 *   **How it works in this project**: Large grid faults can cause massive spikes in the loss function. Clipping ensures these spikes don't destabilize the model's weights during training.
 
 ⭐ **Early Stopping Criterion** (Used in Chapter 5)
-To prevent overfitting, the training process is terminated if the macro-averaged F1 score on the validation set fails to improve for a set number of epochs:
+To prevent overfitting, the training process is terminated if the validation F1 score fails to improve for a set number of epochs. ⚠️ **The mechanism is current but the metric named here was not** — the N-1 trainer early-stops on the binary **per-contingency** F1 (`val_contingency_f1`), not on the retired 4-class macro F1. ⚠️ The epoch this fires at is **not recorded anywhere**: `train_gnn.py` saves a bare `state_dict` and writes no metrics file, so the deployed checkpoint's epoch count is not recoverable from disk (see `study.md` §7 "What Gets Logged"):
 $$ \text{Terminate if: } \max_{i \in \{t-p, \dots, t\}} (\text{F1}_{\text{val}}^{(i)}) < \max_{j \in \{1, \dots, t-p-1\}} (\text{F1}_{\text{val}}^{(j)}) + \delta \tag{23} $$
 
 *   **Notations**:
-    *   $\text{F1}_{\text{val}}^{(i)}$: The validation Macro F1 score at epoch $i$.
+    *   $\text{F1}_{\text{val}}^{(i)}$: The validation per-contingency F1 score at epoch $i$.
     *   $p$: The patience (set to 15 epochs).
     *   $\delta$: The minimum delta (0.001).
 *   **Where it is used**: In `training/train_gnn.py` via the `EarlyStopping` class.

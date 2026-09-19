@@ -458,13 +458,24 @@ python scripts/dump_base_kv.py --tag case14 --empirical  # from existing JSONL (
 # No task switch: N-1 screening is the only model. GRID_TASK is gone.
 python scripts/preprocess.py
 python training/train_gnn.py --epochs 30 --batch_size 128 --lr 3e-4
+# ⚠️ The flags above are the INTENDED command (they override the TRAIN_CONFIG
+#    defaults of 10 / 512 / 1e-4). They are NOT proof of what executed for the
+#    deployed checkpoint: train_gnn.py saves a bare state_dict with no epoch
+#    field and writes no metrics file, so the epoch count of
+#    gnn_checkpoint_n1.pt is NOT RECOVERABLE FROM DISK. No per-epoch history
+#    for the N-1 model exists anywhere in the repo — the four training/*.log
+#    files are classify-era (2026-06-24/25, 4-class val_macro_f1, 5/4 features).
+#    See study.md §7 "What Gets Logged".
 
 # Ablation: drop message passing from the readout (writes *_headonly.pt, never
 # overwrites the deliverable). Reported result: 0.8411 vs 0.8987 with it.
 python training/train_gnn.py --head-only
 
-# --report-train scores a train slice each epoch; the train/val gap is what
-# separates memorisation from an optimiser that never fitted the signal.
+# --report-train PRINTS a train-slice score each epoch beside the val score;
+# the gap between them is what separates memorisation from an optimiser that
+# never fitted the signal. ⚠️ It computes no gap and persists nothing — both
+# numbers go to stdout — and it was NOT used for the N-1 run, whose stdout was
+# not captured.
 python training/train_gnn.py --report-train
 
 # GRID_DEVICE forces a backend (cpu/xpu/cuda) — added to distinguish backend
@@ -1123,5 +1134,10 @@ checkpoint, so training off the LLM host is the safer choice, not a compromise.
 - pydantic (rule and verdict schema validation)
 - pdfplumber (PDF ingestion for LLM pipeline)
 - numpy, scikit-learn (data processing)
-- wandb (experiment tracking — macro F1, per-class F1, confusion matrices)
+- ~~wandb~~ — **listed in `requirements.txt` but NEVER wired into training.** It is imported only by
+  `sanity/verify_stack.py`. Nothing logs metrics anywhere: `training/train_gnn.py` prints per-epoch
+  loss and `val_contingency_f1` to stdout and saves a bare `state_dict`. **There is no per-epoch
+  history for the N-1 model, and the deployed checkpoint's epoch count is not recoverable from
+  disk** — the `--epochs 30` under **Model Training** is the intended command, not proof of what
+  ran. See `study.md` §7 "What Gets Logged".
 - tqdm
