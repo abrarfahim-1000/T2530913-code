@@ -1,0 +1,117 @@
+{
+  "protocol": {
+    "target": "model predicted secure AND the contingency was a violation",
+    "fit_on": "neurips2020 train split (8397 frames, 491684 contingencies)",
+    "model_threshold": 0.8848514556884766,
+    "tree_threshold_held": 0.9216682119990869,
+    "eval_batch_size": 64,
+    "max_depth": 4,
+    "class_weight": "balanced",
+    "features": [
+      "loading_pct",
+      "rho_max",
+      "n_tripped_lines",
+      "any_line_tripped",
+      "active_power_mw_max",
+      "reactive_power_mvar_max",
+      "apparent_power_mva_max",
+      "power_factor_at_max_load",
+      "current_a_max",
+      "total_generation_mw",
+      "total_load_mw",
+      "generation_load_imbalance_pct",
+      "voltage_pu_min",
+      "voltage_pu_max"
+    ],
+    "seed": 42
+  },
+  "train_target_rate": 0.025186908664914864,
+  "tree": {
+    "feature_importances": {
+      "loading_pct": 0.49932099869872326,
+      "rho_max": 0.1167134989257454,
+      "active_power_mw_max": 0.02198299536889188,
+      "power_factor_at_max_load": 0.028809206595601478,
+      "total_generation_mw": 0.18832139957982058,
+      "total_load_mw": 0.003086417817185767,
+      "generation_load_imbalance_pct": 0.0024674742403884508,
+      "voltage_pu_max": 0.13929800877364348
+    },
+    "rules": "|--- loading_pct <= 79.11\n|   |--- voltage_pu_max <= 1.08\n|   |   |--- total_generation_mw <= 710.86\n|   |   |   |--- generation_load_imbalance_pct <= 1.75\n|   |   |   |   |--- class: 0\n|   |   |   |--- generation_load_imbalance_pct >  1.75\n|   |   |   |   |--- class: 0\n|   |   |--- total_generation_mw >  710.86\n|   |   |   |--- loading_pct <= 67.08\n|   |   |   |   |--- class: 0\n|   |   |   |--- loading_pct >  67.08\n|   |   |   |   |--- class: 1\n|   |--- voltage_pu_max >  1.08\n|   |   |--- total_generation_mw <= 854.11\n|   |   |   |--- active_power_mw_max <= 172.77\n|   |   |   |   |--- class: 0\n|   |   |   |--- active_power_mw_max >  172.77\n|   |   |   |   |--- class: 0\n|   |   |--- total_generation_mw >  854.11\n|   |   |   |--- active_power_mw_max <= 131.50\n|   |   |   |   |--- class: 0\n|   |   |   |--- active_power_mw_max >  131.50\n|   |   |   |   |--- class: 1\n|--- loading_pct >  79.11\n|   |--- rho_max <= 0.95\n|   |   |--- total_generation_mw <= 633.94\n|   |   |   |--- power_factor_at_max_load <= 0.52\n|   |   |   |   |--- class: 0\n|   |   |   |--- power_factor_at_max_load >  0.52\n|   |   |   |   |--- class: 1\n|   |   |--- total_generation_mw >  633.94\n|   |   |   |--- rho_max <= 0.84\n|   |   |   |   |--- class: 1\n|   |   |   |--- rho_max >  0.84\n|   |   |   |   |--- class: 1\n|   |--- rho_max >  0.95\n|   |   |--- rho_max <= 0.97\n|   |   |   |--- total_load_mw <= 566.29\n|   |   |   |   |--- class: 1\n|   |   |   |--- total_load_mw >  566.29\n|   |   |   |   |--- class: 1\n|   |   |--- rho_max >  0.97\n|   |   |   |--- rho_max <= 1.54\n|   |   |   |   |--- class: 1\n|   |   |   |--- rho_max >  1.54\n|   |   |   |   |--- class: 1\n"
+  },
+  "grids": {
+    "neurips2020": {
+      "scope": "held-out test split",
+      "contingencies": 113205,
+      "target_contingencies": 2041,
+      "target_rate": 0.018029238991210634,
+      "frames_containing_a_target": 0.37422360248447206,
+      "all_positive_f1_on_target": 0.03541988442115127,
+      "tree_held": {
+        "f1": 0.18671034160037436,
+        "precision": 0.1786833855799373,
+        "recall": 0.1954924056834885,
+        "tp": 399,
+        "fp": 1834,
+        "fn": 1642
+      },
+      "tree_oracle_f1": 0.20276292335115864,
+      "shield_on_same_target": {
+        "target_contingencies": 2041,
+        "blocked": 353,
+        "caught": 331,
+        "recall": 0.16217540421362078,
+        "precision": 0.9376770538243626
+      }
+    },
+    "case14": {
+      "scope": "all frames (unseen topology)",
+      "contingencies": 118502,
+      "target_contingencies": 18592,
+      "target_rate": 0.1568918668039358,
+      "frames_containing_a_target": 0.9633333333333334,
+      "all_positive_f1_on_target": 0.2712299590062293,
+      "tree_held": {
+        "f1": 0.01567717996289425,
+        "precision": 0.05694070080862534,
+        "recall": 0.009089931153184166,
+        "tp": 169,
+        "fp": 2799,
+        "fn": 18423
+      },
+      "tree_oracle_f1": 0.2712438086762421,
+      "shield_on_same_target": {
+        "target_contingencies": 18592,
+        "blocked": 103,
+        "caught": 95,
+        "recall": 0.005109724612736661,
+        "precision": 0.9223300970873787
+      }
+    },
+    "wcci2022": {
+      "scope": "all frames (unseen topology)",
+      "contingencies": 742472,
+      "target_contingencies": 68166,
+      "target_rate": 0.09180952278335075,
+      "frames_containing_a_target": 1.0,
+      "all_positive_f1_on_target": 0.16817864447509243,
+      "tree_held": {
+        "f1": 0.3748719281880324,
+        "precision": 0.391472373043756,
+        "recall": 0.3596220989936332,
+        "tp": 24514,
+        "fp": 38106,
+        "fn": 43652
+      },
+      "tree_oracle_f1": 0.37488148759825063,
+      "shield_on_same_target": {
+        "target_contingencies": 68166,
+        "blocked": 22559,
+        "caught": 21065,
+        "recall": 0.3090250271396297,
+        "precision": 0.9337736601799725
+      }
+    }
+  },
+  "seconds": 30.2
+}

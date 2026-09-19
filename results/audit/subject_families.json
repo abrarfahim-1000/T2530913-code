@@ -1,0 +1,131 @@
+{
+  "n_candidates": 2463,
+  "expected_stage_totals": {
+    "candidates": 2463,
+    "translated": 58,
+    "guarded": 32,
+    "validated": 11
+  },
+  "families": [
+    {
+      "family": "Frequency / RoCoF / governor droop",
+      "n": 655,
+      "share": 0.2659,
+      "time_bound": 117,
+      "grid2op_observable": "no",
+      "translated": 0,
+      "guarded": 0,
+      "validated": 0
+    },
+    {
+      "family": "Voltage magnitude & bands",
+      "n": 560,
+      "share": 0.2274,
+      "time_bound": 129,
+      "grid2op_observable": "yes",
+      "translated": 43,
+      "guarded": 21,
+      "validated": 1
+    },
+    {
+      "family": "Protection & equipment settings",
+      "n": 305,
+      "share": 0.1238,
+      "time_bound": 39,
+      "grid2op_observable": "no",
+      "translated": 0,
+      "guarded": 0,
+      "validated": 0
+    },
+    {
+      "family": "Timing / duration only (no physical quantity)",
+      "n": 218,
+      "share": 0.0885,
+      "time_bound": 214,
+      "grid2op_observable": "partial",
+      "translated": 0,
+      "guarded": 0,
+      "validated": 0
+    },
+    {
+      "family": "Thermal loading & current",
+      "n": 142,
+      "share": 0.0577,
+      "time_bound": 12,
+      "grid2op_observable": "yes",
+      "translated": 9,
+      "guarded": 9,
+      "validated": 9
+    },
+    {
+      "family": "Reactive power & power factor",
+      "n": 133,
+      "share": 0.054,
+      "time_bound": 11,
+      "grid2op_observable": "yes",
+      "translated": 4,
+      "guarded": 0,
+      "validated": 0
+    },
+    {
+      "family": "Unclassified",
+      "n": 131,
+      "share": 0.0532,
+      "time_bound": 0,
+      "grid2op_observable": "no",
+      "translated": 0,
+      "guarded": 0,
+      "validated": 0
+    },
+    {
+      "family": "Active power, dispatch & capacity",
+      "n": 90,
+      "share": 0.0365,
+      "time_bound": 12,
+      "grid2op_observable": "yes",
+      "translated": 1,
+      "guarded": 1,
+      "validated": 1
+    },
+    {
+      "family": "Load shedding & system balance",
+      "n": 81,
+      "share": 0.0329,
+      "time_bound": 6,
+      "grid2op_observable": "partial",
+      "translated": 1,
+      "guarded": 1,
+      "validated": 0
+    },
+    {
+      "family": "Administrative / process / reporting",
+      "n": 72,
+      "share": 0.0292,
+      "time_bound": 0,
+      "grid2op_observable": "no",
+      "translated": 0,
+      "guarded": 0,
+      "validated": 0
+    },
+    {
+      "family": "Topology, connectivity & switching",
+      "n": 51,
+      "share": 0.0207,
+      "time_bound": 6,
+      "grid2op_observable": "yes",
+      "translated": 0,
+      "guarded": 0,
+      "validated": 0
+    },
+    {
+      "family": "Power quality (flicker, harmonics, unbalance)",
+      "n": 25,
+      "share": 0.0102,
+      "time_bound": 1,
+      "grid2op_observable": "no",
+      "translated": 0,
+      "guarded": 0,
+      "validated": 0
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "protocol": {
+    "fit_on": "neurips2020 train split (8397 frames, 491684 contingencies)",
+    "threshold_selected_on": "neurips2020 val split (1671 frames)",
+    "features": [
+      "edge_rho",
+      "edge_p_or",
+      "edge_q_or",
+      "edge_near_limit",
+      "edge_abs_p",
+      "edge_abs_q",
+      "edge_s",
+      "edge_headroom",
+      "or_load_p",
+      "or_mean_v",
+      "or_max_rho",
+      "or_conn_frac",
+      "or_trip_frac",
+      "or_headroom",
+      "or_abs_p",
+      "or_degree",
+      "ex_load_p",
+      "ex_mean_v",
+      "ex_max_rho",
+      "ex_conn_frac",
+      "ex_trip_frac",
+      "ex_headroom",
+      "ex_abs_p",
+      "ex_degree"
+    ],
+    "seed": 42
+  },
+  "held_thresholds": {
+    "logistic_regression": 0.3458521654950748,
+    "gradient_boosted_trees": 0.4260807885709219
+  },
+  "grids": {
+    "neurips2020": {
+      "scope": "held-out test split",
+      "contingencies": 113205,
+      "violation_rate": 0.18374630095843822,
+      "baselines": {
+        "all_positive": 0.3104487858752593,
+        "best_rule_rho_of_removed_line": 0.463850830968788
+      },
+      "arms": {
+        "logistic_regression": {
+          "held": {
+            "threshold": 0.3458521654950748,
+            "f1": 0.71210569938082,
+            "precision": 0.7223183818802236,
+            "recall": 0.7021777799144272
+          },
+          "oracle": {
+            "f1": 0.7125486141879585,
+            "threshold": 0.3552566271635321
+          }
+        },
+        "gradient_boosted_trees": {
+          "held": {
+            "threshold": 0.4260807885709219,
+            "f1": 0.9190126024412587,
+            "precision": 0.9474678374515009,
+            "recall": 0.8922167203499832
+          },
+          "oracle": {
+            "f1": 0.9202463164717908,
+            "threshold": 0.4768634363105759
+          }
+        }
+      }
+    },
+    "case14": {
+      "scope": "all frames (unseen topology)",
+      "contingencies": 118502,
+      "violation_rate": 0.2775311809083391,
+      "baselines": {
+        "all_positive": 0.4344804808772046,
+        "best_rule_rho_of_removed_line": 0.5391957521207019
+      },
+      "arms": {
+        "logistic_regression": {
+          "held": {
+            "threshold": 0.3458521654950748,
+            "f1": 0.4554192426584235,
+            "precision": 0.3777038936067938,
+            "recall": 0.5734006324495257
+          },
+          "oracle": {
+            "f1": 0.4895424204314598,
+            "threshold": 0.20330402942777032
+          }
+        },
+        "gradient_boosted_trees": {
+          "held": {
+            "threshold": 0.4260807885709219,
+            "f1": 0.5845192879696152,
+            "precision": 0.4685459614114885,
+            "recall": 0.7767878861590853
+          },
+          "oracle": {
+            "f1": 0.6319759311835247,
+            "threshold": 0.6424765841434145
+          }
+        }
+      }
+    },
+    "wcci2022": {
+      "scope": "all frames (unseen topology)",
+      "contingencies": 742472,
+      "violation_rate": 0.24760529690008512,
+      "baselines": {
+        "all_positive": 0.396928896527304,
+        "best_rule_rho_of_removed_line": 0.49152091277927557
+      },
+      "arms": {
+        "logistic_regression": {
+          "held": {
+            "threshold": 0.3458521654950748,
+            "f1": 0.4705490479098429,
+            "precision": 0.40934994687530185,
+            "recall": 0.5532637075718015
+          },
+          "oracle": {
+            "f1": 0.4725484321219518,
+            "threshold": 0.3933030923629306
+          }
+        },
+        "gradient_boosted_trees": {
+          "held": {
+            "threshold": 0.4260807885709219,
+            "f1": 0.517734156656801,
+            "precision": 0.3714677802884217,
+            "recall": 0.8539980417754569
+          },
+          "oracle": {
+            "f1": 0.5665250731463806,
+            "threshold": 0.8982588064036574
+          }
+        }
+      }
+    }
+  },
+  "seconds": 23.9
+}

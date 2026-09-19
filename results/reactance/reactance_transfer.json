@@ -1,0 +1,133 @@
+{
+  "protocol": {
+    "epochs": 30,
+    "batch_size": 128,
+    "lr": 0.0003,
+    "seed": 42,
+    "eval_batch_size": 64,
+    "feature": "log1p(b / median(b)) appended as edge column 9",
+    "device": "xpu"
+  },
+  "training": {
+    "control": {
+      "checkpoint": "gnn_checkpoint_n1_reactance_control.pt",
+      "best_val_f1": 0.8922292993630573
+    },
+    "physics": {
+      "checkpoint": "gnn_checkpoint_n1_reactance_physics.pt",
+      "best_val_f1": 0.8963088693537354
+    }
+  },
+  "held_thresholds": {
+    "control": 0.8968802690505981,
+    "physics": 0.9515325427055359
+  },
+  "grids": {
+    "neurips2020": {
+      "scope": "held-out test split",
+      "arms": {
+        "control": {
+          "held": {
+            "f1": 0.8962381544941131,
+            "threshold": 0.8968802690505981,
+            "precision": 0.8922666412541097,
+            "recall": 0.9002451805201673
+          },
+          "oracle": {
+            "f1": 0.8978431944039638,
+            "threshold": 1.1840940713882446
+          }
+        },
+        "physics": {
+          "held": {
+            "f1": 0.8918372684689825,
+            "threshold": 0.9515325427055359,
+            "precision": 0.882292058712834,
+            "recall": 0.9015912696504975
+          },
+          "oracle": {
+            "f1": 0.893145998778253,
+            "threshold": 1.494546890258789
+          }
+        }
+      },
+      "contingencies": 113205,
+      "violation_rate": 0.18374630095843822,
+      "baselines": {
+        "all_positive": 0.3104487858752593,
+        "best_rule_rho_of_removed_line": 0.463850830968788
+      }
+    },
+    "case14": {
+      "scope": "all frames (unseen topology)",
+      "arms": {
+        "control": {
+          "held": {
+            "f1": 0.4152692290822966,
+            "threshold": 0.8968802690505981,
+            "precision": 0.3999324153079328,
+            "recall": 0.43182923862807104
+          },
+          "oracle": {
+            "f1": 0.44728480962040407,
+            "threshold": -6.962678909301758
+          }
+        },
+        "physics": {
+          "held": {
+            "f1": 0.48039494602962096,
+            "threshold": 0.9515325427055359,
+            "precision": 0.5342241411396881,
+            "recall": 0.4364205789345658
+          },
+          "oracle": {
+            "f1": 0.5326939628673306,
+            "threshold": -2.4422690868377686
+          }
+        }
+      },
+      "contingencies": 118502,
+      "violation_rate": 0.2775311809083391,
+      "baselines": {
+        "all_positive": 0.4344804808772046,
+        "best_rule_rho_of_removed_line": 0.5391957521207019
+      }
+    },
+    "wcci2022": {
+      "scope": "all frames (unseen topology)",
+      "arms": {
+        "control": {
+          "held": {
+            "f1": 0.5579974990464511,
+            "threshold": 0.8968802690505981,
+            "precision": 0.5016145693179747,
+            "recall": 0.6286607919930374
+          },
+          "oracle": {
+            "f1": 0.5726622154141184,
+            "threshold": 3.432300567626953
+          }
+        },
+        "physics": {
+          "held": {
+            "f1": 0.5571930485284862,
+            "threshold": 0.9515325427055359,
+            "precision": 0.5116582786519717,
+            "recall": 0.6116242384682332
+          },
+          "oracle": {
+            "f1": 0.5574132650499573,
+            "threshold": 1.1039447784423828
+          }
+        }
+      },
+      "contingencies": 742472,
+      "violation_rate": 0.24760529690008512,
+      "baselines": {
+        "all_positive": 0.396928896527304,
+        "best_rule_rho_of_removed_line": 0.49152091277927557
+      }
+    }
+  },
+  "seconds": 146.8
+}

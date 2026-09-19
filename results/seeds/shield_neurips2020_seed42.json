@@ -1,0 +1,45 @@
+{
+  "tag": "neurips2020",
+  "rules": "validated_translated/all_rules_deduped.jsonl",
+  "n_rules": 4,
+  "threshold": 0.8968830108642578,
+  "threshold_source": "selected on the neurips2020 val split, held fixed",
+  "n_contingencies": 113205,
+  "violation_rate": 0.18374630095843822,
+  "ap": 0.961782300401393,
+  "f1_rule_baseline": 0.463850830968788,
+  "f1_model_best_on_topology": 0.8978431944039638,
+  "arms": {
+    "gnn": {
+      "f1": 0.8962381544941131,
+      "precision": 0.8922666412541097,
+      "recall": 0.9002451805201673,
+      "tp": 18726,
+      "false_alarms": 2261,
+      "missed_violations": 2075
+    },
+    "gnn_shield": {
+      "f1": 0.904777719789344,
+      "precision": 0.8930829391654569,
+      "recall": 0.9167828469785106,
+      "tp": 19070,
+      "false_alarms": 2283,
+      "missed_violations": 1731
+    }
+  },
+  "eligible": 366,
+  "blocked": 366,
+  "corrections": 344,
+  "regressions": 22,
+  "missed_violations": 2075,
+  "missed_reachable_by_rule": 344,
+  "shield_health": {
+    "n_frames": 1932,
+    "n_not_evaluable": 0,
+    "n_error": 0,
+    "n_unsupported": 0
+  },
+  "severities": {
+    "high": 366
+  }
+}

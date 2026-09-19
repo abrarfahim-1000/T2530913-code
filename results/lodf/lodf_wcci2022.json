@@ -1,0 +1,150 @@
+{
+  "tag": "wcci2022",
+  "scope": "all 4,000 frames (topology never seen in training)",
+  "contingencies": 742472,
+  "violation_rate": 0.24760529690008512,
+  "distinct_topology_patterns": 402,
+  "degenerate_limit_substitutions": 19,
+  "seconds": 5.2,
+  "labels": {
+    "positives": 183840,
+    "game_over_positives": 46373,
+    "game_over_share_of_positives": 0.2522465187119234
+  },
+  "baselines": {
+    "all_positive": 0.396928896527304,
+    "best_rule_rho_of_removed_line": 0.49152091277927557
+  },
+  "arms": {
+    "no_redistribution_control": {
+      "doctrinal_rho_ge_1": {
+        "threshold": 1.0,
+        "f1": 0.3817826426896012,
+        "precision": 0.9475420439844761,
+        "recall": 0.23905026109660574,
+        "tp": 43947,
+        "fp": 2433,
+        "fn": 139893
+      },
+      "held": {
+        "threshold": 0.7791555523872375,
+        "f1": 0.4288711853073082,
+        "precision": 0.2917248302147215,
+        "recall": 0.8093777197563098,
+        "tp": 148796,
+        "fp": 361260,
+        "fn": 35044
+      },
+      "oracle": {
+        "f1": 0.4582321264302474,
+        "threshold": 0.8817338943481445
+      },
+      "overload_only": {
+        "contingencies": 696099,
+        "violation_rate": 0.1974819673638376,
+        "doctrinal_rho_ge_1": {
+          "threshold": 1.0,
+          "f1": 0.44944056835373597,
+          "precision": 0.9433975432719152,
+          "recall": 0.2949871605548968,
+          "tp": 40551,
+          "fp": 2433,
+          "fn": 96916
+        },
+        "oracle": {
+          "f1": 0.49547162897563246
+        }
+      }
+    },
+    "lodf_flow": {
+      "doctrinal_rho_ge_1": {
+        "threshold": 1.0,
+        "f1": 0.8080404151832724,
+        "precision": 0.9531970897906069,
+        "recall": 0.7012510879025239,
+        "tp": 128918,
+        "fp": 6330,
+        "fn": 54922
+      },
+      "held": {
+        "threshold": 0.9877988430643796,
+        "f1": 0.8204529535372402,
+        "precision": 0.9269480853163048,
+        "recall": 0.7359062228024369,
+        "tp": 135289,
+        "fp": 10662,
+        "fn": 48551
+      },
+      "oracle": {
+        "f1": 0.8208362377713145,
+        "threshold": 0.9851732057915762
+      },
+      "overload_only": {
+        "contingencies": 696099,
+        "violation_rate": 0.1974819673638376,
+        "doctrinal_rho_ge_1": {
+          "threshold": 1.0,
+          "f1": 0.8826571247634921,
+          "precision": 0.9472165704946466,
+          "recall": 0.8263365025788008,
+          "tp": 113594,
+          "fp": 6330,
+          "fn": 23873
+        },
+        "oracle": {
+          "f1": 0.8933551999940228
+        }
+      }
+    },
+    "lodf_flow_plus_topology": {
+      "doctrinal_rho_ge_1": {
+        "threshold": 1.0,
+        "f1": 0.9136805305639812,
+        "precision": 0.9619312236134666,
+        "recall": 0.8700391644908616,
+        "tp": 159948,
+        "fp": 6330,
+        "fn": 23892
+      },
+      "held": {
+        "threshold": 0.9907812233576517,
+        "f1": 0.9198981004286828,
+        "precision": 0.9465606242842427,
+        "recall": 0.8946964751958224,
+        "tp": 164481,
+        "fp": 9286,
+        "fn": 19359
+      },
+      "oracle": {
+        "f1": 0.9207402680280791,
+        "threshold": 0.9878239488181231
+      },
+      "overload_only": {
+        "contingencies": 696099,
+        "violation_rate": 0.1974819673638376,
+        "doctrinal_rho_ge_1": {
+          "threshold": 1.0,
+          "f1": 0.8826571247634921,
+          "precision": 0.9472165704946466,
+          "recall": 0.8263365025788008,
+          "tp": 113594,
+          "fp": 6330,
+          "fn": 23873
+        },
+        "oracle": {
+          "f1": 0.8933551999940228
+        }
+      }
+    }
+  },
+  "topology_channel": {
+    "fired": 33240,
+    "precision_vs_any_violation": 1.0,
+    "share_of_game_over_caught": 0.716796411705087
+  },
+  "dc_vs_ac": {
+    "pearson_r": 0.7069371791869876,
+    "median_abs_error": 0.010959863662719727,
+    "median_signed_error": -0.003202834355287676
+  }
+}

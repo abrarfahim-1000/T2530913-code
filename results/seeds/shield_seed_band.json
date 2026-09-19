@@ -1,0 +1,905 @@
+{
+  "title": "Four-seed band for the shield's own metrics (issue B1)",
+  "generated": "2026-09-20",
+  "protocol": {
+    "question": "Every headline shield figure came from ONE checkpoint at ONE seed. This scores the four architecturally-identical CONTROL checkpoints of the reactance experiment (findings section 27) through the same shield harness, on all three grids.",
+    "harness": "evaluation/eval_shield_n1.py (unmodified)",
+    "rules_corpus": "validated_translated/all_rules_deduped.jsonl (the served 4-rule stage-3 corpus)",
+    "n_rules": 4,
+    "eval_batch_size": 64,
+    "eval_batch_size_note": "PINNED and load-bearing. BatchNorm(track_running_stats=False) uses live batch statistics at inference, so absolute F1 moves with batch composition (0.8972 at 64 vs 0.9255 at 512). Never overridden here.",
+    "threshold_discipline": "PER-SEED VAL-SELECTED, THEN HELD. --threshold was omitted on every run, so the harness selects the decision threshold on the neurips2020 VAL split using THAT checkpoint's own logits, then holds it fixed across all three grids. This is the honest analogue of the deployed protocol: each retrained seed is a different model, so forcing the deployed 0.8849 onto every seed would conflate model variation with threshold mismatch. The per-seed threshold is reported.",
+    "checkpoints": {
+      "deployed": "gnn_checkpoint_n1.pt - the thesis deliverable, scored here under the identical protocol for a like-for-like comparison. It is NOT one of the four seeds.",
+      "seed_arm": "gnn_checkpoint_n1_reactance_control_seed{42,0,1,2}.pt - the CONTROL arm of evaluation/reactance_transfer.py: 8 edge features, architecturally identical to the deployed model, trained at the documented protocol (30 epochs, batch 128, lr 3e-4, cosine schedule). State dicts verified key-for-key and shape-for-shape identical to the deployed checkpoint."
+    },
+    "device": "XPU",
+    "scope": {
+      "neurips2020": "held-out test split (1,932 of 12,000 frames)",
+      "case14": "all frames (topology never seen in training)",
+      "wcci2022": "all frames (topology never seen in training)"
+    },
+    "failures_side_effect": "Every run was redirected with --failures into a scratch directory so the canonical results/failures/failures_<tag>.jsonl were not clobbered; verified unchanged by md5 afterwards.",
+    "caveat": "Four seeds. The sd figures are small-sample estimates and should be read as an order of magnitude, not a confidence interval."
+  },
+  "per_grid_per_checkpoint": {
+    "neurips2020": {
+      "deployed": {
+        "label": "deployed",
+        "checkpoint": "gnn_checkpoint_n1.pt",
+        "threshold": 0.8848512172698975,
+        "threshold_source": "selected on the neurips2020 val split, held fixed",
+        "n_contingencies": 113205,
+        "ap": 0.9615043506779236,
+        "f1_rule_baseline": 0.463850830968788,
+        "f1_model_oracle_on_topology": 0.8971702941821639,
+        "f1_gnn": 0.8956363983576816,
+        "f1_shielded": 0.9038229376257545,
+        "delta_f1": 0.00818653926807289,
+        "precision_gnn": 0.8894789246598075,
+        "recall_gnn": 0.9018797173212826,
+        "recall_shielded": 0.9177924138262583,
+        "missed_gnn": 2041,
+        "missed_shielded": 1710,
+        "false_alarms_gnn": 2331,
+        "false_alarms_shielded": 2353,
+        "eligible": 353,
+        "blocked": 353,
+        "corrections": 331,
+        "regressions": 22,
+        "intervention_precision": 0.9376770538243626,
+        "missed_violations": 2041,
+        "missed_reachable_by_rule": 331,
+        "shield_health": {
+          "n_frames": 1932,
+          "n_not_evaluable": 0,
+          "n_error": 0,
+          "n_unsupported": 0
+        },
+        "severities": {
+          "high": 353
+        }
+      },
+      "seed42": {
+        "label": "seed42",
+        "checkpoint": "gnn_checkpoint_n1_reactance_control_seed42.pt",
+        "threshold": 0.8968830108642578,
+        "threshold_source": "selected on the neurips2020 val split, held fixed",
+        "n_contingencies": 113205,
+        "ap": 0.961782300401393,
+        "f1_rule_baseline": 0.463850830968788,
+        "f1_model_oracle_on_topology": 0.8978431944039638,
+        "f1_gnn": 0.8962381544941131,
+        "f1_shielded": 0.904777719789344,
+        "delta_f1": 0.008539565295230811,
+        "precision_gnn": 0.8922666412541097,
+        "recall_gnn": 0.9002451805201673,
+        "recall_shielded": 0.9167828469785106,
+        "missed_gnn": 2075,
+        "missed_shielded": 1731,
+        "false_alarms_gnn": 2261,
+        "false_alarms_shielded": 2283,
+        "eligible": 366,
+        "blocked": 366,
+        "corrections": 344,
+        "regressions": 22,
+        "intervention_precision": 0.9398907103825137,
+        "missed_violations": 2075,
+        "missed_reachable_by_rule": 344,
+        "shield_health": {
+          "n_frames": 1932,
+          "n_not_evaluable": 0,
+          "n_error": 0,
+          "n_unsupported": 0
+        },
+        "severities": {
+          "high": 366
+        }
+      },
+      "seed0": {
+        "label": "seed0",
+        "checkpoint": "gnn_checkpoint_n1_reactance_control_seed0.pt",
+        "threshold": 0.9064801335334778,
+        "threshold_source": "selected on the neurips2020 val split, held fixed",
+        "n_contingencies": 113205,
+        "ap": 0.9531534788541574,
+        "f1_rule_baseline": 0.463850830968788,
+        "f1_model_oracle_on_topology": 0.8845828985939286,
+        "f1_gnn": 0.8782107954409692,
+        "f1_shielded": 0.8866252901880893,
+        "delta_f1": 0.008414494747120083,
+        "precision_gnn": 0.8730166270783848,
+        "recall_gnn": 0.8834671410028364,
+        "recall_shielded": 0.8996682851785972,
+        "missed_gnn": 2424,
+        "missed_shielded": 2087,
+        "false_alarms_gnn": 2673,
+        "false_alarms_shielded": 2699,
+        "eligible": 363,
+        "blocked": 363,
+        "corrections": 337,
+        "regressions": 26,
+        "intervention_precision": 0.928374655647383,
+        "missed_violations": 2424,
+        "missed_reachable_by_rule": 337,
+        "shield_health": {
+          "n_frames": 1932,
+          "n_not_evaluable": 0,
+          "n_error": 0,
+          "n_unsupported": 0
+        },
+        "severities": {
+          "high": 363
+        }
+      },
+      "seed1": {
+        "label": "seed1",
+        "checkpoint": "gnn_checkpoint_n1_reactance_control_seed1.pt",
+        "threshold": 0.8011339902877808,
+        "threshold_source": "selected on the neurips2020 val split, held fixed",
+        "n_contingencies": 113205,
+        "ap": 0.9542717163477544,
+        "f1_rule_baseline": 0.463850830968788,
+        "f1_model_oracle_on_topology": 0.885561915945007,
+        "f1_gnn": 0.8841263037576798,
+        "f1_shielded": 0.8918714555765596,
+        "delta_f1": 0.007745151818879803,
+        "precision_gnn": 0.8759496060019818,
+        "recall_gnn": 0.8924570934089707,
+        "recall_shielded": 0.9072640738426038,
+        "missed_gnn": 2237,
+        "missed_shielded": 1929,
+        "false_alarms_gnn": 2629,
+        "false_alarms_shielded": 2647,
+        "eligible": 326,
+        "blocked": 326,
+        "corrections": 308,
+        "regressions": 18,
+        "intervention_precision": 0.9447852760736196,
+        "missed_violations": 2237,
+        "missed_reachable_by_rule": 308,
+        "shield_health": {
+          "n_frames": 1932,
+          "n_not_evaluable": 0,
+          "n_error": 0,
+          "n_unsupported": 0
+        },
+        "severities": {
+          "high": 326
+        }
+      },
+      "seed2": {
+        "label": "seed2",
+        "checkpoint": "gnn_checkpoint_n1_reactance_control_seed2.pt",
+        "threshold": 0.7453653812408447,
+        "threshold_source": "selected on the neurips2020 val split, held fixed",
+        "n_contingencies": 113205,
+        "ap": 0.9497387553557932,
+        "f1_rule_baseline": 0.463850830968788,
+        "f1_model_oracle_on_topology": 0.8778538534636094,
+        "f1_gnn": 0.8754607500416162,
+        "f1_shielded": 0.8837099589564561,
+        "delta_f1": 0.008249208914839934,
+        "precision_gnn": 0.8662117647058823,
+        "recall_gnn": 0.8849093793567617,
+        "recall_shielded": 0.9005336281909524,
+        "missed_gnn": 2394,
+        "missed_shielded": 2069,
+        "false_alarms_gnn": 2843,
+        "false_alarms_shielded": 2861,
+        "eligible": 343,
+        "blocked": 343,
+        "corrections": 325,
+        "regressions": 18,
+        "intervention_precision": 0.9475218658892128,
+        "missed_violations": 2394,
+        "missed_reachable_by_rule": 325,
+        "shield_health": {
+          "n_frames": 1932,
+          "n_not_evaluable": 0,
+          "n_error": 0,
+          "n_unsupported": 0
+        },
+        "severities": {
+          "high": 343
+        }
+      }
+    },
+    "case14": {
+      "deployed": {
+        "label": "deployed",
+        "checkpoint": "gnn_checkpoint_n1.pt",
+        "threshold": 0.8848521709442139,
+        "threshold_source": "selected on the neurips2020 val split, held fixed",
+        "n_contingencies": 118502,
+        "ap": 0.4270151216456321,
+        "f1_rule_baseline": 0.5391957521207019,
+        "f1_model_oracle_on_topology": 0.4477444539932705,
+        "f1_gnn": 0.4167018873424178,
+        "f1_shielded": 0.41884222474460836,
+        "delta_f1": 0.002140337402190551,
+        "precision_gnn": 0.4001455481848462,
+        "recall_gnn": 0.434687423984432,
+        "recall_shielded": 0.4375760155679883,
+        "missed_gnn": 18592,
+        "missed_shielded": 18497,
+        "false_alarms_gnn": 21431,
+        "false_alarms_shielded": 21439,
+        "eligible": 103,
+        "blocked": 103,
+        "corrections": 95,
+        "regressions": 8,
+        "intervention_precision": 0.9223300970873787,
+        "missed_violations": 18592,
+        "missed_reachable_by_rule": 95,
+        "shield_health": {
+          "n_frames": 6000,
+          "n_not_evaluable": 0,
+          "n_error": 0,
+          "n_unsupported": 0
+        },
+        "severities": {
+          "high": 103
+        }
+      },
+      "seed42": {
+        "label": "seed42",
+        "checkpoint": "gnn_checkpoint_n1_reactance_control_seed42.pt",
+        "threshold": 0.8968808054924011,
+        "threshold_source": "selected on the neurips2020 val split, held fixed",
+        "n_contingencies": 118502,
+        "ap": 0.4264150386634211,
+        "f1_rule_baseline": 0.5391957521207019,
+        "f1_model_oracle_on_topology": 0.44728480962040407,
+        "f1_gnn": 0.4152692290822966,
+        "f1_shielded": 0.41746467359570244,
+        "delta_f1": 0.0021954445134058642,
+        "precision_gnn": 0.3999324153079328,
+        "recall_gnn": 0.43182923862807104,
+        "recall_shielded": 0.434778642666018,
+        "missed_gnn": 18686,
+        "missed_shielded": 18589,
+        "false_alarms_gnn": 21309,
+        "false_alarms_shielded": 21317,
+        "eligible": 105,
+        "blocked": 105,
+        "corrections": 97,
+        "regressions": 8,
+        "intervention_precision": 0.9238095238095239,
+        "missed_violations": 18686,
+        "missed_reachable_by_rule": 97,
+        "shield_health": {
+          "n_frames": 6000,
+          "n_not_evaluable": 0,
+          "n_error": 0,
+          "n_unsupported": 0
+        },
+        "severities": {
+          "high": 105
+        }
+      },
+      "seed0": {
+        "label": "seed0",
+        "checkpoint": "gnn_checkpoint_n1_reactance_control_seed0.pt",
+        "threshold": 0.9064802527427673,
+        "threshold_source": "selected on the neurips2020 val split, held fixed",
+        "n_contingencies": 118502,
+        "ap": 0.46614942021733075,
+        "f1_rule_baseline": 0.5391957521207019,
+        "f1_model_oracle_on_topology": 0.47536482862030366,
+        "f1_gnn": 0.42241693470441904,
+        "f1_shielded": 0.42560389528266096,
+        "delta_f1": 0.0031869605782419153,
+        "precision_gnn": 0.441025641025641,
+        "recall_gnn": 0.40531500851374364,
+        "recall_shielded": 0.4092982242763318,
+        "missed_gnn": 19558,
+        "missed_shielded": 19427,
+        "false_alarms_gnn": 16895,
+        "false_alarms_shielded": 16907,
+        "eligible": 143,
+        "blocked": 143,
+        "corrections": 131,
+        "regressions": 12,
+        "intervention_precision": 0.916083916083916,
+        "missed_violations": 19558,
+        "missed_reachable_by_rule": 131,
+        "shield_health": {
+          "n_frames": 6000,
+          "n_not_evaluable": 0,
+          "n_error": 0,
+          "n_unsupported": 0
+        },
+        "severities": {
+          "high": 143
+        }
+      },
+      "seed1": {
+        "label": "seed1",
+        "checkpoint": "gnn_checkpoint_n1_reactance_control_seed1.pt",
+        "threshold": 0.8011325001716614,
+        "threshold_source": "selected on the neurips2020 val split, held fixed",
+        "n_contingencies": 118502,
+        "ap": 0.4952316080941365,
+        "f1_rule_baseline": 0.5391957521207019,
+        "f1_model_oracle_on_topology": 0.45658518788763225,
+        "f1_gnn": 0.455877311951354,
+        "f1_shielded": 0.4561628322803672,
+        "delta_f1": 0.00028552032901318913,
+        "precision_gnn": 0.4470753310532316,
+        "recall_gnn": 0.46503283872537093,
+        "recall_shielded": 0.46542811967891023,
+        "missed_gnn": 17594,
+        "missed_shielded": 17581,
+        "false_alarms_gnn": 18915,
+        "false_alarms_shielded": 18917,
+        "eligible": 15,
+        "blocked": 15,
+        "corrections": 13,
+        "regressions": 2,
+        "intervention_precision": 0.8666666666666667,
+        "missed_violations": 17594,
+        "missed_reachable_by_rule": 13,
+        "shield_health": {
+          "n_frames": 6000,
+          "n_not_evaluable": 0,
+          "n_error": 0,
+          "n_unsupported": 0
+        },
+        "severities": {
+          "high": 15
+        }
+      },
+      "seed2": {
+        "label": "seed2",
+        "checkpoint": "gnn_checkpoint_n1_reactance_control_seed2.pt",
+        "threshold": 0.7453657388687134,
+        "threshold_source": "selected on the neurips2020 val split, held fixed",
+        "n_contingencies": 118502,
+        "ap": 0.4136045421479042,
+        "f1_rule_baseline": 0.5391957521207019,
+        "f1_model_oracle_on_topology": 0.4439657383187157,
+        "f1_gnn": 0.4336091661362189,
+        "f1_shielded": 0.4372743682310469,
+        "delta_f1": 0.0036652020948279573,
+        "precision_gnn": 0.4054011161954135,
+        "recall_gnn": 0.4660362442228168,
+        "recall_shielded": 0.4714181464363902,
+        "missed_gnn": 17561,
+        "missed_shielded": 17384,
+        "false_alarms_gnn": 22480,
+        "false_alarms_shielded": 22520,
+        "eligible": 217,
+        "blocked": 217,
+        "corrections": 177,
+        "regressions": 40,
+        "intervention_precision": 0.815668202764977,
+        "missed_violations": 17561,
+        "missed_reachable_by_rule": 177,
+        "shield_health": {
+          "n_frames": 6000,
+          "n_not_evaluable": 0,
+          "n_error": 0,
+          "n_unsupported": 0
+        },
+        "severities": {
+          "high": 217
+        }
+      }
+    },
+    "wcci2022": {
+      "deployed": {
+        "label": "deployed",
+        "checkpoint": "gnn_checkpoint_n1.pt",
+        "threshold": 0.8848515748977661,
+        "threshold_source": "selected on the neurips2020 val split, held fixed",
+        "n_contingencies": 742472,
+        "ap": 0.6418837996492748,
+        "f1_rule_baseline": 0.49152091277927557,
+        "f1_model_oracle_on_topology": 0.5721070824403444,
+        "f1_gnn": 0.5577378814215147,
+        "f1_shielded": 0.6252983839252234,
+        "delta_f1": 0.06756050250370871,
+        "precision_gnn": 0.5008464779158025,
+        "recall_gnn": 0.629210182767624,
+        "recall_shielded": 0.7437935161009573,
+        "missed_gnn": 68166,
+        "missed_shielded": 47101,
+        "false_alarms_gnn": 115283,
+        "false_alarms_shielded": 116777,
+        "eligible": 22559,
+        "blocked": 22559,
+        "corrections": 21065,
+        "regressions": 1494,
+        "intervention_precision": 0.9337736601799725,
+        "missed_violations": 68166,
+        "missed_reachable_by_rule": 21065,
+        "shield_health": {
+          "n_frames": 4000,
+          "n_not_evaluable": 0,
+          "n_error": 0,
+          "n_unsupported": 0
+        },
+        "severities": {
+          "high": 22559
+        }
+      },
+      "seed42": {
+        "label": "seed42",
+        "checkpoint": "gnn_checkpoint_n1_reactance_control_seed42.pt",
+        "threshold": 0.8968832492828369,
+        "threshold_source": "selected on the neurips2020 val split, held fixed",
+        "n_contingencies": 742472,
+        "ap": 0.6423186793465447,
+        "f1_rule_baseline": 0.49152091277927557,
+        "f1_model_oracle_on_topology": 0.5726622154141184,
+        "f1_gnn": 0.5579974990464511,
+        "f1_shielded": 0.6258883957489764,
+        "delta_f1": 0.06789089670252524,
+        "precision_gnn": 0.5016145693179747,
+        "recall_gnn": 0.6286607919930374,
+        "recall_shielded": 0.7436901653611836,
+        "missed_gnn": 68267,
+        "missed_shielded": 47120,
+        "false_alarms_gnn": 114829,
+        "false_alarms_shielded": 116323,
+        "eligible": 22641,
+        "blocked": 22641,
+        "corrections": 21147,
+        "regressions": 1494,
+        "intervention_precision": 0.9340135153040944,
+        "missed_violations": 68267,
+        "missed_reachable_by_rule": 21147,
+        "shield_health": {
+          "n_frames": 4000,
+          "n_not_evaluable": 0,
+          "n_error": 0,
+          "n_unsupported": 0
+        },
+        "severities": {
+          "high": 22641
+        }
+      },
+      "seed0": {
+        "label": "seed0",
+        "checkpoint": "gnn_checkpoint_n1_reactance_control_seed0.pt",
+        "threshold": 0.9064794182777405,
+        "threshold_source": "selected on the neurips2020 val split, held fixed",
+        "n_contingencies": 742472,
+        "ap": 0.6783984106553236,
+        "f1_rule_baseline": 0.49152091277927557,
+        "f1_model_oracle_on_topology": 0.5920117233056477,
+        "f1_gnn": 0.5900228408752357,
+        "f1_shielded": 0.6539999910218482,
+        "delta_f1": 0.06397715014661254,
+        "precision_gnn": 0.5218540608818584,
+        "recall_gnn": 0.6786771105308964,
+        "recall_shielded": 0.792466275021758,
+        "missed_gnn": 59072,
+        "missed_shielded": 38153,
+        "false_alarms_gnn": 114318,
+        "false_alarms_shielded": 115999,
+        "eligible": 22600,
+        "blocked": 22600,
+        "corrections": 20919,
+        "regressions": 1681,
+        "intervention_precision": 0.9256194690265487,
+        "missed_violations": 59072,
+        "missed_reachable_by_rule": 20919,
+        "shield_health": {
+          "n_frames": 4000,
+          "n_not_evaluable": 0,
+          "n_error": 0,
+          "n_unsupported": 0
+        },
+        "severities": {
+          "high": 22600
+        }
+      },
+      "seed1": {
+        "label": "seed1",
+        "checkpoint": "gnn_checkpoint_n1_reactance_control_seed1.pt",
+        "threshold": 0.8011330962181091,
+        "threshold_source": "selected on the neurips2020 val split, held fixed",
+        "n_contingencies": 742472,
+        "ap": 0.6162785844434717,
+        "f1_rule_baseline": 0.49152091277927557,
+        "f1_model_oracle_on_topology": 0.5723369652277559,
+        "f1_gnn": 0.5639330859229745,
+        "f1_shielded": 0.6310135701591941,
+        "delta_f1": 0.0670804842362196,
+        "precision_gnn": 0.5152205118051775,
+        "recall_gnn": 0.6228187554395126,
+        "recall_shielded": 0.7349107919930374,
+        "missed_gnn": 69341,
+        "missed_shielded": 48734,
+        "false_alarms_gnn": 107734,
+        "false_alarms_shielded": 109273,
+        "eligible": 22146,
+        "blocked": 22146,
+        "corrections": 20607,
+        "regressions": 1539,
+        "intervention_precision": 0.9305066377675427,
+        "missed_violations": 69341,
+        "missed_reachable_by_rule": 20607,
+        "shield_health": {
+          "n_frames": 4000,
+          "n_not_evaluable": 0,
+          "n_error": 0,
+          "n_unsupported": 0
+        },
+        "severities": {
+          "high": 22146
+        }
+      },
+      "seed2": {
+        "label": "seed2",
+        "checkpoint": "gnn_checkpoint_n1_reactance_control_seed2.pt",
+        "threshold": 0.7453655004501343,
+        "threshold_source": "selected on the neurips2020 val split, held fixed",
+        "n_contingencies": 742472,
+        "ap": 0.626584245619605,
+        "f1_rule_baseline": 0.49152091277927557,
+        "f1_model_oracle_on_topology": 0.5460534977765238,
+        "f1_gnn": 0.5445823355116288,
+        "f1_shielded": 0.6203125934252539,
+        "delta_f1": 0.07573025791362509,
+        "precision_gnn": 0.5102637483836616,
+        "recall_gnn": 0.5838500870322019,
+        "recall_shielded": 0.7054014360313315,
+        "missed_gnn": 76505,
+        "missed_shielded": 54159,
+        "false_alarms_gnn": 103017,
+        "false_alarms_shielded": 104594,
+        "eligible": 23923,
+        "blocked": 23923,
+        "corrections": 22346,
+        "regressions": 1577,
+        "intervention_precision": 0.9340801738912343,
+        "missed_violations": 76505,
+        "missed_reachable_by_rule": 22346,
+        "shield_health": {
+          "n_frames": 4000,
+          "n_not_evaluable": 0,
+          "n_error": 0,
+          "n_unsupported": 0
+        },
+        "severities": {
+          "high": 23923
+        }
+      }
+    }
+  },
+  "aggregates_over_four_seeds": {
+    "neurips2020": {
+      "f1_gnn": {
+        "mean": 0.8835090009335946,
+        "sd": 0.009224202531135192,
+        "min": 0.8754607500416162,
+        "max": 0.8962381544941131,
+        "range": 0.020777404452496984,
+        "n": 4
+      },
+      "f1_shielded": {
+        "mean": 0.8917461061276122,
+        "sd": 0.00932096354740104,
+        "min": 0.8837099589564561,
+        "max": 0.904777719789344,
+        "range": 0.02106776083288786,
+        "n": 4
+      },
+      "delta_f1": {
+        "mean": 0.008237105194017658,
+        "sd": 0.00034886185887970966,
+        "min": 0.007745151818879803,
+        "max": 0.008539565295230811,
+        "range": 0.000794413476351008,
+        "n": 4
+      },
+      "intervention_precision": {
+        "mean": 0.9401431269981823,
+        "sd": 0.00845687033803562,
+        "min": 0.928374655647383,
+        "max": 0.9475218658892128,
+        "range": 0.01914721024182986,
+        "n": 4
+      },
+      "blocked": {
+        "mean": 349.5,
+        "sd": 18.699376103674332,
+        "min": 326,
+        "max": 366,
+        "range": 40,
+        "n": 4
+      },
+      "corrections": {
+        "mean": 328.5,
+        "sd": 15.758595538097085,
+        "min": 308,
+        "max": 344,
+        "range": 36,
+        "n": 4
+      },
+      "regressions": {
+        "mean": 21,
+        "sd": 3.8297084310253524,
+        "min": 18,
+        "max": 26,
+        "range": 8,
+        "n": 4
+      },
+      "eligible": {
+        "mean": 349.5,
+        "sd": 18.699376103674332,
+        "min": 326,
+        "max": 366,
+        "range": 40,
+        "n": 4
+      },
+      "threshold": {
+        "mean": 0.8374656289815903,
+        "sd": 0.07766567391157536,
+        "min": 0.7453653812408447,
+        "max": 0.9064801335334778,
+        "range": 0.16111475229263306,
+        "n": 4
+      },
+      "missed_violations": {
+        "mean": 2282.5,
+        "sd": 160.8114838353696,
+        "min": 2075,
+        "max": 2424,
+        "range": 349,
+        "n": 4
+      },
+      "missed_reachable_by_rule": {
+        "mean": 328.5,
+        "sd": 15.758595538097085,
+        "min": 308,
+        "max": 344,
+        "range": 36,
+        "n": 4
+      },
+      "ap": {
+        "mean": 0.9547365627397745,
+        "sd": 0.005077490672921092,
+        "min": 0.9497387553557932,
+        "max": 0.961782300401393,
+        "range": 0.01204354504559979,
+        "n": 4
+      },
+      "delta_sign_stable": true,
+      "delta_all_positive": true,
+      "deployed": {
+        "f1_gnn": 0.8956363983576816,
+        "f1_shielded": 0.9038229376257545,
+        "delta_f1": 0.00818653926807289,
+        "intervention_precision": 0.9376770538243626,
+        "blocked": 353,
+        "threshold": 0.8848512172698975
+      },
+      "deployed_delta_inside_seed_band": true,
+      "deployed_precision_inside_seed_band": true
+    },
+    "case14": {
+      "f1_gnn": {
+        "mean": 0.43179316046857213,
+        "sd": 0.017741647304851373,
+        "min": 0.4152692290822966,
+        "max": 0.455877311951354,
+        "range": 0.04060808286905743,
+        "n": 4
+      },
+      "f1_shielded": {
+        "mean": 0.43412644234744435,
+        "sd": 0.01679047612043257,
+        "min": 0.41746467359570244,
+        "max": 0.4561628322803672,
+        "range": 0.03869815868466475,
+        "n": 4
+      },
+      "delta_f1": {
+        "mean": 0.0023332818788722315,
+        "sd": 0.0014961177858966496,
+        "min": 0.00028552032901318913,
+        "max": 0.0036652020948279573,
+        "range": 0.003379681765814768,
+        "n": 4
+      },
+      "intervention_precision": {
+        "mean": 0.8805570773312709,
+        "sd": 0.05012131931298351,
+        "min": 0.815668202764977,
+        "max": 0.9238095238095239,
+        "range": 0.10814132104454688,
+        "n": 4
+      },
+      "blocked": {
+        "mean": 120,
+        "sd": 84.03967317087012,
+        "min": 15,
+        "max": 217,
+        "range": 202,
+        "n": 4
+      },
+      "corrections": {
+        "mean": 104.5,
+        "sd": 69.25075210181234,
+        "min": 13,
+        "max": 177,
+        "range": 164,
+        "n": 4
+      },
+      "regressions": {
+        "mean": 15.5,
+        "sd": 16.842406795546374,
+        "min": 2,
+        "max": 40,
+        "range": 38,
+        "n": 4
+      },
+      "eligible": {
+        "mean": 120,
+        "sd": 84.03967317087012,
+        "min": 15,
+        "max": 217,
+        "range": 202,
+        "n": 4
+      },
+      "threshold": {
+        "mean": 0.8374648243188858,
+        "sd": 0.07766523782242304,
+        "min": 0.7453657388687134,
+        "max": 0.9064802527427673,
+        "range": 0.16111451387405396,
+        "n": 4
+      },
+      "missed_violations": {
+        "mean": 18349.75,
+        "sd": 960.245932040329,
+        "min": 17561,
+        "max": 19558,
+        "range": 1997,
+        "n": 4
+      },
+      "missed_reachable_by_rule": {
+        "mean": 104.5,
+        "sd": 69.25075210181234,
+        "min": 13,
+        "max": 177,
+        "range": 164,
+        "n": 4
+      },
+      "ap": {
+        "mean": 0.45035015228069813,
+        "sd": 0.03735903046194845,
+        "min": 0.4136045421479042,
+        "max": 0.4952316080941365,
+        "range": 0.08162706594623231,
+        "n": 4
+      },
+      "delta_sign_stable": true,
+      "delta_all_positive": true,
+      "deployed": {
+        "f1_gnn": 0.4167018873424178,
+        "f1_shielded": 0.41884222474460836,
+        "delta_f1": 0.002140337402190551,
+        "intervention_precision": 0.9223300970873787,
+        "blocked": 103,
+        "threshold": 0.8848521709442139
+      },
+      "deployed_delta_inside_seed_band": true,
+      "deployed_precision_inside_seed_band": true
+    },
+    "wcci2022": {
+      "f1_gnn": {
+        "mean": 0.5641339403390726,
+        "sd": 0.019063024213855518,
+        "min": 0.5445823355116288,
+        "max": 0.5900228408752357,
+        "range": 0.04544050536360689,
+        "n": 4
+      },
+      "f1_shielded": {
+        "mean": 0.6328036375888182,
+        "sd": 0.014791174105528136,
+        "min": 0.6203125934252539,
+        "max": 0.6539999910218482,
+        "range": 0.03368739759659434,
+        "n": 4
+      },
+      "delta_f1": {
+        "mean": 0.06866969724974561,
+        "sd": 0.005000121448463559,
+        "min": 0.06397715014661254,
+        "max": 0.07573025791362509,
+        "range": 0.01175310776701255,
+        "n": 4
+      },
+      "intervention_precision": {
+        "mean": 0.931054948997355,
+        "sd": 0.003989577586984014,
+        "min": 0.9256194690265487,
+        "max": 0.9340801738912343,
+        "range": 0.008460704864685642,
+        "n": 4
+      },
+      "blocked": {
+        "mean": 22827.5,
+        "sd": 764.0028359458709,
+        "min": 22146,
+        "max": 23923,
+        "range": 1777,
+        "n": 4
+      },
+      "corrections": {
+        "mean": 21254.75,
+        "sd": 760.4263606688027,
+        "min": 20607,
+        "max": 22346,
+        "range": 1739,
+        "n": 4
+      },
+      "regressions": {
+        "mean": 1572.75,
+        "sd": 79.74281576836039,
+        "min": 1494,
+        "max": 1681,
+        "range": 187,
+        "n": 4
+      },
+      "eligible": {
+        "mean": 22827.5,
+        "sd": 764.0028359458709,
+        "min": 22146,
+        "max": 23923,
+        "range": 1777,
+        "n": 4
+      },
+      "threshold": {
+        "mean": 0.8374653160572052,
+        "sd": 0.07766561514468075,
+        "min": 0.7453655004501343,
+        "max": 0.9064794182777405,
+        "range": 0.1611139178276062,
+        "n": 4
+      },
+      "missed_violations": {
+        "mean": 68296.25,
+        "sd": 7154.549199635152,
+        "min": 59072,
+        "max": 76505,
+        "range": 17433,
+        "n": 4
+      },
+      "missed_reachable_by_rule": {
+        "mean": 21254.75,
+        "sd": 760.4263606688027,
+        "min": 20607,
+        "max": 22346,
+        "range": 1739,
+        "n": 4
+      },
+      "ap": {
+        "mean": 0.6408949800162362,
+        "sd": 0.02719864138426587,
+        "min": 0.6162785844434717,
+        "max": 0.6783984106553236,
+        "range": 0.06211982621185186,
+        "n": 4
+      },
+      "delta_sign_stable": true,
+      "delta_all_positive": true,
+      "deployed": {
+        "f1_gnn": 0.5577378814215147,
+        "f1_shielded": 0.6252983839252234,
+        "delta_f1": 0.06756050250370871,
+        "intervention_precision": 0.9337736601799725,
+        "blocked": 22559,
+        "threshold": 0.8848515748977661
+      },
+      "deployed_delta_inside_seed_band": true,
+      "deployed_precision_inside_seed_band": true
+    }
+  }
+}

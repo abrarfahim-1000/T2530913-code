@@ -52,8 +52,11 @@ The GNN is trained on one topology (36-bus) and evaluated on unseen topologies (
 > solve** — which is what permanently un-rigs the shield comparison.
 >
 > **TRAINED (2026-08-16).** Edge-level head, 12,000 frames / 576 chronics / 702,618 contingency
-> labels. Held-out test **F1 0.8872, AP 0.9549 — 1.91× the best single-rule baseline (0.4639)**;
-> ablation shows message passing contributes **+0.058** over endpoint features alone. Full account
+> labels. AP 0.9549; ablation shows message passing contributes **+0.058** over endpoint features
+> alone. ⚠ **Corrected 2026-09-20 — this line used to quote a held-out test F1 of 0.8872. That
+> figure does not reproduce from the tracked checkpoint at any batch size tested and must not be
+> restated**; the protocol figures are the held/oracle table below (0.8956 held, 0.8972 oracle,
+> both at eval batch 64). Full account
 > in [`gnn_n1_tightening.md`](supplimentary_docs/gnn_n1_tightening.md).
 >
 > **CROSS-TOPOLOGY, measured 2026-08-16 — generalisation is PARTIAL and ASYMMETRIC.** Full table,
@@ -314,15 +317,254 @@ Full account and both caveats: `thesis_findings.md` §13. The guarded-32 numbers
 > **two INVERTED predicates** — the entire power-factor family fires *more* often when N-1 risk is
 > lower — so `build_channel_corpus.py` demotes 5 records out of WARN on the measurement.
 
-> **LARGEST OPEN ITEM, NOT RUN — `thesis_findings.md` §24.** Nothing measures whether the thin
+> **2026-09-19 — 🚨 THE CEILING ARM WAS REDONE BY ENUMERATION, AND IT CORRECTS ARM 1 BELOW.**
+> `thesis_findings.md` §30. New: `evaluation/exhaustive_rules_n1.py`,
+> `results/ceiling/exhaustive_rules.json`. **Read this before quoting the arm-1 block that follows.**
+>
+> Arm 1's tree is a **greedy** search, so it established only that greedy trees of depth ≤ 8 do not
+> beat the corpus — it cannot see a rule that works only as a *pair*. §30 removes the search: every
+> distinct cutpoint on all 14 variables (exhaustive), **~600,000 two-term rules per grid** (all
+> pairs × both directions × AND/OR), and an **uncapped** `HistGradientBoostingClassifier` as a
+> bound from above. Same target, gate semantics, threshold 0.8849, batch 64.
+>
+> | grid | flag-all *(no rule)* | **best rule in the language** | best pair | uncapped GBT (oracle) | **extracted shield** |
+> |---|---:|---:|---:|---:|---:|
+> | neurips2020 | 0.0434 | **0.3269** `loading_pct > 96.79` | 0.3140 | 0.3052 | 0.2765 |
+> | case14 | 0.3668 | *0.3937* (fires on 71.1% — degenerate) | *0.4017* | *0.3668* | 0.0102 |
+> | wcci2022 | 0.2352 | **0.5079** `loading_pct > 97.21` | 0.5066 | 0.3172 | 0.4644 |
+>
+> 🚨 **A BETTER RULE EXISTS, AND IT IS THE SAME RULE.** The optimum is `loading_pct` with the
+> threshold ~3 points **below** the standards' round 100: **+0.0504** on neurips2020, **+0.0435** on
+> wcci2022. ⚠️ **But it wins by spending precision** — 0.566 vs the corpus's 0.938 on neurips2020,
+> 0.744 vs 0.934 on wcci2022. They are two points on one curve and F1 weights both halves equally;
+> a gate that overrides a model plausibly should not. **Quote it as "the standards' 100% is slightly
+> conservative, worth ~0.045 F1, bought back as +0.37 precision"** — never as "the corpus was beaten".
+>
+> ✅ **THE GREEDY OBJECTION IS DEAD.** Pairs buy **nothing**: neurips2020's best pair (0.3140) is
+> *worse* than its best single, and wcci2022's is `loading_pct > 66.47 and loading_pct > 97.15` —
+> the single rule wearing a hat. No interaction exists for a tree to have missed.
+>
+> ✅ **UNLIMITED CAPACITY LOSES TO ONE THRESHOLD COMPARISON.** The uncapped ensemble, fitted on the
+> answer, scores below a single `loading_pct >` rule on all three grids. Reading **(a)** is now
+> established *from above* by something strictly more expressive than any rule.
+>
+> ✅ **The convergence result is now overwhelming, not suggestive** (§30.6 supersedes §28.5's
+> importance argument). Of *every* single-variable rule in the namespace, the best is the thermal
+> check and the runner-up is **2.2× worse** on neurips2020 (`current_a_max` 0.1455) and **1.7×
+> worse** on wcci2022 (`voltage_pu_min` 0.3007). Internal check: the search independently returned
+> `loading_pct > 96.7897` and `rho_max > 0.967897` at identical F1 — the same predicate twice.
+>
+> ✅ **case14 is dead BY EXHAUSTION.** Best single fires on 71.1% of frames; best pair on 63.7%.
+> **No rule, of any provenance, at any threshold, in any pairwise combination, works on case14.**
+> This replaces every softer statement about case14 elsewhere.
+>
+> ⚠️ Arms 1 and 2 of §30 pick the winner **with the answer key on the grid being scored** — an
+> oracle selection, deliberately generous to the challenger. Arm 2 quantises to 32 cutpoints per
+> variable (arm 1 does not). Three-term rules were not enumerated. **302 tests green.**
+>
+> **2026-09-19 — §24 ARM 1 IS RUN. EXTRACTION WAS NOT THE BOTTLENECK.** ⚠️ **HEADLINE CORRECTED BY
+> §30 ABOVE — the sentences flagged inside this block do not survive.** `thesis_findings.md` §28.
+> A depth-4 tree fitted **directly on the answer**, over the same 14 `shield/context.py` variables,
+> targeting `model predicted secure AND it was a violation`, fit on the neurips2020 train split and
+> scored on all three grids. Same target, same rows, F1 / precision / recall:
+>
+> | grid | all-positive | tree (held) | **extracted shield** |
+> |---|---:|---:|---:|
+> | neurips2020 | 0.0354 | 0.1755  p .192 / r .162 | **0.2765  p .938 / r .162** |
+> | case14 | 0.2712 | 0.0154  p .049 / r .009 | 0.0102  p .922 / r .005 |
+> | wcci2022 | 0.1682 | 0.0025  p .457 / r .001 | **0.4644  p .934 / r .309** |
+>
+> ⚠️ **CORRECTED BY §30: read "the GREEDY fitted ceiling".** The *enumerated* ceiling does beat the
+> four extracted rules, by 0.04–0.05 F1 at roughly half the precision. Everything else in this
+> paragraph stands.
+>
+> **The fitted ceiling does not beat the four extracted rules.** On neurips2020 both catch the same
+> 331 of 2,041 errors and the shield needs 353 flags where the tree needs 1,724. **On BOTH unseen
+> grids the tree's oracle F1 equals the all-positive baseline exactly** — its ranking carries no
+> usable information off-distribution, at any depth or class weighting (depth 8 is *worse*). This
+> answers §24.1 in favour of reading **(a): the task is rule-poor**, and it is the external check
+> that §5/§10.4/§15/§20.2 lacked. The comparison favours the tree (it gets a tuned threshold; the
+> shield's predicate has no parameter) and it still loses.
+>
+> ⚠️ **This exonerates extraction; it does NOT make the shield good.** Recall 0.162 / 0.005 / 0.309 —
+> precise and narrow. On case14 it catches **95 of 18,592** reachable errors. Say "the rules that
+> exist are close to the best obtainable from these variables", never "the rules are sufficient".
+>
+> ⚠️ **SUPERSEDED BY §30.6** — split importance is weak evidence for convergence; exhaustive
+> enumeration is not. Keep the observation, cite §30.6 for the claim.
+>
+> ✅ **Fourth route to the convergence result (§15.8).** The tree's top two split variables are
+> `loading_pct` (0.614) and `voltage_pu_max` (0.152) — 77% of its importance — **exactly the two
+> families the LLM pipeline extracted.** A tree fitted on the answer, an empirical fire-rate filter,
+> a textual auditor and the L2RPN top teams all land on the same pair.
+>
+> **2026-09-19 — §24 ARM 2 IS RUN TOO, BUT ITS STATUS IS OPEN — NOT CLOSED.** ⚠️ This block
+> previously read "§24 IS CLOSED"; it is not. §29.1's blindness limitation is still under
+> consideration, and §30.8 records why the question is no longer load-bearing anyway (enumeration
+> answers *"could anyone have written a better rule?"*, which strictly dominates *"could a human
+> have?"*). **Do not quote §29 as final until it is reconciled with §30.** `thesis_findings.md`
+> §29. Fourteen rules
+> hand-written over the same 14 variables, pre-registered and fingerprinted (md5
+> `05a29bd74e0ba1722e64f0c3579f6cd8`) BEFORE any evaluation; the runner asserts the hash. Gate
+> semantics, same target as §28:
+>
+> | grid | flag-all-eligible *(no rule)* | expert, all 14 (OR) | expert, best single | **extracted shield** |
+> |---|---:|---:|---:|---:|
+> | neurips2020 | 0.0434 | 0.0434 | **0.2765** | **0.2765** |
+> | case14 | 0.3668 | 0.3668 | *0.3668* (degenerate) | 0.0102 |
+> | wcci2022 | 0.2352 | 0.2358 | **0.4644** | **0.4644** |
+>
+> 🚨 **THE BEST HAND-WRITTEN RULE IS THE EXTRACTED RULE.** On neurips2020 and wcci2022 the winner
+> is `loading_pct > 100` at F1 0.2765 / 0.4644, precision 0.938 / 0.934 — identical to the served
+> corpus to four decimals. case14's "best" fires on **100% of frames** and equals the no-rule
+> baseline; it is the absence of a gate.
+>
+> ⚠️ **INCOMPLETE — §30 adds the missing half.** True of the two arms compared here, but **both
+> wrote 100 and the optimum is ~97**. The shared error is itself a finding (two independent
+> procedures inherited the standards' round number) and this block does not yet say so. Left
+> unrevised pending the §29.1 decision.
+>
+> 🚨 **MORE RULES MAKE IT WORSE.** The union of 14 is indistinguishable from having no rule at all
+> (0.0000 / 0.0000 / +0.0006 against flag-all-eligible). The single best rule is **6.4x** the union
+> on neurips2020. **This inverts the reading of the 0.16% yield**: the thinness is load-bearing, and
+> the rules that did not survive would have diluted the gate. Precision is the scarce resource.
+>
+> ⚠️ **NOT A BLIND BASELINE** — §24.3's ordering could not be honoured (the author had already seen
+> the corpus and §28's splits), so §24.3's fallback applies and the arm claims less. ⚠️ `X_010`
+> (`abs(...)`) is NOT_EVALUABLE on every frame: the shield evaluator has no builtins. Reported, not
+> repaired — the rules file is pre-registered.
+>
+> ⚠️ **§28.2 CORRECTED (§29.7)**: it scored the tree over all rows where a gate acts only on
+> predicted-secure rows. Like-for-like: **0.2508 / 0.0179 / 0.0025**, and against the right baseline
+> (flag-all-eligible) the tree's oracle equals doing nothing to within 0.0001 on **both** unseen
+> grids. The conclusion is sharper, not weaker.
+>
+> ✅ **Fifth convergence route (§29.5).** Hand-written doctrine joins the LLM corpus, the empirical
+> filter, the textual auditor, the fitted tree and the L2RPN top teams. ⚠ **Corrected 2026-09-20 —
+> this read "six unrelated procedures"; §30.6's exhaustive enumeration makes it SEVEN**, as
+> `results_and_analysis.md` §5.4.7 records.
+> One predicate. New: `evaluation/ceiling_tree_n1.py`, `evaluation/expert_rules_n1.py`,
+> `expert_rules/`, `results/ceiling/`.
+>
+> **The §24 spec, now fully executed and then strengthened — `thesis_findings.md` §24, results in
+> §28 (superseded), §29 (open) and §30 (the one to cite).** Nothing measures whether the thin
 > rule corpus is the *task's* doing or the *pipeline's*. Every argument for the former (§5, §10.4,
 > §15, §20.2) is made from inside the pipeline that produced the corpus; none is an external check.
-> §24 is the pickup-ready spec for the two controls that would settle it — a depth-4 decision tree
+> §24 is the pickup-ready spec for the controls that would settle it. ⚠ **Corrected 2026-09-20 —
+> this read "the two controls"; there are THREE and all three have run** (§28 greedy tree, §29
+> pre-registered expert arm, §30 exhaustive enumeration). The spec named a depth-4 decision tree
 > on the 14 context variables targeting `predicted secure AND was a violation` (fit on the
 > neurips2020 **train** split only), and 10–15 hand-written expert rules run as a third arm that is
 > **never merged** into the corpus. ⚠️ Expert rules written after looking at `results/audit/*` are
 > not a baseline — they are the extracted corpus laundered through a human. Roughly a day each; no
 > new data needed. **If they are not run, the thesis must say so in those words.**
+
+> **2026-09-19 — 🚨 ARM A1 RAN, AND THE INCUMBENT METHOD BEATS THE MODEL ON EVERY GRID.**
+> `thesis_findings.md` §25. DC/LODF contingency screening — the linear, century-old method
+> practitioners actually run — scores **0.9550 / 0.9150 / 0.9207** (oracle, neurips2020 / case14 /
+> wcci2022) against the model's **0.8972 / 0.4477 / 0.5721**, and **0.9509 / 0.9095 / 0.9137** at a
+> zero-tuning `predicted loading >= 1.0` rule. `results_comparisons.md` §A1 named three possible
+> outcomes; this is the third — *"report it plainly. The neural component would not be earning its
+> place on this task."*
+>
+> **The model matches DC screening where it was trained and loses heavily on both grids it was not.**
+> This supersedes §14.1's untested voltage-scaling hypothesis for the case14 failure: flow
+> redistribution depends on branch reactances the GNN was never given, so it cannot recompute them
+> for a new grid while LODF can. The 0.4477 → 0.9150 gap is the size of that missing input.
+>
+> ⚠️ **The claim that producing an N-1 label needs a power-flow solve SURVIVES** — LODF is a linear
+> *solve*, not a rule over the present observation, and the no-redistribution control scores
+> 0.34–0.46. What does not survive is the inference drawn from it: "therefore a learned model is the
+> right tool." Both asymmetries are recorded in §25.5 and must travel with the result — LODF is given
+> reactances the model never sees, and the labels come from a solver LODF approximates analytically.
+>
+> ⚠️ **Two claims in `results_comparisons.md` were wrong and are corrected in place.** §A1 q4's
+> solve-failure ceiling does not exist (a topology pre-screen catches 55–88% of that class at
+> **precision 1.000**, 43,063 predictions and zero false alarms), and its positive counts summed `-1`
+> for de-energized lines. Corrected: 32,888 / 137,315 / 183,840 positives, game-over share
+> 25.3% / 20.8% / 25.2%.
+>
+> **2026-09-19 — THE REACTANCE DOES NOT REPAIR TRANSFER.** `thesis_findings.md` §27. The GNN was
+> retrained with per-line susceptance as a 9th edge feature — `log1p(b / median(b))`, scale-free
+> because raw `b` differs ~200x across these grids on baseMVA convention alone. Control (8 feat) and
+> physics (9 feat) trained identically, **four seeds (42, 0, 1, 2)**. Physics minus control, mean
+> [range]:
+>
+> | grid | held | oracle |
+> |---|---|---|
+> | neurips2020 | +0.0020 [−0.0044, +0.0063] | +0.0009 [−0.0047, +0.0072] |
+> | case14 | +0.0089 **[−0.1009, +0.0836]** | **+0.0677 [+0.0429, +0.0854]** |
+> | wcci2022 | −0.0051 [−0.0151, +0.0081] | −0.0103 [−0.0225, +0.0112] |
+>
+> **Real:** the reactance improves case14 RANKING — oracle +0.068, positive on all four seeds.
+> **Not enough:** the best physics oracle is 0.5339, still **below the case14 rule baseline 0.5392**
+> and against LODF's 0.9150. **Noise:** at the held threshold the case14 sign flips across seeds, so
+> a single-seed delta there is not a result. **§26.3's claim survives its strongest attack.**
+>
+> 🚨 **OFF-DISTRIBUTION SCORES ARE SEED-UNSTABLE, AND THIS APPLIES RETROACTIVELY.** Four-seed sd:
+> neurips2020 0.007–0.009, case14 physics-held **0.067** — a 0.18-wide range on initialization
+> alone. **Every single-seed GNN cross-topology figure in this project (§14, §25, §26) should be
+> read as ±0.02 at least, and ±0.07 on case14.** LODF (no seed) and the GBT are unaffected.
+>
+> ⚠️ **§25.5's diagnosis is WEAKENED, not confirmed** — "the model failed because it was never given
+> the reactances" captured something real but is not the cause. Do not state it as one.
+>
+> ✅ **Side result: the deployed checkpoint IS reproducible.** The seed-42 control scores oracle
+> **0.8978 / 0.4473 / 0.5727** against the deployed **0.8972 / 0.4477 / 0.5721** — within 0.0006.
+> The documented `--epochs 30 --batch_size 128 --lr 3e-4` reproduces its cross-topology behaviour,
+> which closes the practical half of "the epoch count is not recoverable from disk".
+> New: `evaluation/reactance_transfer.py`, `results/reactance/`, checkpoints
+> `gnn_checkpoint_n1_reactance_{control,physics}_seed{42,0,1,2}.pt` (the deliverable is untouched).
+>
+> **2026-09-19 — ARM A3: THE TRANSFER FAILURE IS NOT ABOUT GRAPHS.** `thesis_findings.md` §26.
+> A logistic regression and a gradient-boosted tree on the RAW portion of the GNN's own readout
+> (24 features, no message passing, no graph) were fit on the neurips2020 train split and scored on
+> all three grids at a held threshold. Held F1 **0.7121 / 0.4554 / 0.4705** (logistic) and
+> **0.9190 / 0.5845 / 0.5177** (GBT). Degradation from the home grid at oracle: logistic −34%,
+> GBT −38%, **GNN −50%**, **LODF −4%**. Three learned architectures collapse; the analytical one
+> does not. ⚠️ **Say "learned screeners trained on one topology did not transfer", NOT "neural
+> networks cannot generalise"** — no arm here trains on several grids, and none was given the branch
+> reactances (§25.5).
+>
+> ⚠️ **The GBT's 0.9190 does NOT beat the GNN in-distribution.** The GNN's absolute F1 runs
+> 0.8972 @ batch 64 to 0.9255 @ batch 512 on the identical split, and 0.9202 sits inside that band.
+> In-distribution they are indistinguishable at this protocol's precision — which is itself §A3's
+> original answer: **the graph machinery buys no measurable accuracy on the grid it trained on.**
+> Off-distribution the gaps are 0.13–0.19, far outside any batch-size band.
+>
+> **A2 (Pavão MLP replication) is DROPPED** — it measures capacity, not transfer, and needs features
+> our records lack. ⚠️ **The head-only ablation is NOT half-built**: `*_headonly.pt` is not on disk,
+> so 0.8411 needs a retrain, not a re-measurement. `results_comparisons.md` §A5 corrected.
+> New: `evaluation/eval_tabular_n1.py`, `results/tabular/tabular_baselines.json`.
+>
+> New: `evaluation/lodf.py`, `evaluation/eval_lodf_n1.py`, `tests/test_lodf.py` (LODF pinned against
+> `makePTDF`/`makeLODF` on all three grids). Artifacts `results/lodf/`. **302 tests green.**
+> Alignment is proven, not assumed: the arm rebuilds `y` with `build_line_targets` and reproduces the
+> recorded all-positive and rule baselines exactly on all three grids.
+
+> **2026-09-18 — NO EXTERNAL COMPARATOR EXISTS YET, and the plan to build one is
+> [`results_comparisons.md`](supplimentary_docs/results_comparisons.md).** All 18 PDFs in
+> `docs/lit` were surveyed: **none reports a directly comparable number.** The closest is
+> Pavão et al., *Energy and AI* 22 (2025) 100564 §5.3 — structurally our task (per-line binary,
+> multilabel per frame) but an **agent-conditional** label, TP/TN rates on a skewed set, a
+> different grid, and no cross-topology arm. ⚠️ **Never table their 93.9% against our 0.8956** —
+> prose only. What it *does* give us, and what belongs in the results section: *"All top teams
+> chose a rule-based approach for raising alerts if the power line is overloaded with rho ≥ 1.0"*
+> — the challenge organisers confirming our best-single-rule baseline is the one practitioners
+> use, and the same predicate the shield enforces.
+>
+> The comparators therefore have to be built. `results_comparisons.md` specs five (§A), the
+> priority being **DC-LODF contingency screening** — the discipline's incumbent method, and a
+> direct test of the claim that producing an N-1 label needs a power-flow solve, since LODF *is*
+> the linear approximation of that solve. **Nothing in it has been run.** Its §0 admissibility
+> rule is the thing to read first: every arm is a score vector aligned to the same `y`, scored by
+> `best_f1_and_thr`, at batch 64 and the held threshold — an arm that cannot meet that is context,
+> not a comparison. ⚠️ **"Nothing in it has been run" is superseded — A1 ran on 2026-09-19; see the
+> block above.**
+>
+> ⚠️ It also corrects a tempting misreading: the case14 β=5 threshold (0.4167 → **0.4428**) nearly
+> reaches case14's own oracle (0.4477) but stays **below the rule baseline (0.5392)** and barely
+> above all-positive (0.4345). **Threshold choice does not rescue case14.** The failure stands.
 
 **Live harness is `evaluation/eval_shield_n1.py`.** The classify-era `eval_shield.py` was
 DELETED on 2026-08-20 along with the artifacts it needed (recoverable from git history).
@@ -705,6 +947,9 @@ supplimentary_docs/
   thesis_walkthrough.md            # ⭐ START HERE — plain-English walkthrough of every stage
   thesis_findings.md               # ⭐ THE RECORD — §1-8 narrative, §9-18 derivations/landmines
   revised_thesis_claim.md          # what the thesis may and may not claim
+  results_comparisons.md           # ⭐ SPEC, NOT RUN — every comparison the results section could
+                                   #   carry. §A five comparators to build (DC-LODF first),
+                                   #   §B what docs/lit can and cannot support, §C six traps
   andes_investigation.md           # why no dynamic simulator — standalone, plain language
   gnn_n1_tightening.md · study.md · formula.md                       # LIVE
   env_selection/                   # why these Grid2Op environments (Apr 2026, bannered)

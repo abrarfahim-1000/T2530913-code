@@ -28,8 +28,11 @@ first 0.15 seconds has nowhere to live.
 
 **The proposal ("Solution 3")** was to bolt on **ANDES**, a transient/dynamic power system
 simulator that models the grid second-by-second and *does* have frequency, and re-evaluate the
-corpus against it. On paper the prize was large: **726 of 2,463 rules looked evaluable** under a
-dynamic simulator, against the 58 the current pipeline produces.
+corpus against it. On paper the prize was large: **1,252 of 2,463 candidates (50.8%) are blocked
+specifically because their stated reason names frequency or sub-second time** — the count a dynamic
+simulator would, on paper, recover — against the 58 the current pipeline produces.
+(`evaluation/capability_gap.py`; see §5 below — an earlier version of this page quoted 726, produced
+by hand and never reproducible.)
 
 ---
 
@@ -104,21 +107,25 @@ ride-through region in milliseconds and never sits in it. Right physics, wrong i
 
 | | |
 |---|---:|
-| rules that *looked* evaluable under a dynamic simulator | 726 |
+| candidates blocked because they name frequency or sub-second time | **1,252** |
 | rules that would actually have **fired** | **3** |
 | engineering time to build the dynamic pipeline | **2–4 weeks** |
 
-726 → 3 is the entire finding. The gap is not a modelling subtlety; it is the difference between
+1,252 → 3 is the entire finding. The gap is not a modelling subtlety; it is the difference between
 asking *"can this rule be computed?"* and asking *"will this rule ever be true?"*
 
 ---
 
 ## 5. Two errors made along the way, recorded deliberately
 
-**The 726 figure was mine, and it was wrong in a way that would have cost weeks.** It was produced
-by checking *evaluability* — can the simulator supply the variables this rule names — without
-checking *firing*. Those are different questions and the gap between them turned out to be 723
-rules. It was found by measuring, not by thinking harder.
+**The first "evaluable" figure was mine, produced by hand, and wrong twice over.** It was originally
+quoted as 726, checking *evaluability* — can the simulator supply the variables this rule names —
+without checking *firing*. Those are different questions, and the gap between them is large either
+way. But the 726 itself was also never backed by a script and did not survive a later check:
+`evaluation/capability_gap.py` scans every untranslatable candidate's stated reason directly and
+gets **1,252**, which reconciles exactly with the corpus's own frequency/time partition
+(`thesis_findings.md` §19.1). The gap between "evaluable" and "fires" is therefore **1,249 rules**,
+not 723 — found by measuring, twice, not by thinking harder.
 
 **The frequency margin estimate was also loose.** The prediction before running was that line trips
 would move frequency by "hundredths of a Hz." The measured worst case was 0.3293 Hz. The conclusion
@@ -139,9 +146,11 @@ be stated as such.
 
 Because it was tested and it does not pay. No N-1 contingency of any kind — line **or** generator —
 reaches the mildest of the 457 frequency thresholds; firing them requires an N-2 event, which is a
-different task. Of 726 rules that appeared evaluable under a dynamic simulator, 3 would have fired,
-at a cost of two to four weeks. The result tables are in `results/audit/andes_frequency_spike.json`
-and `results/audit/andes_voltage_spike.json`, and both probes re-run in minutes.
+different task. Of 1,252 candidates blocked because they name frequency or sub-second time, 3 would
+have fired, at a cost of two to four weeks. The result tables are in
+`results/audit/andes_frequency_spike.json` and `results/audit/andes_voltage_spike.json`, and both
+probes re-run in minutes; the 1,252 figure is in `results/audit/capability_gap.json` and also
+re-runs in seconds.
 
 The value of this is not the negative result itself. It is that the answer is a **measurement
 rather than an opinion** — and that it was obtained *before* the two-to-four weeks were spent
@@ -154,9 +163,11 @@ rather than after.
 ```bash
 .venv\Scripts\python.exe sanity\andes_frequency_spike.py
 .venv\Scripts\python.exe sanity\andes_voltage_spike.py
+.venv\Scripts\python.exe evaluation\capability_gap.py
 ```
 
-Artifacts: `results/audit/andes_frequency_spike.json`, `results/audit/andes_voltage_spike.json`.
+Artifacts: `results/audit/andes_frequency_spike.json`, `results/audit/andes_voltage_spike.json`,
+`results/audit/capability_gap.json` (the 1,252 figure — see §1, §4, §5 above).
 Cross-references: `thesis_findings.md` §20.2 (the same account in situ), §19.1 (where the frequency
 and time/dynamics rules sit in the full corpus accounting), §5 (the standards/simulator mismatch
 this is the sharpest instance of).

@@ -1,0 +1,52 @@
+{
+  "run_start": "2026-09-17T18:33:51.451334",
+  "extractor_model": "qwen3.6:35b-a3b",
+  "chunk_size": 1200,
+  "chunk_overlap": 200,
+  "dry_run": false,
+  "files": [
+    {
+      "file": "EU SO GL \u2014 Regulation 2017-1485 electricity transmission system operation.pdf",
+      "n_chunks": 378,
+      "n_raw_extracted": 209,
+      "n_schema_valid": 167,
+      "n_parse_errors": 0,
+      "total_extract_ms": 290750.90249918867
+    },
+    {
+      "file": "ISO-NE PP3 \u2014 Reliability Standards for New England Area Pool Transmission Facilities.pdf",
+      "n_chunks": 21,
+      "n_raw_extracted": 49,
+      "n_schema_valid": 44,
+      "n_parse_errors": 0,
+      "total_extract_ms": 36727.89600014221
+    },
+    {
+      "file": "NERC FAC-011-4 \u2014 System Operating Limits Methodology.pdf",
+      "n_chunks": 22,
+      "n_raw_extracted": 17,
+      "n_schema_valid": 17,
+      "n_parse_errors": 0,
+      "total_extract_ms": 15825.09779999964
+    },
+    {
+      "file": "NYSRC Reliability Rules and Compliance Manual V48.pdf",
+      "n_chunks": 298,
+      "n_raw_extracted": 190,
+      "n_schema_valid": 146,
+      "n_parse_errors": 0,
+      "total_extract_ms": 188671.04859964456
+    },
+    {
+      "file": "PJM Manual 14B \u2014 Regional Transmission Planning Process.pdf",
+      "n_chunks": 462,
+      "n_raw_extracted": 108,
+      "n_schema_valid": 85,
+      "n_parse_errors": 0,
+      "total_extract_ms": 177901.29380085273
+    }
+  ],
+  "run_end": "2026-09-17T18:46:12.061435",
+  "total_time_sec": 740.6,
+  "total_candidates": 459
+}

@@ -1,0 +1,45 @@
+{
+  "tag": "case14",
+  "rules": "validated_translated/all_rules_deduped.jsonl",
+  "n_rules": 4,
+  "threshold": 0.9064802527427673,
+  "threshold_source": "selected on the neurips2020 val split, held fixed",
+  "n_contingencies": 118502,
+  "violation_rate": 0.2775311809083391,
+  "ap": 0.46614942021733075,
+  "f1_rule_baseline": 0.5391957521207019,
+  "f1_model_best_on_topology": 0.47536482862030366,
+  "arms": {
+    "gnn": {
+      "f1": 0.42241693470441904,
+      "precision": 0.441025641025641,
+      "recall": 0.40531500851374364,
+      "tp": 13330,
+      "false_alarms": 16895,
+      "missed_violations": 19558
+    },
+    "gnn_shield": {
+      "f1": 0.42560389528266096,
+      "precision": 0.44326264488935724,
+      "recall": 0.4092982242763318,
+      "tp": 13461,
+      "false_alarms": 16907,
+      "missed_violations": 19427
+    }
+  },
+  "eligible": 143,
+  "blocked": 143,
+  "corrections": 131,
+  "regressions": 12,
+  "missed_violations": 19558,
+  "missed_reachable_by_rule": 131,
+  "shield_health": {
+    "n_frames": 6000,
+    "n_not_evaluable": 0,
+    "n_error": 0,
+    "n_unsupported": 0
+  },
+  "severities": {
+    "high": 143
+  }
+}

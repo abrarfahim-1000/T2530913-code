@@ -1,0 +1,11 @@
+{
+  "n_corpus": 2463,
+  "n_untranslatable_scanned": 2405,
+  "mentions_frequency": 617,
+  "mentions_time": 752,
+  "mentions_both": 117,
+  "union_either": 1252,
+  "share_of_corpus": 0.5083,
+  "reconciled_with_corpus_accounting": true,
+  "note": "Replaces the unscripted '782 need time, 683 need frequency, union 1,332' figure and the unscripted '726 evaluable under a dynamic simulator' figure. Both were produced by hand and are not reproducible; this script is."
+}
