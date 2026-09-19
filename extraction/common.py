@@ -16,6 +16,7 @@ from typing import Optional
 import ollama
 import pdfplumber
 from pydantic import BaseModel, ValidationError, field_validator, model_validator
+from shield.evaluator import CONDITION_BUILTINS, _EVAL_GLOBALS
 from training.config import DEVICE
 
 # ── MODEL CONFIG ──────────────────────────────────────────────────────────────
@@ -438,7 +439,62 @@ _ALLOWED_AST_NODES = (
     ast.UnaryOp, ast.Not, ast.USub,          # USub: negative numeric literals
     ast.Compare, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Eq, ast.NotEq,
     ast.Name, ast.Load, ast.Constant,
+    # ast.Call is allowed ONLY in the narrow shape _check_calls() enforces below —
+    # a direct call to one of ALLOWED_CONDITION_BUILTINS, positional args only.
+    # A bare Call allowance would hand an LLM-authored string `__import__`, so the
+    # node type and the callee check must always travel together.
+    ast.Call,
 )
+
+# Single source of truth, imported from the sandbox that has to honour it, so the
+# linter cannot accept a call the evaluator will not resolve (or vice versa).
+# See shield/evaluator.py for why these three and no others.
+ALLOWED_CONDITION_BUILTINS = CONDITION_BUILTINS
+
+
+def _check_calls(tree: ast.AST, condition: str) -> set[int]:
+    """Validate every call in `tree`; return the id()s of their callee Name nodes.
+
+    A call passes only when its func is a plain `ast.Name` whose id is in
+    ALLOWED_CONDITION_BUILTINS and it carries no keyword or starred arguments.
+    Attribute access, subscripts and lambdas are rejected by the node-type walk,
+    so `abs(1).__class__` and `foo['bar']()` cannot reach here — but a call
+    through anything other than a bare Name is refused explicitly anyway.
+
+    The returned identities let the caller exempt the callee from the
+    CONDITION_VOCABULARY check *by node*, not by name: a variable spelled `abs`
+    used as a value would still have to be in the vocabulary.
+    """
+    allowed = ", ".join(ALLOWED_CONDITION_BUILTINS)
+    callee_ids: set[int] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if not isinstance(func, ast.Name):
+            raise ValueError(
+                f"Only a direct call to one of ({allowed}) is allowed; got a "
+                f"{type(func).__name__} callee in condition: {condition!r}"
+            )
+        if func.id not in ALLOWED_CONDITION_BUILTINS:
+            raise ValueError(
+                f"Disallowed function {func.id!r} in condition: {condition!r} "
+                f"(allowed: {allowed})"
+            )
+        if node.keywords:
+            raise ValueError(
+                f"Keyword arguments are not allowed in condition: {condition!r}"
+            )
+        if any(isinstance(arg, ast.Starred) for arg in node.args):
+            raise ValueError(
+                f"Starred arguments are not allowed in condition: {condition!r}"
+            )
+        if not node.args:
+            raise ValueError(
+                f"{func.id}() needs at least one argument in condition: {condition!r}"
+            )
+        callee_ids.add(id(func))
+    return callee_ids
 
 # Dummy namespace for the smoke-eval — values are arbitrary but type-correct.
 _SMOKE_NAMESPACE = {
@@ -467,12 +523,15 @@ def lint_condition(condition: str) -> str:
     except SyntaxError as exc:
         raise ValueError(f"Condition is not valid Python: {condition!r} ({exc.msg})")
 
+    callee_ids = _check_calls(tree, condition)
+
     for node in ast.walk(tree):
         if not isinstance(node, _ALLOWED_AST_NODES):
             raise ValueError(
                 f"Disallowed syntax {type(node).__name__} in condition: {condition!r}"
             )
-        if isinstance(node, ast.Name) and node.id not in CONDITION_VOCABULARY:
+        if (isinstance(node, ast.Name) and id(node) not in callee_ids
+                and node.id not in CONDITION_VOCABULARY):
             raise ValueError(
                 f"Unknown variable {node.id!r} in condition: {condition!r} "
                 f"(allowed: {', '.join(CONDITION_VOCABULARY)})"
@@ -482,9 +541,12 @@ def lint_condition(condition: str) -> str:
                 f"Non-numeric literal {node.value!r} in condition: {condition!r}"
             )
 
-    # Smoke-eval: catches anything the AST walk missed at runtime.
+    # Smoke-eval: catches anything the AST walk missed at runtime. It runs in the
+    # SAME namespace shape the shield uses (shield.evaluator._EVAL_GLOBALS), so a
+    # condition that lints is a condition the gate can actually resolve — that
+    # equivalence is the whole point of the smoke step.
     try:
-        result = eval(condition, {"__builtins__": {}}, dict(_SMOKE_NAMESPACE))
+        result = eval(condition, _EVAL_GLOBALS, dict(_SMOKE_NAMESPACE))
     except Exception as exc:
         raise ValueError(f"Condition failed smoke evaluation: {condition!r} ({exc})")
     if not isinstance(result, bool):
@@ -504,6 +566,10 @@ def lint_condition_raw(condition: str) -> str:
         tree = ast.parse(condition, mode="eval")
     except SyntaxError as exc:
         raise ValueError(f"Condition is not valid Python: {condition!r} ({exc.msg})")
+    # Stage 1 is open-VOCABULARY, never open-SYNTAX: the same three built-ins are
+    # callable here and nothing else, so raw extraction cannot admit a call shape
+    # that lint_condition would later have to refuse.
+    _check_calls(tree, condition)
     for node in ast.walk(tree):
         if not isinstance(node, _ALLOWED_AST_NODES):
             raise ValueError(
