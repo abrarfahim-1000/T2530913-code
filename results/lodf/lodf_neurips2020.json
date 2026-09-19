@@ -1,0 +1,150 @@
+{
+  "tag": "neurips2020",
+  "scope": "held-out test split (1,932 of 12,000 frames)",
+  "contingencies": 113205,
+  "violation_rate": 0.18374630095843822,
+  "distinct_topology_patterns": 178,
+  "degenerate_limit_substitutions": 28,
+  "seconds": 0.8,
+  "labels": {
+    "positives": 20801,
+    "game_over_positives": 4469,
+    "game_over_share_of_positives": 0.214845440123071
+  },
+  "baselines": {
+    "all_positive": 0.3104487858752593,
+    "best_rule_rho_of_removed_line": 0.463850830968788
+  },
+  "arms": {
+    "no_redistribution_control": {
+      "doctrinal_rho_ge_1": {
+        "threshold": 1.0,
+        "f1": 0.1644595010779181,
+        "precision": 0.9693983402489627,
+        "recall": 0.08985144944954569,
+        "tp": 1869,
+        "fp": 59,
+        "fn": 18932
+      },
+      "held": {
+        "threshold": 0.7791555523872375,
+        "f1": 0.3376892836342458,
+        "precision": 0.27171016020853467,
+        "recall": 0.4459881736454978,
+        "tp": 9277,
+        "fp": 24866,
+        "fn": 11524
+      },
+      "oracle": {
+        "f1": 0.34296547366002184,
+        "threshold": 0.7423136830329895
+      },
+      "overload_only": {
+        "contingencies": 108736,
+        "violation_rate": 0.15019864626250737,
+        "doctrinal_rho_ge_1": {
+          "threshold": 1.0,
+          "f1": 0.19173699597330243,
+          "precision": 0.9671675013912076,
+          "recall": 0.10641685035513103,
+          "tp": 1738,
+          "fp": 59,
+          "fn": 14594
+        },
+        "oracle": {
+          "f1": 0.31879753386436255
+        }
+      }
+    },
+    "lodf_flow": {
+      "doctrinal_rho_ge_1": {
+        "threshold": 1.0,
+        "f1": 0.8847208798098274,
+        "precision": 0.9687643020594966,
+        "recall": 0.8140954761790299,
+        "tp": 16934,
+        "fp": 546,
+        "fn": 3867
+      },
+      "held": {
+        "threshold": 0.9877988430643796,
+        "f1": 0.8897692130753698,
+        "precision": 0.9498526683400633,
+        "recall": 0.836834767559252,
+        "tp": 17407,
+        "fp": 919,
+        "fn": 3394
+      },
+      "oracle": {
+        "f1": 0.8905504376451374,
+        "threshold": 0.9867503997761893
+      },
+      "overload_only": {
+        "contingencies": 108736,
+        "violation_rate": 0.15019864626250737,
+        "doctrinal_rho_ge_1": {
+          "threshold": 1.0,
+          "f1": 0.9370867183071983,
+          "precision": 0.9646052119797744,
+          "recall": 0.9110947832476121,
+          "tp": 14880,
+          "fp": 546,
+          "fn": 1452
+        },
+        "oracle": {
+          "f1": 0.942533712730422
+        }
+      }
+    },
+    "lodf_flow_plus_topology": {
+      "doctrinal_rho_ge_1": {
+        "threshold": 1.0,
+        "f1": 0.9509042657755061,
+        "precision": 0.9725559185725057,
+        "recall": 0.9301956636700158,
+        "tp": 19349,
+        "fp": 546,
+        "fn": 1452
+      },
+      "held": {
+        "threshold": 0.9907812233576517,
+        "f1": 0.9547237421916613,
+        "precision": 0.9617091849178089,
+        "recall": 0.9478390461997019,
+        "tp": 19716,
+        "fp": 785,
+        "fn": 1085
+      },
+      "oracle": {
+        "f1": 0.9549794039253696,
+        "threshold": 0.9913949551239833
+      },
+      "overload_only": {
+        "contingencies": 108736,
+        "violation_rate": 0.15019864626250737,
+        "doctrinal_rho_ge_1": {
+          "threshold": 1.0,
+          "f1": 0.9370867183071983,
+          "precision": 0.9646052119797744,
+          "recall": 0.9110947832476121,
+          "tp": 14880,
+          "fp": 546,
+          "fn": 1452
+        },
+        "oracle": {
+          "f1": 0.942533712730422
+        }
+      }
+    }
+  },
+  "topology_channel": {
+    "fired": 2464,
+    "precision_vs_any_violation": 1.0,
+    "share_of_game_over_caught": 0.5513537704184381
+  },
+  "dc_vs_ac": {
+    "pearson_r": 0.9137610049400411,
+    "median_abs_error": 0.009506880359643033,
+    "median_signed_error": -0.0012987117166750606
+  }
+}

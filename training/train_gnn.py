@@ -14,7 +14,10 @@ supplimentary_docs/revised_thesis_claim.md §2. Their code is in git history.
 import argparse
 import json
 import os
+import platform
 import sys
+import time
+from datetime import datetime, timezone
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -37,6 +40,14 @@ except ImportError:
     from config import (CHECKPOINT_FILE, DATA_DIR, DATA_FILE, DEVICE,
                         EDGE_FEATURES, NODE_FEATURES, PROCESSED_PT,
                         SEED, SPLIT_PREFIX, TRAIN_CONFIG)
+
+try:
+    from training.checkpoint import (CHECKPOINT_FORMAT_VERSION, EpochRecord,
+                                     RunMetadata, RunRecorder, git_commit,
+                                     git_is_dirty)
+except ImportError:
+    from checkpoint import (CHECKPOINT_FORMAT_VERSION, EpochRecord,
+                            RunMetadata, RunRecorder, git_commit, git_is_dirty)
 
 from scripts.pyg_data import GridEnvMetadata, PreloadedGridDataset
 
@@ -191,6 +202,11 @@ def evaluate(model, loader, device):
       - all-positive, F1 = 2p/(1+p)   — is the target non-vacuous?
       - `rho` of the removed line     — does the model beat the best local rule?
     A model that ties the second one has learned nothing a rule cannot state.
+
+    Returns a dict of every number it prints. It used to return the F1 alone
+    and print the rest, which is why no per-epoch record of the baselines or
+    the AP exists for the deployed checkpoint — stdout was the only place they
+    went, and it was not captured.
     """
     model.eval()
     logits_all, y_all, rho_all = [], [], []
@@ -223,13 +239,23 @@ def evaluate(model, loader, device):
     # and make the baseline look closer than it is.
     f1_at_half = f1_score(y, (logits > 0).astype(int), average="binary", zero_division=0)
     f1_best = best_f1(logits)
+    ap = float(average_precision_score(y, logits))
+    all_pos = float(2 * p / (1 + p))
+    rho_rule = best_f1(rho)
 
     print(f"  contingencies {len(y):,}   violation rate {p:.1%}")
-    print(f"  model F1 {f1_best:.4f} @best-thr ({f1_at_half:.4f} @0.5)  "
-          f"AP {average_precision_score(y, logits):.4f}")
-    print(f"  baselines -> all-positive {2 * p / (1 + p):.4f}   "
-          f"best rho-of-removed-line rule {best_f1(rho):.4f}")
-    return f1_best
+    print(f"  model F1 {f1_best:.4f} @best-thr ({f1_at_half:.4f} @0.5)  AP {ap:.4f}")
+    print(f"  baselines -> all-positive {all_pos:.4f}   "
+          f"best rho-of-removed-line rule {rho_rule:.4f}")
+    return {
+        "contingency_f1": f1_best,
+        "f1_at_half": float(f1_at_half),
+        "ap": ap,
+        "all_positive_baseline": all_pos,
+        "rho_rule_baseline": rho_rule,
+        "n_contingencies": int(len(y)),
+        "violation_rate": float(p),
+    }
 
 
 def train():
@@ -423,10 +449,62 @@ def train():
         checkpoint_file = CHECKPOINT_FILE.replace(".pt", "_headonly.pt")
         print(f"[n1] ablation run -> checkpoint {checkpoint_file}")
 
+    # ── Run record ───────────────────────────────────────────────────────────
+    # Before this existed, a finished run left a bare state_dict and nothing
+    # else: the deployed gnn_checkpoint_n1.pt's epoch count is not recoverable
+    # from disk and no per-epoch history for the N-1 model exists anywhere.
+    # `RunRecorder` writes the history line-by-line as epochs end, so even a
+    # killed run leaves a record. See training/checkpoint.py for why the
+    # deliverable itself stays a bare state_dict.
+    recorder = RunRecorder(checkpoint_file, RunMetadata(
+        format_version=CHECKPOINT_FORMAT_VERSION,
+        task="n1",
+        checkpoint_file=checkpoint_file,
+        best_epoch=None,
+        best_val_contingency_f1=None,
+        epochs_requested=epochs,
+        epochs_run=0,
+        early_stopped=False,
+        config={
+            "epochs": epochs,
+            "batch_size": batch_size,
+            "lr": lr,
+            "weight_decay": wd,
+            "dropout": TRAIN_CONFIG["dropout"],
+            "hidden_channels": list(TRAIN_CONFIG["hidden_channels"]),
+            "heads": list(TRAIN_CONFIG["heads"]),
+            "head_dropout": args.head_dropout,
+            "early_stopping_patience": 15,
+            "scheduler": "CosineAnnealingLR",
+            "optimizer": "AdamW",
+            "loss": "masked BCEWithLogits",
+        },
+        node_features=NODE_FEATURES,
+        edge_features=EDGE_FEATURES,
+        seed=SEED,
+        device=str(DEVICE),
+        torch_version=torch.__version__,
+        python_version=platform.python_version(),
+        git_commit=git_commit(),
+        git_dirty=git_is_dirty(),
+        started_utc=datetime.now(timezone.utc).isoformat(),
+        argv=list(sys.argv),
+        data_file=DATA_FILE,
+        n_train_frames=int(len(train_idx)),
+        n_val_frames=int(len(val_idx)),
+        train_violation_rate=float(pos / max(pos + neg, 1)),
+        pos_weight=float(pos_weight.item()),
+        head_only=bool(args.head_only),
+        report_train=bool(args.report_train),
+    ))
+    print(f"[record] per-epoch history -> {recorder.history_file}")
+    print(f"[record] run metadata      -> {recorder.meta_file}")
+
     best_val_f1   = 0.0
     early_stopping = EarlyStopping(patience=15)
 
     for epoch in range(epochs):
+        epoch_start = time.time()
         model.train()
         total_loss = 0.0
 
@@ -453,31 +531,64 @@ def train():
             total_loss += loss.item()
             pbar.set_postfix(loss=f"{loss.item():.4f}")
 
+        # The LR the epoch actually ran at, read before the scheduler advances.
+        epoch_lr = float(optimizer.param_groups[0]["lr"])
         scheduler.step()
 
-        val_f1 = evaluate(model, val_loader, DEVICE)
+        val = evaluate(model, val_loader, DEVICE)
+        val_f1 = val["contingency_f1"]
+
+        train_f1 = None
         if args.report_train:
-            if True:
-                # Overfit vs underfit is the whole diagnosis here, and only the
-                # TRAIN score separates them: a large train-val gap means
-                # memorisation, while train ~= val ~= low means the optimiser
-                # never fitted the signal in the first place.
-                print("  [train-set]", end=" ")
-                evaluate(model, train_eval_loader, DEVICE)
+            # Overfit vs underfit is the whole diagnosis here, and only the
+            # TRAIN score separates them: a large train-val gap means
+            # memorisation, while train ~= val ~= low means the optimiser never
+            # fitted the signal in the first place. This used to print both
+            # numbers and compute nothing; the gap is now recorded.
+            print("  [train-set]", end=" ")
+            train_f1 = evaluate(model, train_eval_loader, DEVICE)["contingency_f1"]
+            print(f"  [gap] train-val = {train_f1 - val_f1:+.4f}")
+
         print(f"Epoch {epoch+1:3d} | loss={total_loss/len(train_loader):.4f} | "
               f"val_contingency_f1={val_f1:.4f}")
 
-        if val_f1 > best_val_f1:
+        is_best = val_f1 > best_val_f1
+        recorder.log_epoch(EpochRecord(
+            epoch=epoch + 1,
+            train_loss=total_loss / max(len(train_loader), 1),
+            val_contingency_f1=val_f1,
+            lr=epoch_lr,
+            is_best=is_best,
+            seconds=time.time() - epoch_start,
+            val_ap=val["ap"],
+            val_f1_at_half=val["f1_at_half"],
+            val_all_positive_baseline=val["all_positive_baseline"],
+            val_rho_rule_baseline=val["rho_rule_baseline"],
+            train_contingency_f1=train_f1,
+        ))
+
+        if is_best:
             best_val_f1 = val_f1
-            torch.save(model.state_dict(), checkpoint_file)
-            print(f"  [best] New best saved ({best_val_f1:.4f})")
+            # Writes the bare deliverable first, then the metadata and the
+            # enriched sibling — so the epoch recorded on disk always matches
+            # the weights on disk.
+            recorder.save_best(model)
+            print(f"  [best] New best saved ({best_val_f1:.4f}) at epoch {epoch+1}")
 
         early_stopping(val_f1)
         if early_stopping.early_stop:
             print("Early stopping triggered.")
+            recorder.finish(early_stopped=True)
             break
+    else:
+        recorder.finish(early_stopped=False)
 
-    print(f"\nTraining complete. Best val_contingency_f1: {best_val_f1:.4f}")
+    print(f"\nTraining complete. Best val_contingency_f1: {best_val_f1:.4f} "
+          f"at epoch {recorder.meta.best_epoch} of {recorder.meta.epochs_run} run")
+    print(f"  metrics : {recorder.meta_file}")
+    print(f"  history : {recorder.history_file}")
+    print(f"  self-describing checkpoint : {recorder.enriched_file}")
+    print(f"  deliverable (bare state_dict, unchanged format) : {checkpoint_file}")
 
 
 if __name__ == "__main__":

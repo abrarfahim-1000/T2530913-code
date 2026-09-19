@@ -1,0 +1,2122 @@
+{
+  "n_expressible": 58,
+  "channel_counts": {
+    "BLOCK": 10,
+    "WARN": 25,
+    "NORMAL": 11,
+    "NOT_APPLICABLE": 8,
+    "INERT": 4
+  },
+  "channel_distinct_conditions": {
+    "BLOCK": 2,
+    "WARN": 11,
+    "NORMAL": 9,
+    "NOT_APPLICABLE": 8,
+    "INERT": 4
+  },
+  "counts_today": {
+    "BLOCK": 4,
+    "WARN": 0,
+    "NORMAL": 1,
+    "NOT_APPLICABLE": 0,
+    "INERT": 0
+  },
+  "n_speaking": 46,
+  "degenerate_high": 0.98,
+  "degenerate_low": 0.02,
+  "sample_size": 5000,
+  "tags": [
+    "neurips2020",
+    "case14",
+    "wcci2022"
+  ],
+  "note": "BLOCK is deliberately unchanged: it is the set the 92-94% intervention-precision result is measured on. WARN rules must carry a measured rate before use and are structurally barred from the veto path.",
+  "rules": [
+    {
+      "rule_id": "R_116",
+      "channel": "NORMAL",
+      "justification": "affirmation, weak support (UNINFORMATIVE)",
+      "role": "AFFIRMATION",
+      "condition": "voltage_pu_min >= 0.90 and voltage_pu_max <= 1.118",
+      "source": "ENTSO-E NC RfG, Article 2(a)1, Table 6.1 (Continental Europe)",
+      "severity": "critical",
+      "audit_verdict": "UNINFORMATIVE",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 0.936,
+          "line_trip": 0.9940652818991098,
+          "cascade": 0.9578378378378378
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 0.8333333333333334,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 1.0,
+          "overload": 0.9920318725099602,
+          "line_trip": 1.0,
+          "cascade": 0.9956896551724138
+        }
+      },
+      "per_grid": {}
+    },
+    {
+      "rule_id": "R_119",
+      "channel": "NOT_APPLICABLE",
+      "justification": "affirms `normal` but never holds on a healthy frame; band sits outside this grid's operating envelope (findings 11.2)",
+      "role": "AFFIRMATION",
+      "condition": "voltage_pu_min >= 1.05 and voltage_pu_max <= 1.10",
+      "source": "ENTSO-E NC RfG, Article 2(a)1, Table 6.1 (Nordic)",
+      "severity": "critical",
+      "audit_verdict": "UNINFORMATIVE",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "per_grid": {}
+    },
+    {
+      "rule_id": "R_120",
+      "channel": "NORMAL",
+      "justification": "affirmation, weak support (UNINFORMATIVE)",
+      "role": "AFFIRMATION",
+      "condition": "voltage_pu_min >= 0.90 and voltage_pu_max <= 1.10",
+      "source": "ENTSO-E NC RfG, Article 2(a)1, Table 6.1 (Great Britain)",
+      "severity": "critical",
+      "audit_verdict": "UNINFORMATIVE",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 0.936,
+          "line_trip": 0.9940652818991098,
+          "cascade": 0.9578378378378378
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 0.8333333333333334,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 1.0,
+          "overload": 0.9920318725099602,
+          "line_trip": 1.0,
+          "cascade": 0.9956896551724138
+        }
+      },
+      "per_grid": {}
+    },
+    {
+      "rule_id": "R_121",
+      "channel": "NORMAL",
+      "justification": "affirmation, weak support (UNINFORMATIVE)",
+      "role": "AFFIRMATION",
+      "condition": "voltage_pu_min >= 0.90 and voltage_pu_max <= 1.118",
+      "source": "ENTSO-E NC RfG, Article 2(a)1, Table 6.1 (Ireland)",
+      "severity": "critical",
+      "audit_verdict": "UNINFORMATIVE",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 0.936,
+          "line_trip": 0.9940652818991098,
+          "cascade": 0.9578378378378378
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 0.8333333333333334,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 1.0,
+          "overload": 0.9920318725099602,
+          "line_trip": 1.0,
+          "cascade": 0.9956896551724138
+        }
+      },
+      "per_grid": {}
+    },
+    {
+      "rule_id": "R_123",
+      "channel": "NORMAL",
+      "justification": "affirmation, weak support (UNINFORMATIVE)",
+      "role": "AFFIRMATION",
+      "condition": "voltage_pu_min >= 0.90 and voltage_pu_max <= 1.12",
+      "source": "ENTSO-E NC RfG, Article 2(a)1, Table 6.1 (Baltic)",
+      "severity": "critical",
+      "audit_verdict": "UNINFORMATIVE",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 0.936,
+          "line_trip": 0.9940652818991098,
+          "cascade": 0.9578378378378378
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 0.8333333333333334,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 1.0,
+          "overload": 0.9920318725099602,
+          "line_trip": 1.0,
+          "cascade": 0.9956896551724138
+        }
+      },
+      "per_grid": {}
+    },
+    {
+      "rule_id": "R_260",
+      "channel": "WARN",
+      "justification": "discriminates on every grid; not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.9 or voltage_pu_max > 1.1",
+      "source": "Text CC.6.1.4 Voltage Limits",
+      "severity": "high",
+      "audit_verdict": "TOPOLOGY_DEPENDENT",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.064,
+          "line_trip": 0.005934718100890208,
+          "cascade": 0.04216216216216216
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.16666666666666666,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.00796812749003984,
+          "line_trip": 0.0,
+          "cascade": 0.004310344827586207
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "discriminates",
+        "wcci2022": "silent"
+      }
+    },
+    {
+      "rule_id": "R_262",
+      "channel": "NOT_APPLICABLE",
+      "justification": "affirms `normal` but never holds on a healthy frame; band sits outside this grid's operating envelope (findings 11.2)",
+      "role": "AFFIRMATION",
+      "condition": "voltage_pu_min < 0.9 or voltage_pu_max > 1.1",
+      "source": "National Electricity Transmission System Normal Operating Range, General Clause",
+      "severity": "medium",
+      "audit_verdict": "UNINFORMATIVE",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.064,
+          "line_trip": 0.005934718100890208,
+          "cascade": 0.04216216216216216
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.16666666666666666,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.00796812749003984,
+          "line_trip": 0.0,
+          "cascade": 0.004310344827586207
+        }
+      },
+      "per_grid": {}
+    },
+    {
+      "rule_id": "R_351",
+      "channel": "WARN",
+      "justification": "discriminates on wcci2022 (degenerate on case14, neurips2020); not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.95 or voltage_pu_max > 1.05",
+      "source": "Text, Reactive Power requirement section",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.055776892430278883,
+          "line_trip": 0.021739130434782608,
+          "cascade": 0.06465517241379311
+        }
+      },
+      "per_grid": {
+        "neurips2020": "degenerate",
+        "case14": "degenerate",
+        "wcci2022": "discriminates"
+      }
+    },
+    {
+      "rule_id": "R_352",
+      "channel": "WARN",
+      "justification": "discriminates on wcci2022 (degenerate on case14, neurips2020); not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.95 or voltage_pu_max > 1.05",
+      "source": "Text, Figure 4 / Voltage limits section",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.055776892430278883,
+          "line_trip": 0.021739130434782608,
+          "cascade": 0.06465517241379311
+        }
+      },
+      "per_grid": {
+        "neurips2020": "degenerate",
+        "case14": "degenerate",
+        "wcci2022": "discriminates"
+      }
+    },
+    {
+      "rule_id": "R_434",
+      "channel": "INERT",
+      "justification": "never fires on any class on any grid",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_max > 1.2",
+      "source": "Scottish Grid Code, Section CC.6.3.15.1(iv)(4)",
+      "severity": "critical",
+      "audit_verdict": "INERT",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "per_grid": {
+        "neurips2020": "silent",
+        "case14": "silent",
+        "wcci2022": "silent"
+      }
+    },
+    {
+      "rule_id": "R_578",
+      "channel": "WARN",
+      "justification": "discriminates on wcci2022 (degenerate on case14, neurips2020); not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.95 or voltage_pu_max > 1.05",
+      "source": "Grid Code, Reactive Power Measurement Requirements",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.055776892430278883,
+          "line_trip": 0.021739130434782608,
+          "cascade": 0.06465517241379311
+        }
+      },
+      "per_grid": {
+        "neurips2020": "degenerate",
+        "case14": "degenerate",
+        "wcci2022": "discriminates"
+      }
+    },
+    {
+      "rule_id": "R_741",
+      "channel": "INERT",
+      "justification": "never fires on any class on any grid",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_max > 1.2 or voltage_pu_min < 0.5",
+      "source": "PD II, Terminal Voltage Requirements",
+      "severity": "critical",
+      "audit_verdict": "INERT",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "per_grid": {
+        "neurips2020": "silent",
+        "case14": "silent",
+        "wcci2022": "silent"
+      }
+    },
+    {
+      "rule_id": "R_790",
+      "channel": "NORMAL",
+      "justification": "affirmation, weak support (UNINFORMATIVE)",
+      "role": "AFFIRMATION",
+      "condition": "voltage_pu_min < 0.95 or voltage_pu_max > 1.05",
+      "source": "Section 4.4, Voltage limits, Normal Operating Condition, 400 kV Bus",
+      "severity": "high",
+      "audit_verdict": "UNINFORMATIVE",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.055776892430278883,
+          "line_trip": 0.021739130434782608,
+          "cascade": 0.06465517241379311
+        }
+      },
+      "per_grid": {}
+    },
+    {
+      "rule_id": "R_791",
+      "channel": "NORMAL",
+      "justification": "affirmation, weak support (UNINFORMATIVE)",
+      "role": "AFFIRMATION",
+      "condition": "voltage_pu_min < 0.94 or voltage_pu_max > 1.06",
+      "source": "Section 4.4, Voltage limits, Normal Operating Condition, 230 kV and 132 kV Bus",
+      "severity": "high",
+      "audit_verdict": "UNINFORMATIVE",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.03187250996015936,
+          "line_trip": 0.008152173913043478,
+          "cascade": 0.03879310344827586
+        }
+      },
+      "per_grid": {}
+    },
+    {
+      "rule_id": "R_792",
+      "channel": "NORMAL",
+      "justification": "affirmation with support on its own class (TOPOLOGY_DEPENDENT)",
+      "role": "AFFIRMATION",
+      "condition": "voltage_pu_min < 0.90 or voltage_pu_max > 1.10",
+      "source": "Section 4.4, Voltage limits, Emergency Condition, 400 kV Bus",
+      "severity": "critical",
+      "audit_verdict": "TOPOLOGY_DEPENDENT",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.064,
+          "line_trip": 0.005934718100890208,
+          "cascade": 0.04216216216216216
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.16666666666666666,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.00796812749003984,
+          "line_trip": 0.0,
+          "cascade": 0.004310344827586207
+        }
+      },
+      "per_grid": {}
+    },
+    {
+      "rule_id": "R_793",
+      "channel": "NOT_APPLICABLE",
+      "justification": "affirms `normal` but never holds on a healthy frame; band sits outside this grid's operating envelope (findings 11.2)",
+      "role": "AFFIRMATION",
+      "condition": "voltage_pu_min < 0.85 or voltage_pu_max > 1.10",
+      "source": "Section 4.4, Voltage limits, Emergency Condition, 230 kV and 132 kV Bus",
+      "severity": "critical",
+      "audit_verdict": "UNINFORMATIVE",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.064,
+          "line_trip": 0.005934718100890208,
+          "cascade": 0.04216216216216216
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.028985507246376812,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.00398406374501992,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "per_grid": {}
+    },
+    {
+      "rule_id": "R_795",
+      "channel": "WARN",
+      "justification": "discriminates on wcci2022 (degenerate on case14, neurips2020); not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.95 or voltage_pu_max > 1.05",
+      "source": "Section 5.4.4",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.055776892430278883,
+          "line_trip": 0.021739130434782608,
+          "cascade": 0.06465517241379311
+        }
+      },
+      "per_grid": {
+        "neurips2020": "degenerate",
+        "case14": "degenerate",
+        "wcci2022": "discriminates"
+      }
+    },
+    {
+      "rule_id": "R_796",
+      "channel": "NOT_APPLICABLE",
+      "justification": "degenerate on every grid (case14, neurips2020, wcci2022): fires regardless of state, so its calibration does not transfer (findings 11.2)",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.94 or voltage_pu_max > 1.06",
+      "source": "Section 5.4.4",
+      "severity": "high",
+      "audit_verdict": "TOPOLOGY_DEPENDENT",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.03187250996015936,
+          "line_trip": 0.008152173913043478,
+          "cascade": 0.03879310344827586
+        }
+      },
+      "per_grid": {
+        "neurips2020": "degenerate",
+        "case14": "degenerate",
+        "wcci2022": "degenerate"
+      }
+    },
+    {
+      "rule_id": "R_797",
+      "channel": "WARN",
+      "justification": "discriminates on every grid; not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.90 or voltage_pu_max > 1.10",
+      "source": "Section 5.4.4",
+      "severity": "critical",
+      "audit_verdict": "TOPOLOGY_DEPENDENT",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.064,
+          "line_trip": 0.005934718100890208,
+          "cascade": 0.04216216216216216
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.16666666666666666,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.00796812749003984,
+          "line_trip": 0.0,
+          "cascade": 0.004310344827586207
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "discriminates",
+        "wcci2022": "silent"
+      }
+    },
+    {
+      "rule_id": "R_798",
+      "channel": "WARN",
+      "justification": "discriminates on neurips2020 (degenerate on case14); not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.85 or voltage_pu_max > 1.10",
+      "source": "Section 5.4.4",
+      "severity": "critical",
+      "audit_verdict": "TOPOLOGY_DEPENDENT",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.064,
+          "line_trip": 0.005934718100890208,
+          "cascade": 0.04216216216216216
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.028985507246376812,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.00398406374501992,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "degenerate",
+        "wcci2022": "silent"
+      }
+    },
+    {
+      "rule_id": "R_858",
+      "channel": "BLOCK",
+      "justification": "validated constraint; authoritative veto",
+      "role": "CONSTRAINT",
+      "condition": "loading_pct > 100.0",
+      "source": "Section 8.3.1.2",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": true,
+      "validation": "CONFIRM",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "discriminates",
+        "wcci2022": "discriminates"
+      }
+    },
+    {
+      "rule_id": "R_907",
+      "channel": "WARN",
+      "justification": "discriminates on wcci2022 (degenerate on case14, neurips2020); not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.95 or voltage_pu_max > 1.05",
+      "source": "Grid Code, Section 8.4.5",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.055776892430278883,
+          "line_trip": 0.021739130434782608,
+          "cascade": 0.06465517241379311
+        }
+      },
+      "per_grid": {
+        "neurips2020": "degenerate",
+        "case14": "degenerate",
+        "wcci2022": "discriminates"
+      }
+    },
+    {
+      "rule_id": "R_909",
+      "channel": "WARN",
+      "justification": "discriminates on neurips2020 (degenerate on case14, wcci2022); not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "power_factor_at_max_load < -0.95 or power_factor_at_max_load > 0.90",
+      "source": "Section 8.4.7",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0012,
+          "overload": 0.084,
+          "line_trip": 0.00370919881305638,
+          "cascade": 0.02810810810810811
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 0.9899316792520676,
+          "overload": 0.9641434262948207,
+          "line_trip": 0.9877717391304348,
+          "cascade": 0.9741379310344828
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "degenerate",
+        "wcci2022": "degenerate"
+      }
+    },
+    {
+      "rule_id": "R_916",
+      "channel": "BLOCK",
+      "justification": "validated constraint; authoritative veto",
+      "role": "CONSTRAINT",
+      "condition": "loading_pct > 100",
+      "source": "Grid Code Section 11.4.1, Item ix",
+      "severity": "medium",
+      "audit_verdict": "USEFUL",
+      "guard_kept": true,
+      "validation": "CONFIRM",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "discriminates",
+        "wcci2022": "discriminates"
+      }
+    },
+    {
+      "rule_id": "R_1003",
+      "channel": "WARN",
+      "justification": "discriminates on neurips2020 (degenerate on case14); not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min <= 0.90 or voltage_pu_max >= 1.10",
+      "source": "Text Section 17.2.4 (implied), Long Duration Voltage Variation limits",
+      "severity": "high",
+      "audit_verdict": "TOPOLOGY_DEPENDENT",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.064,
+          "line_trip": 0.005934718100890208,
+          "cascade": 0.04216216216216216
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.00796812749003984,
+          "line_trip": 0.0,
+          "cascade": 0.004310344827586207
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "degenerate",
+        "wcci2022": "silent"
+      }
+    },
+    {
+      "rule_id": "R_1004",
+      "channel": "WARN",
+      "justification": "discriminates on wcci2022 (degenerate on case14, neurips2020); not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.95 or voltage_pu_max > 1.05",
+      "source": "Text Section 17.2.4 (implied), Normal operating limits for Long Duration Voltage Variations",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.055776892430278883,
+          "line_trip": 0.021739130434782608,
+          "cascade": 0.06465517241379311
+        }
+      },
+      "per_grid": {
+        "neurips2020": "degenerate",
+        "case14": "degenerate",
+        "wcci2022": "discriminates"
+      }
+    },
+    {
+      "rule_id": "R_1098",
+      "channel": "WARN",
+      "justification": "discriminates on every grid; not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.917",
+      "source": "IEEE 1547-2018, Table 2.7 (Enter Service Criteria), Applicable Voltage Minimum Value",
+      "severity": "critical",
+      "audit_verdict": "TOPOLOGY_DEPENDENT",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.2536231884057971,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.01593625498007968,
+          "line_trip": 0.0,
+          "cascade": 0.008620689655172414
+        }
+      },
+      "per_grid": {
+        "neurips2020": "silent",
+        "case14": "discriminates",
+        "wcci2022": "silent"
+      }
+    },
+    {
+      "rule_id": "R_1099",
+      "channel": "NOT_APPLICABLE",
+      "justification": "degenerate on every grid (case14, neurips2020, wcci2022): fires regardless of state, so its calibration does not transfer (findings 11.2)",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_max > 1.05",
+      "source": "IEEE 1547-2018, Table 2.7 (Enter Service Criteria), Applicable Voltage Maximum Value",
+      "severity": "critical",
+      "audit_verdict": "TOPOLOGY_DEPENDENT",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.00796812749003984,
+          "line_trip": 0.006793478260869565,
+          "cascade": 0.034482758620689655
+        }
+      },
+      "per_grid": {
+        "neurips2020": "degenerate",
+        "case14": "degenerate",
+        "wcci2022": "degenerate"
+      }
+    },
+    {
+      "rule_id": "R_1108",
+      "channel": "WARN",
+      "justification": "discriminates on every grid; not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.9 or voltage_pu_max > 1.1",
+      "source": "Text Fragment, Voltage Range Specification",
+      "severity": "high",
+      "audit_verdict": "TOPOLOGY_DEPENDENT",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.064,
+          "line_trip": 0.005934718100890208,
+          "cascade": 0.04216216216216216
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.16666666666666666,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.00796812749003984,
+          "line_trip": 0.0,
+          "cascade": 0.004310344827586207
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "discriminates",
+        "wcci2022": "silent"
+      }
+    },
+    {
+      "rule_id": "R_1152",
+      "channel": "NORMAL",
+      "justification": "affirmation, weak support (UNINFORMATIVE)",
+      "role": "AFFIRMATION",
+      "condition": "voltage_pu_min >= 0.9 and voltage_pu_max <= 1.1",
+      "source": "Text, Section on Large Disturbance Reactive Current-Voltage Performance",
+      "severity": "high",
+      "audit_verdict": "UNINFORMATIVE",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 0.936,
+          "line_trip": 0.9940652818991098,
+          "cascade": 0.9578378378378378
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 0.8333333333333334,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 1.0,
+          "overload": 0.9920318725099602,
+          "line_trip": 1.0,
+          "cascade": 0.9956896551724138
+        }
+      },
+      "per_grid": {}
+    },
+    {
+      "rule_id": "R_1154",
+      "channel": "NORMAL",
+      "justification": "affirmation, weak support (UNINFORMATIVE)",
+      "role": "AFFIRMATION",
+      "condition": "voltage_pu_min >= 0.9 and voltage_pu_max <= 1.1",
+      "source": "NERC Inverter-Based Resource Performance Guideline, Chapter 3",
+      "severity": "medium",
+      "audit_verdict": "UNINFORMATIVE",
+      "guard_kept": true,
+      "validation": "CONFIRM",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 0.936,
+          "line_trip": 0.9940652818991098,
+          "cascade": 0.9578378378378378
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 0.8333333333333334,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 1.0,
+          "overload": 0.9920318725099602,
+          "line_trip": 1.0,
+          "cascade": 0.9956896551724138
+        }
+      },
+      "per_grid": {}
+    },
+    {
+      "rule_id": "R_1291",
+      "channel": "WARN",
+      "justification": "discriminates on case14, neurips2020 (degenerate on wcci2022); not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "power_factor_at_max_load < -0.95 or power_factor_at_max_load > 0.95",
+      "source": "FERC Order No. 827, Section 4.2",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0012,
+          "overload": 0.084,
+          "line_trip": 0.00370919881305638,
+          "cascade": 0.02810810810810811
+        },
+        "case14": {
+          "normal": 0.040083073727933544,
+          "overload": 0.5434782608695652,
+          "line_trip": 0.49101796407185627,
+          "cascade": 0.8018867924528302
+        },
+        "wcci2022": {
+          "normal": 0.9856166846458109,
+          "overload": 0.8645418326693227,
+          "line_trip": 0.9782608695652174,
+          "cascade": 0.9525862068965517
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "discriminates",
+        "wcci2022": "degenerate"
+      }
+    },
+    {
+      "rule_id": "R_1319",
+      "channel": "INERT",
+      "justification": "never fires on any class on any grid",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.3",
+      "source": "Text Segment, STATCOM Design Specification",
+      "severity": "high",
+      "audit_verdict": "INERT",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "per_grid": {
+        "neurips2020": "silent",
+        "case14": "silent",
+        "wcci2022": "silent"
+      }
+    },
+    {
+      "rule_id": "R_1443",
+      "channel": "BLOCK",
+      "justification": "validated constraint; authoritative veto",
+      "role": "CONSTRAINT",
+      "condition": "loading_pct > 100",
+      "source": "Guidelines and Technical Basis, Page 465, Example criteria (a)",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": true,
+      "validation": "CONFIRM",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "discriminates",
+        "wcci2022": "discriminates"
+      }
+    },
+    {
+      "rule_id": "R_1444",
+      "channel": "WARN",
+      "justification": "discriminates on every grid; not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.9 or voltage_pu_max > 1.1",
+      "source": "Guidelines and Technical Basis, Page 465, Example criteria (b)",
+      "severity": "high",
+      "audit_verdict": "TOPOLOGY_DEPENDENT",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.064,
+          "line_trip": 0.005934718100890208,
+          "cascade": 0.04216216216216216
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.16666666666666666,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.00796812749003984,
+          "line_trip": 0.0,
+          "cascade": 0.004310344827586207
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "discriminates",
+        "wcci2022": "silent"
+      }
+    },
+    {
+      "rule_id": "R_1447",
+      "channel": "NOT_APPLICABLE",
+      "justification": "degenerate on every grid (case14, neurips2020, wcci2022): fires regardless of state, so its calibration does not transfer (findings 11.2)",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.97 or voltage_pu_max > 1.03",
+      "source": "EOP-004-4 \u2013 Event Reporting, Page 7 of 14",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        }
+      },
+      "per_grid": {
+        "neurips2020": "degenerate",
+        "case14": "degenerate",
+        "wcci2022": "degenerate"
+      }
+    },
+    {
+      "rule_id": "R_1489",
+      "channel": "WARN",
+      "justification": "discriminates on wcci2022 (degenerate on case14, neurips2020); not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.95 or voltage_pu_max > 1.05",
+      "source": "NERC PRC-005, Section 6.1.2",
+      "severity": "medium",
+      "audit_verdict": "USEFUL",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.055776892430278883,
+          "line_trip": 0.021739130434782608,
+          "cascade": 0.06465517241379311
+        }
+      },
+      "per_grid": {
+        "neurips2020": "degenerate",
+        "case14": "degenerate",
+        "wcci2022": "discriminates"
+      }
+    },
+    {
+      "rule_id": "R_1492",
+      "channel": "BLOCK",
+      "justification": "validated constraint; authoritative veto",
+      "role": "CONSTRAINT",
+      "condition": "loading_pct > 100",
+      "source": "NERC PRC-005, Section 6.2.1",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": true,
+      "validation": "CONFIRM",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "discriminates",
+        "wcci2022": "discriminates"
+      }
+    },
+    {
+      "rule_id": "R_1575",
+      "channel": "INERT",
+      "justification": "never fires on any class on any grid",
+      "role": "CONSTRAINT",
+      "condition": "generation_load_imbalance_pct > 25.0",
+      "source": "PRC-006-5, Requirement R3",
+      "severity": "high",
+      "audit_verdict": "INERT",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "per_grid": {
+        "neurips2020": "silent",
+        "case14": "silent",
+        "wcci2022": "silent"
+      }
+    },
+    {
+      "rule_id": "R_1710",
+      "channel": "BLOCK",
+      "justification": "validated constraint; authoritative veto",
+      "role": "CONSTRAINT",
+      "condition": "loading_pct > 100",
+      "source": "Text Section 6.c",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": true,
+      "validation": "CONFIRM",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "discriminates",
+        "wcci2022": "discriminates"
+      }
+    },
+    {
+      "rule_id": "R_1717",
+      "channel": "BLOCK",
+      "justification": "validated constraint; authoritative veto",
+      "role": "CONSTRAINT",
+      "condition": "loading_pct > 100",
+      "source": "Text Section 7c, Non-Limited Impact RAS Ratings",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": true,
+      "validation": "CONFIRM",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "discriminates",
+        "wcci2022": "discriminates"
+      }
+    },
+    {
+      "rule_id": "R_1767",
+      "channel": "NOT_APPLICABLE",
+      "justification": "affirms `normal` but never holds on a healthy frame; band sits outside this grid's operating envelope (findings 11.2)",
+      "role": "AFFIRMATION",
+      "condition": "voltage_pu_max < 1.0",
+      "source": "PRC-024-3, Section on Inverter-based Resources",
+      "severity": "medium",
+      "audit_verdict": "UNINFORMATIVE",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "per_grid": {}
+    },
+    {
+      "rule_id": "R_1833",
+      "channel": "WARN",
+      "justification": "discriminates on every grid; not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_max > 1.10",
+      "source": "PRC-024-3, Attachment 2a, Table 1 (High Voltage - Continuous)",
+      "severity": "critical",
+      "audit_verdict": "TOPOLOGY_DEPENDENT",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.064,
+          "line_trip": 0.005934718100890208,
+          "cascade": 0.04216216216216216
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "silent",
+        "wcci2022": "silent"
+      }
+    },
+    {
+      "rule_id": "R_1835",
+      "channel": "WARN",
+      "justification": "discriminates on every grid; not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.90",
+      "source": "PRC-024-3, Attachment 2a, Table 2 (Low Voltage - Continuous)",
+      "severity": "critical",
+      "audit_verdict": "TOPOLOGY_DEPENDENT",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.16666666666666666,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.00796812749003984,
+          "line_trip": 0.0,
+          "cascade": 0.004310344827586207
+        }
+      },
+      "per_grid": {
+        "neurips2020": "silent",
+        "case14": "discriminates",
+        "wcci2022": "silent"
+      }
+    },
+    {
+      "rule_id": "R_1926",
+      "channel": "WARN",
+      "justification": "discriminates on case14 (degenerate on wcci2022); not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.95",
+      "source": "PRC-025-2 Application Guidelines, Example Calculations: Option 2a",
+      "severity": "high",
+      "audit_verdict": "TOPOLOGY_DEPENDENT",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.2753623188405797,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.04780876494023904,
+          "line_trip": 0.014945652173913044,
+          "cascade": 0.03017241379310345
+        }
+      },
+      "per_grid": {
+        "neurips2020": "silent",
+        "case14": "discriminates",
+        "wcci2022": "degenerate"
+      }
+    },
+    {
+      "rule_id": "R_1927",
+      "channel": "WARN",
+      "justification": "discriminates on case14 (degenerate on wcci2022); not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.95",
+      "source": "PRC-025-2 Application Guidelines, Option 2a, Table 1",
+      "severity": "high",
+      "audit_verdict": "TOPOLOGY_DEPENDENT",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.2753623188405797,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.04780876494023904,
+          "line_trip": 0.014945652173913044,
+          "cascade": 0.03017241379310345
+        }
+      },
+      "per_grid": {
+        "neurips2020": "silent",
+        "case14": "discriminates",
+        "wcci2022": "degenerate"
+      }
+    },
+    {
+      "rule_id": "R_1930",
+      "channel": "WARN",
+      "justification": "discriminates on wcci2022 (degenerate on case14, neurips2020); not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.95 or voltage_pu_max > 1.05",
+      "source": "PRC-025-2 Application Guidelines, Example Calculations: Options 7a and 10, Table 1",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.055776892430278883,
+          "line_trip": 0.021739130434782608,
+          "cascade": 0.06465517241379311
+        }
+      },
+      "per_grid": {
+        "neurips2020": "degenerate",
+        "case14": "degenerate",
+        "wcci2022": "discriminates"
+      }
+    },
+    {
+      "rule_id": "R_2018",
+      "channel": "BLOCK",
+      "justification": "validated constraint; authoritative veto",
+      "role": "CONSTRAINT",
+      "condition": "loading_pct > 100",
+      "source": "TPL-008-1, Table 1 (f)",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": true,
+      "validation": "CONFIRM",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "discriminates",
+        "wcci2022": "discriminates"
+      }
+    },
+    {
+      "rule_id": "R_2019",
+      "channel": "BLOCK",
+      "justification": "validated constraint; authoritative veto",
+      "role": "CONSTRAINT",
+      "condition": "loading_pct > 100",
+      "source": "TPL-008-1, Section Steady State Only, f",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": true,
+      "validation": "CONFIRM",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "discriminates",
+        "wcci2022": "discriminates"
+      }
+    },
+    {
+      "rule_id": "R_2165",
+      "channel": "BLOCK",
+      "justification": "validated constraint; authoritative veto",
+      "role": "CONSTRAINT",
+      "condition": "loading_pct > 100",
+      "source": "EMO Dispatch Computer Constraints, Section 3.1",
+      "severity": "critical",
+      "audit_verdict": "USEFUL",
+      "guard_kept": true,
+      "validation": "CONFIRM",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "discriminates",
+        "wcci2022": "discriminates"
+      }
+    },
+    {
+      "rule_id": "R_2282",
+      "channel": "NORMAL",
+      "justification": "affirmation, weak support (UNINFORMATIVE)",
+      "role": "AFFIRMATION",
+      "condition": "voltage_pu_min >= 0.90",
+      "source": "PRC-024-4 Attachment 2A, Table 7: Low Voltage Boundary Data Points \u2013 Quebec Interconnection",
+      "severity": "high",
+      "audit_verdict": "UNINFORMATIVE",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 0.8333333333333334,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 1.0,
+          "overload": 0.9920318725099602,
+          "line_trip": 1.0,
+          "cascade": 0.9956896551724138
+        }
+      },
+      "per_grid": {}
+    },
+    {
+      "rule_id": "R_068",
+      "channel": "WARN",
+      "justification": "discriminates on wcci2022 (degenerate on case14, neurips2020); not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.95 or voltage_pu_max > 1.05",
+      "source": "PRC-025-2 Application Guidelines, Example Calculations: Options 7a and 10, Table 1",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.055776892430278883,
+          "line_trip": 0.021739130434782608,
+          "cascade": 0.06465517241379311
+        }
+      },
+      "per_grid": {
+        "neurips2020": "degenerate",
+        "case14": "degenerate",
+        "wcci2022": "discriminates"
+      }
+    },
+    {
+      "rule_id": "R_069",
+      "channel": "WARN",
+      "justification": "discriminates on case14 (degenerate on wcci2022); not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min < 0.95",
+      "source": "PRC-025-2 Application Guidelines, Example Calculations, Option 8a",
+      "severity": "high",
+      "audit_verdict": "TOPOLOGY_DEPENDENT",
+      "guard_kept": true,
+      "validation": "REJECT",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.2753623188405797,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 0.04780876494023904,
+          "line_trip": 0.014945652173913044,
+          "cascade": 0.03017241379310345
+        }
+      },
+      "per_grid": {
+        "neurips2020": "silent",
+        "case14": "discriminates",
+        "wcci2022": "degenerate"
+      }
+    },
+    {
+      "rule_id": "R_075",
+      "channel": "NOT_APPLICABLE",
+      "justification": "degenerate on every grid (case14, neurips2020, wcci2022): fires regardless of state, so its calibration does not transfer (findings 11.2)",
+      "role": "CONSTRAINT",
+      "condition": "voltage_pu_min != 1.0 or voltage_pu_max != 1.0",
+      "source": "Text, Eq. (185) context",
+      "severity": "medium",
+      "audit_verdict": "USEFUL",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "case14": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        },
+        "wcci2022": {
+          "normal": 1.0,
+          "overload": 1.0,
+          "line_trip": 1.0,
+          "cascade": 1.0
+        }
+      },
+      "per_grid": {
+        "neurips2020": "degenerate",
+        "case14": "degenerate",
+        "wcci2022": "degenerate"
+      }
+    },
+    {
+      "rule_id": "R_079",
+      "channel": "NORMAL",
+      "justification": "affirmation, weak support (UNINFORMATIVE)",
+      "role": "AFFIRMATION",
+      "condition": "voltage_pu_min >= 0.95 and voltage_pu_max <= 1.05",
+      "source": "NERC PRC-024-3, Requirement R2.1",
+      "severity": "high",
+      "audit_verdict": "UNINFORMATIVE",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 0.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 1.0,
+          "overload": 0.9442231075697212,
+          "line_trip": 0.9782608695652174,
+          "cascade": 0.9353448275862069
+        }
+      },
+      "per_grid": {}
+    },
+    {
+      "rule_id": "R_128",
+      "channel": "WARN",
+      "justification": "discriminates on case14, neurips2020 (degenerate on wcci2022); not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "power_factor_at_max_load < -0.95 or power_factor_at_max_load > 0.95",
+      "source": "FERC Order No. 2003, Standardization of Generator Interconnection Agreements and Procedures",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0012,
+          "overload": 0.084,
+          "line_trip": 0.00370919881305638,
+          "cascade": 0.02810810810810811
+        },
+        "case14": {
+          "normal": 0.040083073727933544,
+          "overload": 0.5434782608695652,
+          "line_trip": 0.49101796407185627,
+          "cascade": 0.8018867924528302
+        },
+        "wcci2022": {
+          "normal": 0.9856166846458109,
+          "overload": 0.8645418326693227,
+          "line_trip": 0.9782608695652174,
+          "cascade": 0.9525862068965517
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "discriminates",
+        "wcci2022": "degenerate"
+      }
+    },
+    {
+      "rule_id": "R_157",
+      "channel": "WARN",
+      "justification": "discriminates on case14, neurips2020 (degenerate on wcci2022); not validated as authoritative",
+      "role": "CONSTRAINT",
+      "condition": "power_factor_at_max_load < -0.95 or power_factor_at_max_load > 0.95",
+      "source": "LGIA, Technical Standards Applicable to a Wind Generation Plant, Section 9.6.1 (Order No. 827)",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": false,
+      "validation": "n/a",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0012,
+          "overload": 0.084,
+          "line_trip": 0.00370919881305638,
+          "cascade": 0.02810810810810811
+        },
+        "case14": {
+          "normal": 0.040083073727933544,
+          "overload": 0.5434782608695652,
+          "line_trip": 0.49101796407185627,
+          "cascade": 0.8018867924528302
+        },
+        "wcci2022": {
+          "normal": 0.9856166846458109,
+          "overload": 0.8645418326693227,
+          "line_trip": 0.9782608695652174,
+          "cascade": 0.9525862068965517
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "discriminates",
+        "wcci2022": "degenerate"
+      }
+    },
+    {
+      "rule_id": "R_167",
+      "channel": "BLOCK",
+      "justification": "validated constraint; authoritative veto",
+      "role": "CONSTRAINT",
+      "condition": "loading_pct > 100",
+      "source": "TPL-001-5.1, Section 5.1.f",
+      "severity": "high",
+      "audit_verdict": "USEFUL",
+      "guard_kept": true,
+      "validation": "CONFIRM",
+      "rates": {
+        "neurips2020": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "case14": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        },
+        "wcci2022": {
+          "normal": 0.0,
+          "overload": 1.0,
+          "line_trip": 0.0,
+          "cascade": 0.0
+        }
+      },
+      "per_grid": {
+        "neurips2020": "discriminates",
+        "case14": "discriminates",
+        "wcci2022": "discriminates"
+      }
+    }
+  ]
+}

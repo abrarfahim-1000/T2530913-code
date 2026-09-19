@@ -1,0 +1,867 @@
+{
+  "protocol": {
+    "target": "model predicted secure AND the contingency was a violation",
+    "semantics": "gate \u2014 a rule can only act where the model predicted secure",
+    "rules_file": "expert_rules\\expert_rules.jsonl",
+    "rules_md5": "05a29bd74e0ba1722e64f0c3579f6cd8",
+    "n_rules": 14,
+    "model_threshold": 0.8848495483398438,
+    "blind": false,
+    "blind_note": "NOT a blind baseline. The author had already seen the served corpus, the shield's precision figures and the \u00a728 tree splits. \u00a724.3's fallback applies: report as a hand-written comparison and claim less."
+  },
+  "rules": [
+    {
+      "rule_id": "X_001",
+      "family": "thermal",
+      "condition": "loading_pct > 100",
+      "basis": "standard-stated"
+    },
+    {
+      "rule_id": "X_002",
+      "family": "thermal",
+      "condition": "loading_pct > 90",
+      "basis": "operating-practice"
+    },
+    {
+      "rule_id": "X_003",
+      "family": "thermal",
+      "condition": "loading_pct > 80",
+      "basis": "operating-practice"
+    },
+    {
+      "rule_id": "X_004",
+      "family": "voltage",
+      "condition": "voltage_pu_min < 0.95",
+      "basis": "standard-stated"
+    },
+    {
+      "rule_id": "X_005",
+      "family": "voltage",
+      "condition": "voltage_pu_max > 1.05",
+      "basis": "standard-stated"
+    },
+    {
+      "rule_id": "X_006",
+      "family": "voltage",
+      "condition": "voltage_pu_min < 0.90 or voltage_pu_max > 1.10",
+      "basis": "standard-stated"
+    },
+    {
+      "rule_id": "X_007",
+      "family": "topology",
+      "condition": "any_line_tripped",
+      "basis": "doctrine"
+    },
+    {
+      "rule_id": "X_008",
+      "family": "topology",
+      "condition": "n_tripped_lines >= 2",
+      "basis": "doctrine"
+    },
+    {
+      "rule_id": "X_009",
+      "family": "power-factor",
+      "condition": "power_factor_at_max_load < 0.95",
+      "basis": "standard-stated"
+    },
+    {
+      "rule_id": "X_010",
+      "family": "balance",
+      "condition": "abs(generation_load_imbalance_pct) > 5",
+      "basis": "operating-practice"
+    },
+    {
+      "rule_id": "X_011",
+      "family": "combined",
+      "condition": "loading_pct > 90 and voltage_pu_min < 0.97",
+      "basis": "doctrine"
+    },
+    {
+      "rule_id": "X_012",
+      "family": "combined",
+      "condition": "loading_pct > 85 and any_line_tripped",
+      "basis": "doctrine"
+    },
+    {
+      "rule_id": "X_013",
+      "family": "reactive",
+      "condition": "reactive_power_mvar_max > 0.5 * active_power_mw_max",
+      "basis": "doctrine"
+    },
+    {
+      "rule_id": "X_014",
+      "family": "combined",
+      "condition": "loading_pct > 95 or n_tripped_lines >= 1",
+      "basis": "doctrine"
+    }
+  ],
+  "grids": {
+    "neurips2020": {
+      "scope": "held-out test split",
+      "contingencies": 113205,
+      "target_contingencies": 2041,
+      "all_positive_f1_on_target": 0.03541988442115127,
+      "flag_all_eligible_baseline": {
+        "f1": 0.04335404386384154,
+        "precision": 0.022157326790715852,
+        "recall": 1.0,
+        "tp": 2041,
+        "fp": 90073,
+        "fn": 0
+      },
+      "expert_union": {
+        "f1": 0.04335404386384154,
+        "precision": 0.022157326790715852,
+        "recall": 1.0,
+        "tp": 2041,
+        "fp": 90073,
+        "fn": 0
+      },
+      "expert_best_single_rule": {
+        "rule_id": "X_001",
+        "condition": "loading_pct > 100",
+        "basis": "standard-stated",
+        "frames_firing": 0.017598343685300208,
+        "verdicts": {
+          "SATISFIED": 1898,
+          "VIOLATED": 34
+        },
+        "f1": 0.27652464494569756,
+        "precision": 0.9376770538243626,
+        "recall": 0.16217540421362078,
+        "tp": 331,
+        "fp": 22,
+        "fn": 1710
+      },
+      "per_rule": {
+        "X_001": {
+          "condition": "loading_pct > 100",
+          "basis": "standard-stated",
+          "frames_firing": 0.017598343685300208,
+          "verdicts": {
+            "SATISFIED": 1898,
+            "VIOLATED": 34
+          },
+          "f1": 0.27652464494569756,
+          "precision": 0.9376770538243626,
+          "recall": 0.16217540421362078,
+          "tp": 331,
+          "fp": 22,
+          "fn": 1710
+        },
+        "X_002": {
+          "condition": "loading_pct > 90",
+          "basis": "operating-practice",
+          "frames_firing": 0.06573498964803312,
+          "verdicts": {
+            "SATISFIED": 1805,
+            "VIOLATED": 127
+          },
+          "f1": 0.23086984957488554,
+          "precision": 0.1732515337423313,
+          "recall": 0.34590886820186184,
+          "tp": 706,
+          "fp": 3369,
+          "fn": 1335
+        },
+        "X_003": {
+          "condition": "loading_pct > 80",
+          "basis": "operating-practice",
+          "frames_firing": 0.2443064182194617,
+          "verdicts": {
+            "SATISFIED": 1460,
+            "VIOLATED": 472
+          },
+          "f1": 0.12187428571428574,
+          "precision": 0.06720782494706061,
+          "recall": 0.6531112199902008,
+          "tp": 1333,
+          "fp": 18501,
+          "fn": 708
+        },
+        "X_004": {
+          "condition": "voltage_pu_min < 0.95",
+          "basis": "standard-stated",
+          "frames_firing": 0.0,
+          "verdicts": {
+            "SATISFIED": 1932
+          },
+          "f1": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 2041
+        },
+        "X_005": {
+          "condition": "voltage_pu_max > 1.05",
+          "basis": "standard-stated",
+          "frames_firing": 1.0,
+          "verdicts": {
+            "VIOLATED": 1932
+          },
+          "f1": 0.04335404386384154,
+          "precision": 0.022157326790715852,
+          "recall": 1.0,
+          "tp": 2041,
+          "fp": 90073,
+          "fn": 0
+        },
+        "X_006": {
+          "condition": "voltage_pu_min < 0.90 or voltage_pu_max > 1.10",
+          "basis": "standard-stated",
+          "frames_firing": 0.007246376811594203,
+          "verdicts": {
+            "SATISFIED": 1918,
+            "VIOLATED": 14
+          },
+          "f1": 0.08986992510839574,
+          "precision": 0.22983870967741934,
+          "recall": 0.05585497305242528,
+          "tp": 114,
+          "fp": 382,
+          "fn": 1927
+        },
+        "X_007": {
+          "condition": "any_line_tripped",
+          "basis": "doctrine",
+          "frames_firing": 0.30693581780538304,
+          "verdicts": {
+            "SATISFIED": 1339,
+            "VIOLATED": 593
+          },
+          "f1": 0.07272727272727274,
+          "precision": 0.039205176308434474,
+          "recall": 0.5017148456638902,
+          "tp": 1024,
+          "fp": 25095,
+          "fn": 1017
+        },
+        "X_008": {
+          "condition": "n_tripped_lines >= 2",
+          "basis": "doctrine",
+          "frames_firing": 0.07608695652173914,
+          "verdicts": {
+            "SATISFIED": 1785,
+            "VIOLATED": 147
+          },
+          "f1": 0.10800508259212199,
+          "precision": 0.07291130554125923,
+          "recall": 0.2082312591866732,
+          "tp": 425,
+          "fp": 5404,
+          "fn": 1616
+        },
+        "X_009": {
+          "condition": "power_factor_at_max_load < 0.95",
+          "basis": "standard-stated",
+          "frames_firing": 0.9963768115942029,
+          "verdicts": {
+            "VIOLATED": 1925,
+            "SATISFIED": 7
+          },
+          "f1": 0.04319148936170213,
+          "precision": 0.02207505518763797,
+          "recall": 0.994610485056345,
+          "tp": 2030,
+          "fp": 89929,
+          "fn": 11
+        },
+        "X_010": {
+          "condition": "abs(generation_load_imbalance_pct) > 5",
+          "basis": "operating-practice",
+          "frames_firing": 0.0,
+          "verdicts": {
+            "NOT_EVALUABLE": 1932
+          },
+          "f1": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 2041
+        },
+        "X_011": {
+          "condition": "loading_pct > 90 and voltage_pu_min < 0.97",
+          "basis": "doctrine",
+          "frames_firing": 0.0,
+          "verdicts": {
+            "SATISFIED": 1932
+          },
+          "f1": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 2041
+        },
+        "X_012": {
+          "condition": "loading_pct > 85 and any_line_tripped",
+          "basis": "doctrine",
+          "frames_firing": 0.06314699792960662,
+          "verdicts": {
+            "SATISFIED": 1810,
+            "VIOLATED": 122
+          },
+          "f1": 0.20329301075268816,
+          "precision": 0.15469189465609817,
+          "recall": 0.2964233219010289,
+          "tp": 605,
+          "fp": 3306,
+          "fn": 1436
+        },
+        "X_013": {
+          "condition": "reactive_power_mvar_max > 0.5 * active_power_mw_max",
+          "basis": "doctrine",
+          "frames_firing": 0.9989648033126294,
+          "verdicts": {
+            "VIOLATED": 1930,
+            "SATISFIED": 2
+          },
+          "f1": 0.0432883873641261,
+          "precision": 0.022123989920931446,
+          "recall": 0.9980401763841255,
+          "tp": 2037,
+          "fp": 90035,
+          "fn": 4
+        },
+        "X_014": {
+          "condition": "loading_pct > 95 or n_tripped_lines >= 1",
+          "basis": "doctrine",
+          "frames_firing": 0.3141821946169772,
+          "verdicts": {
+            "SATISFIED": 1325,
+            "VIOLATED": 607
+          },
+          "f1": 0.08027338982459811,
+          "precision": 0.04321219402312659,
+          "recall": 0.5639392454679079,
+          "tp": 1151,
+          "fp": 25485,
+          "fn": 890
+        }
+      },
+      "shield_on_same_target": {
+        "target_contingencies": 2041,
+        "blocked": 353,
+        "caught": 331,
+        "recall": 0.16217540421362078,
+        "precision": 0.9376770538243626,
+        "f1": 0.27652464494569756
+      }
+    },
+    "case14": {
+      "scope": "all frames (unseen topology)",
+      "contingencies": 118502,
+      "target_contingencies": 18592,
+      "all_positive_f1_on_target": 0.2712299590062293,
+      "flag_all_eligible_baseline": {
+        "f1": 0.3668254954768317,
+        "precision": 0.22460887949260042,
+        "recall": 1.0,
+        "tp": 18592,
+        "fp": 64183,
+        "fn": 0
+      },
+      "expert_union": {
+        "f1": 0.3668254954768317,
+        "precision": 0.22460887949260042,
+        "recall": 1.0,
+        "tp": 18592,
+        "fp": 64183,
+        "fn": 0
+      },
+      "expert_best_single_rule": {
+        "rule_id": "X_005",
+        "condition": "voltage_pu_max > 1.05",
+        "basis": "standard-stated",
+        "frames_firing": 1.0,
+        "verdicts": {
+          "VIOLATED": 6000
+        },
+        "f1": 0.3668254954768317,
+        "precision": 0.22460887949260042,
+        "recall": 1.0,
+        "tp": 18592,
+        "fp": 64183,
+        "fn": 0
+      },
+      "per_rule": {
+        "X_001": {
+          "condition": "loading_pct > 100",
+          "basis": "standard-stated",
+          "frames_firing": 0.023,
+          "verdicts": {
+            "SATISFIED": 5862,
+            "VIOLATED": 138
+          },
+          "f1": 0.010163145225996257,
+          "precision": 0.9223300970873787,
+          "recall": 0.005109724612736661,
+          "tp": 95,
+          "fp": 8,
+          "fn": 18497
+        },
+        "X_002": {
+          "condition": "loading_pct > 90",
+          "basis": "operating-practice",
+          "frames_firing": 0.06916666666666667,
+          "verdicts": {
+            "SATISFIED": 5585,
+            "VIOLATED": 415
+          },
+          "f1": 0.06228026117528881,
+          "precision": 0.47040971168437024,
+          "recall": 0.033347676419965576,
+          "tp": 620,
+          "fp": 698,
+          "fn": 17972
+        },
+        "X_003": {
+          "condition": "loading_pct > 80",
+          "basis": "operating-practice",
+          "frames_firing": 0.2295,
+          "verdicts": {
+            "VIOLATED": 1377,
+            "SATISFIED": 4623
+          },
+          "f1": 0.26001386001386007,
+          "precision": 0.3654070899883132,
+          "recall": 0.20180722891566266,
+          "tp": 3752,
+          "fp": 6516,
+          "fn": 14840
+        },
+        "X_004": {
+          "condition": "voltage_pu_min < 0.95",
+          "basis": "standard-stated",
+          "frames_firing": 0.006333333333333333,
+          "verdicts": {
+            "SATISFIED": 5962,
+            "VIOLATED": 38
+          },
+          "f1": 0.0004302000430200043,
+          "precision": 1.0,
+          "recall": 0.0002151462994836489,
+          "tp": 4,
+          "fp": 0,
+          "fn": 18588
+        },
+        "X_005": {
+          "condition": "voltage_pu_max > 1.05",
+          "basis": "standard-stated",
+          "frames_firing": 1.0,
+          "verdicts": {
+            "VIOLATED": 6000
+          },
+          "f1": 0.3668254954768317,
+          "precision": 0.22460887949260042,
+          "recall": 1.0,
+          "tp": 18592,
+          "fp": 64183,
+          "fn": 0
+        },
+        "X_006": {
+          "condition": "voltage_pu_min < 0.90 or voltage_pu_max > 1.10",
+          "basis": "standard-stated",
+          "frames_firing": 0.003833333333333333,
+          "verdicts": {
+            "SATISFIED": 5977,
+            "VIOLATED": 23
+          },
+          "f1": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 18592
+        },
+        "X_007": {
+          "condition": "any_line_tripped",
+          "basis": "doctrine",
+          "frames_firing": 0.19616666666666666,
+          "verdicts": {
+            "SATISFIED": 4823,
+            "VIOLATED": 1177
+          },
+          "f1": 0.2286648638450412,
+          "precision": 0.2752460257380772,
+          "recall": 0.19556798623063684,
+          "tp": 3636,
+          "fp": 9574,
+          "fn": 14956
+        },
+        "X_008": {
+          "condition": "n_tripped_lines >= 2",
+          "basis": "doctrine",
+          "frames_firing": 0.04683333333333333,
+          "verdicts": {
+            "SATISFIED": 5719,
+            "VIOLATED": 281
+          },
+          "f1": 0.04474766730209692,
+          "precision": 0.3323397913561848,
+          "recall": 0.02398881239242685,
+          "tp": 446,
+          "fp": 896,
+          "fn": 18146
+        },
+        "X_009": {
+          "condition": "power_factor_at_max_load < 0.95",
+          "basis": "standard-stated",
+          "frames_firing": 0.8586666666666667,
+          "verdicts": {
+            "VIOLATED": 5152,
+            "SATISFIED": 848
+          },
+          "f1": 0.35334140198227076,
+          "precision": 0.22159160842986284,
+          "recall": 0.8715038726333907,
+          "tp": 16203,
+          "fp": 56918,
+          "fn": 2389
+        },
+        "X_010": {
+          "condition": "abs(generation_load_imbalance_pct) > 5",
+          "basis": "operating-practice",
+          "frames_firing": 0.0,
+          "verdicts": {
+            "NOT_EVALUABLE": 6000
+          },
+          "f1": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 18592
+        },
+        "X_011": {
+          "condition": "loading_pct > 90 and voltage_pu_min < 0.97",
+          "basis": "doctrine",
+          "frames_firing": 0.0065,
+          "verdicts": {
+            "SATISFIED": 5961,
+            "VIOLATED": 39
+          },
+          "f1": 0.0004302000430200043,
+          "precision": 1.0,
+          "recall": 0.0002151462994836489,
+          "tp": 4,
+          "fp": 0,
+          "fn": 18588
+        },
+        "X_012": {
+          "condition": "loading_pct > 85 and any_line_tripped",
+          "basis": "doctrine",
+          "frames_firing": 0.074,
+          "verdicts": {
+            "SATISFIED": 5556,
+            "VIOLATED": 444
+          },
+          "f1": 0.07534642032332563,
+          "precision": 0.3572080291970803,
+          "recall": 0.04211488812392427,
+          "tp": 783,
+          "fp": 1409,
+          "fn": 17809
+        },
+        "X_013": {
+          "condition": "reactive_power_mvar_max > 0.5 * active_power_mw_max",
+          "basis": "doctrine",
+          "frames_firing": 0.9106666666666666,
+          "verdicts": {
+            "VIOLATED": 5464,
+            "SATISFIED": 536
+          },
+          "f1": 0.35880301847514967,
+          "precision": 0.22244879521959657,
+          "recall": 0.927065404475043,
+          "tp": 17236,
+          "fp": 60247,
+          "fn": 1356
+        },
+        "X_014": {
+          "condition": "loading_pct > 95 or n_tripped_lines >= 1",
+          "basis": "doctrine",
+          "frames_firing": 0.20066666666666666,
+          "verdicts": {
+            "SATISFIED": 4796,
+            "VIOLATED": 1204
+          },
+          "f1": 0.22951952989975805,
+          "precision": 0.2760184415388104,
+          "recall": 0.19642857142857142,
+          "tp": 3652,
+          "fp": 9579,
+          "fn": 14940
+        }
+      },
+      "shield_on_same_target": {
+        "target_contingencies": 18592,
+        "blocked": 103,
+        "caught": 95,
+        "recall": 0.005109724612736661,
+        "precision": 0.9223300970873787,
+        "f1": 0.010163145225996255
+      }
+    },
+    "wcci2022": {
+      "scope": "all frames (unseen topology)",
+      "contingencies": 742472,
+      "target_contingencies": 68166,
+      "all_positive_f1_on_target": 0.16817864447509243,
+      "flag_all_eligible_baseline": {
+        "f1": 0.23518452390193917,
+        "precision": 0.133262954165567,
+        "recall": 1.0,
+        "tp": 68166,
+        "fp": 443349,
+        "fn": 0
+      },
+      "expert_union": {
+        "f1": 0.23581104798894886,
+        "precision": 0.13383817859231434,
+        "recall": 0.9904351142798462,
+        "tp": 67514,
+        "fp": 436931,
+        "fn": 652
+      },
+      "expert_best_single_rule": {
+        "rule_id": "X_001",
+        "condition": "loading_pct > 100",
+        "basis": "standard-stated",
+        "frames_firing": 0.06275,
+        "verdicts": {
+          "SATISFIED": 3749,
+          "VIOLATED": 251
+        },
+        "f1": 0.46437034995866633,
+        "precision": 0.9337736601799725,
+        "recall": 0.3090250271396297,
+        "tp": 21065,
+        "fp": 1494,
+        "fn": 47101
+      },
+      "per_rule": {
+        "X_001": {
+          "condition": "loading_pct > 100",
+          "basis": "standard-stated",
+          "frames_firing": 0.06275,
+          "verdicts": {
+            "SATISFIED": 3749,
+            "VIOLATED": 251
+          },
+          "f1": 0.46437034995866633,
+          "precision": 0.9337736601799725,
+          "recall": 0.3090250271396297,
+          "tp": 21065,
+          "fp": 1494,
+          "fn": 47101
+        },
+        "X_002": {
+          "condition": "loading_pct > 90",
+          "basis": "operating-practice",
+          "frames_firing": 0.2245,
+          "verdicts": {
+            "SATISFIED": 3102,
+            "VIOLATED": 898
+          },
+          "f1": 0.40442473656606115,
+          "precision": 0.3405810194944689,
+          "recall": 0.49772613913094504,
+          "tp": 33928,
+          "fp": 65690,
+          "fn": 34238
+        },
+        "X_003": {
+          "condition": "loading_pct > 80",
+          "basis": "operating-practice",
+          "frames_firing": 0.61125,
+          "verdicts": {
+            "VIOLATED": 2445,
+            "SATISFIED": 1555
+          },
+          "f1": 0.2870818938063346,
+          "precision": 0.17676419556485157,
+          "recall": 0.7637091805298829,
+          "tp": 52059,
+          "fp": 242452,
+          "fn": 16107
+        },
+        "X_004": {
+          "condition": "voltage_pu_min < 0.95",
+          "basis": "standard-stated",
+          "frames_firing": 0.0075,
+          "verdicts": {
+            "SATISFIED": 3970,
+            "VIOLATED": 30
+          },
+          "f1": 0.04028776978417266,
+          "precision": 0.42176074875694647,
+          "recall": 0.02115424111727254,
+          "tp": 1442,
+          "fp": 1977,
+          "fn": 66724
+        },
+        "X_005": {
+          "condition": "voltage_pu_max > 1.05",
+          "basis": "standard-stated",
+          "frames_firing": 0.00375,
+          "verdicts": {
+            "SATISFIED": 3985,
+            "VIOLATED": 15
+          },
+          "f1": 0.011727778570409473,
+          "precision": 0.21361746361746362,
+          "recall": 0.006029398820526362,
+          "tp": 411,
+          "fp": 1513,
+          "fn": 67755
+        },
+        "X_006": {
+          "condition": "voltage_pu_min < 0.90 or voltage_pu_max > 1.10",
+          "basis": "standard-stated",
+          "frames_firing": 0.00075,
+          "verdicts": {
+            "SATISFIED": 3997,
+            "VIOLATED": 3
+          },
+          "f1": 0.006394533987386124,
+          "precision": 0.6636363636363637,
+          "recall": 0.003212745356922806,
+          "tp": 219,
+          "fp": 111,
+          "fn": 67947
+        },
+        "X_007": {
+          "condition": "any_line_tripped",
+          "basis": "doctrine",
+          "frames_firing": 0.2725,
+          "verdicts": {
+            "SATISFIED": 2910,
+            "VIOLATED": 1090
+          },
+          "f1": 0.2383712203742707,
+          "precision": 0.1779011194704016,
+          "recall": 0.36111844614617256,
+          "tp": 24616,
+          "fp": 113753,
+          "fn": 43550
+        },
+        "X_008": {
+          "condition": "n_tripped_lines >= 2",
+          "basis": "doctrine",
+          "frames_firing": 0.07025,
+          "verdicts": {
+            "SATISFIED": 3719,
+            "VIOLATED": 281
+          },
+          "f1": 0.16753684169891622,
+          "precision": 0.24483118494908754,
+          "recall": 0.12733620866707743,
+          "tp": 8680,
+          "fp": 26773,
+          "fn": 59486
+        },
+        "X_009": {
+          "condition": "power_factor_at_max_load < 0.95",
+          "basis": "standard-stated",
+          "frames_firing": 0.02525,
+          "verdicts": {
+            "SATISFIED": 3899,
+            "VIOLATED": 101
+          },
+          "f1": 0.09241503940565232,
+          "precision": 0.3196735544365341,
+          "recall": 0.054015198192647364,
+          "tp": 3682,
+          "fp": 7836,
+          "fn": 64484
+        },
+        "X_010": {
+          "condition": "abs(generation_load_imbalance_pct) > 5",
+          "basis": "operating-practice",
+          "frames_firing": 0.0,
+          "verdicts": {
+            "NOT_EVALUABLE": 4000
+          },
+          "f1": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 68166
+        },
+        "X_011": {
+          "condition": "loading_pct > 90 and voltage_pu_min < 0.97",
+          "basis": "doctrine",
+          "frames_firing": 0.062,
+          "verdicts": {
+            "SATISFIED": 3752,
+            "VIOLATED": 248
+          },
+          "f1": 0.19649070852150738,
+          "precision": 0.35208278057840275,
+          "recall": 0.13627028137194497,
+          "tp": 9289,
+          "fp": 17094,
+          "fn": 58877
+        },
+        "X_012": {
+          "condition": "loading_pct > 85 and any_line_tripped",
+          "basis": "doctrine",
+          "frames_firing": 0.1385,
+          "verdicts": {
+            "SATISFIED": 3446,
+            "VIOLATED": 554
+          },
+          "f1": 0.28187638051738984,
+          "precision": 0.2878618727920598,
+          "recall": 0.27613472992400906,
+          "tp": 18823,
+          "fp": 46566,
+          "fn": 49343
+        },
+        "X_013": {
+          "condition": "reactive_power_mvar_max > 0.5 * active_power_mw_max",
+          "basis": "doctrine",
+          "frames_firing": 0.89,
+          "verdicts": {
+            "VIOLATED": 3560,
+            "SATISFIED": 440
+          },
+          "f1": 0.22216291922174275,
+          "precision": 0.127535343789793,
+          "recall": 0.8610010855851891,
+          "tp": 58691,
+          "fp": 401503,
+          "fn": 9475
+        },
+        "X_014": {
+          "condition": "loading_pct > 95 or n_tripped_lines >= 1",
+          "basis": "doctrine",
+          "frames_firing": 0.343,
+          "verdicts": {
+            "SATISFIED": 2628,
+            "VIOLATED": 1372
+          },
+          "f1": 0.3276797105345127,
+          "precision": 0.23103906809388858,
+          "recall": 0.5633013525804653,
+          "tp": 38398,
+          "fp": 127799,
+          "fn": 29768
+        }
+      },
+      "shield_on_same_target": {
+        "target_contingencies": 68166,
+        "blocked": 22559,
+        "caught": 21065,
+        "recall": 0.3090250271396297,
+        "precision": 0.9337736601799725,
+        "f1": 0.4643703499586663
+      }
+    }
+  },
+  "seconds": 34.3
+}

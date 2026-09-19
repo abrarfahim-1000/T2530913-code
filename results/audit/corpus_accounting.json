@@ -1,0 +1,50 @@
+{
+  "n_records_stage1": 2463,
+  "n_candidates_distinct": 2463,
+  "rule_id_collisions": 172,
+  "served_rules_with_colliding_id": [],
+  "stages": {
+    "translated": 58,
+    "untranslatable": 2405,
+    "guard_kept": 32,
+    "guard_rejected": 26,
+    "validated_confirmed": 11,
+    "validated_rejected": 21,
+    "distinct_served": 4
+  },
+  "partition_verified": true,
+  "partition_problems": [],
+  "untranslatable_buckets": {
+    "administrative / process": 115,
+    "scope / aggregation  [RECOVERABLE]": 142,
+    "free variable / no number": 6,
+    "frequency": 617,
+    "time / dynamics": 635,
+    "equipment-internal": 315,
+    "quantity not modelled by the simulator": 562,
+    "unclassified": 13
+  },
+  "terminal_fate": {
+    "not expressible \u2014 administrative / process": 115,
+    "not expressible \u2014 scope / aggregation  [RECOVERABLE]": 142,
+    "not expressible \u2014 free variable / no number": 6,
+    "not expressible \u2014 frequency": 617,
+    "not expressible \u2014 time / dynamics": 635,
+    "not expressible \u2014 equipment-internal": 315,
+    "not expressible \u2014 quantity not modelled by the simulator": 562,
+    "not expressible \u2014 unclassified": 13,
+    "expressible, rejected by polarity guard": 26,
+    "expressible and clean, rejected by validator": 21,
+    "VALIDATED (served to the shield)": 11
+  },
+  "bucket_order": [
+    "frequency",
+    "time / dynamics",
+    "administrative / process",
+    "equipment-internal",
+    "scope / aggregation  [RECOVERABLE]",
+    "free variable / no number",
+    "quantity not modelled by the simulator"
+  ],
+  "note": "Buckets are first-match-wins in the declared order; frequency precedes time because Grid2Op models no frequency at all."
+}

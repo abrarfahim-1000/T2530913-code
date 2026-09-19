@@ -15,14 +15,33 @@ from __future__ import annotations
 
 import argparse
 import os
+import subprocess
 import sys
+
+# ── determinism ───────────────────────────────────────────────────────────────
+# The GRAPH is reproducible byte-for-byte; the FIGURES were not. `nx.multipartite_
+# layout` orders the nodes inside each layer through a hash-backed collection, and
+# Python randomizes string hashing per process, so every rebuild reshuffled the six
+# columns vertically while drawing the identical graph. That turns `git diff` on
+# kg/*.svg into noise and hides a real change behind a cosmetic one.
+#
+# Hash randomization is fixed when the interpreter STARTS, so setting the variable
+# here would be too late — the only fix is to re-exec once with it set. subprocess
+# rather than os.execv: execv on Windows spawns and detaches instead of replacing,
+# which loses the exit code.
+if os.environ.get("PYTHONHASHSEED") != "0":
+    os.environ["PYTHONHASHSEED"] = "0"
+    sys.exit(subprocess.run([sys.executable, *sys.argv], env=os.environ).returncode)
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from kg.build import (  # noqa: E402
     CANDIDATES_DIR,
+    CHANNELS_CORPUS,
     CONFIRMED_DIR,
     DEDUPED_RULES,
+    TRANSLATED_DIR,
+    add_explanatory_layer,
     build_knowledge_graph,
     kg_stats,
     save_kg,
@@ -39,12 +58,28 @@ def main() -> None:
                     help=f"the served corpus (default: {DEDUPED_RULES})")
     ap.add_argument("--candidates", default=CANDIDATES_DIR,
                     help=f"stage-1 folder, for candidate counts (default: {CANDIDATES_DIR})")
+    ap.add_argument("--channels", nargs="?", const=CHANNELS_CORPUS, default=None,
+                    help="Also layer the four-channel corpus in as ExplanatoryRule\n"
+                         f"nodes so every rule that can SPEAK is citable, not just\n"
+                         f"the four that can veto (default path: {CHANNELS_CORPUS}).\n"
+                         "Strictly additive: the served set is untouched, so no\n"
+                         "reported number can move."),
+    ap.add_argument("--translated", default=TRANSLATED_DIR,
+                    help="Stage-2 output, which is where a channel rule's DOCUMENT\n"
+                         f"is recovered from (default: {TRANSLATED_DIR}). NOT the\n"
+                         "guarded/ subfolder — that is a 32-rule subset."),
     ap.add_argument("--out", default=DEFAULT_OUT)
     ap.add_argument("--figures", action="store_true",
                     help="also write kg_provenance and kg_corroboration (SVG + PNG)")
     args = ap.parse_args()
 
     kg = build_knowledge_graph(args.confirmed, args.deduped, args.candidates)
+    if args.channels:
+        before = kg.number_of_nodes(), kg.number_of_edges()
+        kg = add_explanatory_layer(kg, args.channels, args.translated)
+        after = kg.number_of_nodes(), kg.number_of_edges()
+        print(f"[kg] explanatory layer: +{after[0] - before[0]} nodes, "
+              f"+{after[1] - before[1]} edges")
     path = save_kg(kg, args.out)
     stats = kg_stats(kg)
 
@@ -57,7 +92,10 @@ def main() -> None:
     for p in stats["predicates"]:
         print(f"\n    {p['canonical']}   [{p['role']}]")
         print(f"      {p['plain_english']}")
-        print(f"      served rules {p['n_served_rules']} · clauses {p['n_clauses']} · "
+        extra = (f" (+{p['n_explanatory_rules']} explanatory)"
+                 if p.get("n_explanatory_rules") else "")
+        print(f"      served rules {p['n_served_rules']}{extra} · "
+              f"clauses {p['n_clauses']} · "
               f"documents {p['n_documents']} · identified bodies {p['n_bodies']}")
         for d in p["documents"]:
             print(f"        - {d}")

@@ -1,0 +1,1056 @@
+{
+  "what": "per-rejection adjudication of the 21 shared stage-3 rejections",
+  "arm": "translated (--prompt-variant translated) — the arm that produced the served corpus",
+  "method": {
+    "mechanical": "verbatim from validated_translated/*_rejected.jsonl and translated_rules/guarded/*_translated.jsonl; the vocabulary check is set membership in extraction.common.CONDITION_VOCABULARY",
+    "adjudication": "READING, NOT MEASUREMENT. A human classification with a stated basis. Disagree with a call by its rule key; the mechanical half is unaffected.",
+    "join_key": "(document, rule_id) — rule_id is NOT globally unique (§19.2)"
+  },
+  "categories": {
+    "SOUND": "stated ground is accurate about the source text and the conclusion follows",
+    "WRONG": "stated ground contains a load-bearing factual error",
+    "SHOULD_HAVE_BEEN_CORRECT": "stated defect is a field-level repair; CORRECT existed as a verdict and was not used",
+    "UNVERIFIABLE": "cannot be adjudicated from the artifacts alone"
+  },
+  "reconciliation": {
+    "counts": {
+      "SOUND": 11,
+      "WRONG": 6,
+      "SHOULD_HAVE_BEEN_CORRECT": 4,
+      "UNVERIFIABLE": 0
+    },
+    "wrong": [
+      "R_260",
+      "R_1444",
+      "R_1926",
+      "R_1927",
+      "R_1098",
+      "R_069"
+    ],
+    "should_have_been_correct": [
+      "R_434",
+      "R_797",
+      "R_798",
+      "R_1108"
+    ],
+    "repair_was_available": [
+      "R_434",
+      "R_797",
+      "R_798",
+      "R_1108"
+    ],
+    "not_named_in_findings_12_4": [
+      "R_260",
+      "R_1444",
+      "R_1575",
+      "R_1152"
+    ],
+    "fabricated_vocabulary_claims": [
+      "R_1926",
+      "R_069"
+    ],
+    "reasons_conceding_correction": [
+      "R_797",
+      "R_798"
+    ],
+    "documented": {
+      "min_wrong": 3,
+      "should_have_been_correct": 4,
+      "total_rejections": 21
+    },
+    "reconciles": false,
+    "discrepancies": [
+      "WRONG adjudicated 6, documented 'at least 3' (R_260, R_1444, R_1926, R_1927, R_1098, R_069). Literally compatible with 'at least', but it breaks §12.4's companion sentence that 'roughly 17 of 21 rest on a defensible reading' — this reading gives 11.",
+      "SHOULD_HAVE_BEEN_CORRECT count matches (4) but MEMBERSHIP does not. Adjudicated ['R_1108', 'R_434', 'R_797', 'R_798']; §12.4's verdict-selection-defect row names ['R_434', 'R_741', 'R_797', 'R_798']. Differences: only-here=['R_1108'], only-§12.4=['R_741'].",
+      "§12.4 says the verdict-selection-defect rules' 'reason text says \"requiring correction\"'. Only ['R_797', 'R_798'] contain correction language; ['R_434', 'R_741'] do not — their translated-arm reasons make no such concession. The claim holds for 2 of 4 named rules.",
+      "§12.4 files ['R_797', 'R_798'] under an 'assessed: correct' row, but their TRANSLATED-arm reasons concede the condition 'is correct'. The wording §12.4 quotes for those rows is the STRICT arm's reason, not the served arm's.",
+      "§12.4's table names 17 of 21 rejections; 4 appear in no row: R_260, R_1444, R_1575, R_1152",
+      "2 of 21 TRANSLATED-arm rejections assert a vocabulary breach that the deterministic check disproves (R_1926, R_069). §12.3 presents fabrication as a `strict`-arm phenomenon; it is not confined to that arm."
+    ]
+  },
+  "rejections": [
+    {
+      "document": "130308_Final_Version_NC_RfG",
+      "rule_id": "R_116",
+      "mechanical": {
+        "source_clause": "ENTSO-E NC RfG, Article 2(a)1, Table 6.1 (Continental Europe)",
+        "standard_document": "130308_Final_Version_NC_RfG",
+        "condition": "voltage_pu_min >= 0.90 and voltage_pu_max <= 1.118",
+        "role": "AFFIRMATION",
+        "affirms": "normal",
+        "action": "BLOCK",
+        "severity": "critical",
+        "explanation": "The module must remain connected indefinitely within the 0.90-1.118 pu range.",
+        "fire_rate": {
+          "neurips2020": 1.0,
+          "case14": 1.0,
+          "wcci2022": 1.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The condition uses voltage_pu_min and voltage_pu_max but the source text describes a minimum operating time of 60 minutes for the 0.85-0.90 pu range, which is not captured by the condition; also the role AFFIRMATION of normal is inconsistent with the source's time‑bound requirement.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses voltage_pu_min and voltage_pu_max which are not defined in the allowed variables.",
+        "source_chunk": "he requirements in this Article.\n2. Type D Power Generating Modules shall fulfil the following requirements referring to Voltage\nstability:\na) With regard to Voltage ranges:\n1) While still respecting the provisions according to Articles 9(3) (a) and 11(3) (a), a Power\nGenerating Module shall be capable of staying connected to the Network and operating\nwithin the ranges of the Network Voltage at the Connection Point, expressed by the\nVoltage at the Connection Point related to nominal Voltage (per unit), and the time\nperiods specified by tables 6.1 and 6.2.\nSynchronous Area Voltage Range Time period for\noperation\n0.85 pu – 0.90 pu 60 minutes\n0.90 pu – 1.118 pu Unlimited\nContinental Europe 1.118 pu – 1.15 pu To be decided by each\nTSO while respecting the\nprovisions of Article 4(3),\nbut not less than 20\nminutes\n0.90 pu – 1.05 pu Unlimited\nNordic\n1.05 pu – 1.10 pu 60 minutes\nGreat Britain 0.90 pu–1.10 pu Unlimited\nIreland 0.90 pu – 1.118 pu Unlimited\n0.85 pu – 0.90 pu 30 minutes\nBaltic 0.90 pu – 1.12 pu Unlimited\n1.12 pu – 1.15 pu 20 minutes\nTable 6.1: This table shows the minimum time periods a Power Generating Module shall\nbe capable of operating for Voltages deviating from the nomina",
+        "vocabulary_check": {
+          "variables_used": [
+            "voltage_pu_min",
+            "voltage_pu_max"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": null,
+        "vocabulary_claim_is_fabricated": false,
+        "reason_concedes_correction": null,
+        "named_in_findings_12_4": "ENTSO-E time-bound envelope (assessed: correct)",
+        "named_in_findings_12_4_verdict_defect_row": false
+      },
+      "adjudication": {
+        "category": "SOUND",
+        "basis": [
+          "SOURCE_TEXT"
+        ],
+        "justification": "Chunk confirms Table 6.1 is an envelope of bands x durations (0.85-0.90 pu / 60 min); a stateless predicate cannot carry the duration, and the rule holds on 100% of frames on all three grids, so the affirmation is vacuous as well as incomplete.",
+        "repair_was_available": false,
+        "method": "reading, not measurement"
+      }
+    },
+    {
+      "document": "130308_Final_Version_NC_RfG",
+      "rule_id": "R_120",
+      "mechanical": {
+        "source_clause": "ENTSO-E NC RfG, Article 2(a)1, Table 6.1 (Great Britain)",
+        "standard_document": "130308_Final_Version_NC_RfG",
+        "condition": "voltage_pu_min >= 0.90 and voltage_pu_max <= 1.10",
+        "role": "AFFIRMATION",
+        "affirms": "normal",
+        "action": "BLOCK",
+        "severity": "critical",
+        "explanation": "The module must remain connected indefinitely within the 0.90-1.10 pu range.",
+        "fire_rate": {
+          "neurips2020": 1.0,
+          "case14": 1.0,
+          "wcci2022": 1.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The condition uses voltage_pu_min and voltage_pu_max but the source text specifies a minimum operating time of 60 minutes for the 0.85-0.90 pu range, which is not captured by the condition; also the role AFFIRMATION of normal is inconsistent with the source's time‑bound requirement.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses voltage_pu_min and voltage_pu_max which are not defined in the allowed variables.",
+        "source_chunk": "he requirements in this Article.\n2. Type D Power Generating Modules shall fulfil the following requirements referring to Voltage\nstability:\na) With regard to Voltage ranges:\n1) While still respecting the provisions according to Articles 9(3) (a) and 11(3) (a), a Power\nGenerating Module shall be capable of staying connected to the Network and operating\nwithin the ranges of the Network Voltage at the Connection Point, expressed by the\nVoltage at the Connection Point related to nominal Voltage (per unit), and the time\nperiods specified by tables 6.1 and 6.2.\nSynchronous Area Voltage Range Time period for\noperation\n0.85 pu – 0.90 pu 60 minutes\n0.90 pu – 1.118 pu Unlimited\nContinental Europe 1.118 pu – 1.15 pu To be decided by each\nTSO while respecting the\nprovisions of Article 4(3),\nbut not less than 20\nminutes\n0.90 pu – 1.05 pu Unlimited\nNordic\n1.05 pu – 1.10 pu 60 minutes\nGreat Britain 0.90 pu–1.10 pu Unlimited\nIreland 0.90 pu – 1.118 pu Unlimited\n0.85 pu – 0.90 pu 30 minutes\nBaltic 0.90 pu – 1.12 pu Unlimited\n1.12 pu – 1.15 pu 20 minutes\nTable 6.1: This table shows the minimum time periods a Power Generating Module shall\nbe capable of operating for Voltages deviating from the nomina",
+        "vocabulary_check": {
+          "variables_used": [
+            "voltage_pu_min",
+            "voltage_pu_max"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": null,
+        "vocabulary_claim_is_fabricated": false,
+        "reason_concedes_correction": null,
+        "named_in_findings_12_4": "ENTSO-E time-bound envelope (assessed: correct)",
+        "named_in_findings_12_4_verdict_defect_row": false
+      },
+      "adjudication": {
+        "category": "SOUND",
+        "basis": [
+          "SOURCE_TEXT"
+        ],
+        "justification": "Same envelope argument as R_116; Great Britain row is 0.90-1.10 pu unlimited, but the clause as a whole is duration-indexed. Fires at 1.00 on all three grids.",
+        "repair_was_available": false,
+        "method": "reading, not measurement"
+      }
+    },
+    {
+      "document": "130308_Final_Version_NC_RfG",
+      "rule_id": "R_121",
+      "mechanical": {
+        "source_clause": "ENTSO-E NC RfG, Article 2(a)1, Table 6.1 (Ireland)",
+        "standard_document": "130308_Final_Version_NC_RfG",
+        "condition": "voltage_pu_min >= 0.90 and voltage_pu_max <= 1.118",
+        "role": "AFFIRMATION",
+        "affirms": "normal",
+        "action": "BLOCK",
+        "severity": "critical",
+        "explanation": "The module must remain connected indefinitely within the 0.90-1.118 pu range.",
+        "fire_rate": {
+          "neurips2020": 1.0,
+          "case14": 1.0,
+          "wcci2022": 1.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The condition uses voltage_pu_min and voltage_pu_max but the source text specifies a minimum operating time of 30 minutes for the 0.85-0.90 pu range, which is not captured by the condition; also the role AFFIRMATION of normal is inconsistent with the source's time‑bound requirement.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses voltage_pu_min and voltage_pu_max which are not defined in the allowed variables.",
+        "source_chunk": "he requirements in this Article.\n2. Type D Power Generating Modules shall fulfil the following requirements referring to Voltage\nstability:\na) With regard to Voltage ranges:\n1) While still respecting the provisions according to Articles 9(3) (a) and 11(3) (a), a Power\nGenerating Module shall be capable of staying connected to the Network and operating\nwithin the ranges of the Network Voltage at the Connection Point, expressed by the\nVoltage at the Connection Point related to nominal Voltage (per unit), and the time\nperiods specified by tables 6.1 and 6.2.\nSynchronous Area Voltage Range Time period for\noperation\n0.85 pu – 0.90 pu 60 minutes\n0.90 pu – 1.118 pu Unlimited\nContinental Europe 1.118 pu – 1.15 pu To be decided by each\nTSO while respecting the\nprovisions of Article 4(3),\nbut not less than 20\nminutes\n0.90 pu – 1.05 pu Unlimited\nNordic\n1.05 pu – 1.10 pu 60 minutes\nGreat Britain 0.90 pu–1.10 pu Unlimited\nIreland 0.90 pu – 1.118 pu Unlimited\n0.85 pu – 0.90 pu 30 minutes\nBaltic 0.90 pu – 1.12 pu Unlimited\n1.12 pu – 1.15 pu 20 minutes\nTable 6.1: This table shows the minimum time periods a Power Generating Module shall\nbe capable of operating for Voltages deviating from the nomina",
+        "vocabulary_check": {
+          "variables_used": [
+            "voltage_pu_min",
+            "voltage_pu_max"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": null,
+        "vocabulary_claim_is_fabricated": false,
+        "reason_concedes_correction": null,
+        "named_in_findings_12_4": "ENTSO-E time-bound envelope (assessed: correct)",
+        "named_in_findings_12_4_verdict_defect_row": false
+      },
+      "adjudication": {
+        "category": "SOUND",
+        "basis": [
+          "SOURCE_TEXT"
+        ],
+        "justification": "Same envelope argument. Minor wobble: the reason attributes the 30-minute 0.85-0.90 row to Ireland where the chunk's garbled table layout puts it under Baltic - not load-bearing.",
+        "repair_was_available": false,
+        "method": "reading, not measurement"
+      }
+    },
+    {
+      "document": "130308_Final_Version_NC_RfG",
+      "rule_id": "R_123",
+      "mechanical": {
+        "source_clause": "ENTSO-E NC RfG, Article 2(a)1, Table 6.1 (Baltic)",
+        "standard_document": "130308_Final_Version_NC_RfG",
+        "condition": "voltage_pu_min >= 0.90 and voltage_pu_max <= 1.12",
+        "role": "AFFIRMATION",
+        "affirms": "normal",
+        "action": "BLOCK",
+        "severity": "critical",
+        "explanation": "The module must remain connected indefinitely within the 0.90-1.12 pu range.",
+        "fire_rate": {
+          "neurips2020": 1.0,
+          "case14": 1.0,
+          "wcci2022": 1.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The condition uses voltage_pu_min and voltage_pu_max but the source text specifies a minimum operating time of 20 minutes for the 1.12-1.15 pu range, which is not captured by the condition; also the role AFFIRMATION of normal is inconsistent with the source's time‑bound requirement.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses voltage_pu_min and voltage_pu_max which are not defined in the allowed variables.",
+        "source_chunk": "he requirements in this Article.\n2. Type D Power Generating Modules shall fulfil the following requirements referring to Voltage\nstability:\na) With regard to Voltage ranges:\n1) While still respecting the provisions according to Articles 9(3) (a) and 11(3) (a), a Power\nGenerating Module shall be capable of staying connected to the Network and operating\nwithin the ranges of the Network Voltage at the Connection Point, expressed by the\nVoltage at the Connection Point related to nominal Voltage (per unit), and the time\nperiods specified by tables 6.1 and 6.2.\nSynchronous Area Voltage Range Time period for\noperation\n0.85 pu – 0.90 pu 60 minutes\n0.90 pu – 1.118 pu Unlimited\nContinental Europe 1.118 pu – 1.15 pu To be decided by each\nTSO while respecting the\nprovisions of Article 4(3),\nbut not less than 20\nminutes\n0.90 pu – 1.05 pu Unlimited\nNordic\n1.05 pu – 1.10 pu 60 minutes\nGreat Britain 0.90 pu–1.10 pu Unlimited\nIreland 0.90 pu – 1.118 pu Unlimited\n0.85 pu – 0.90 pu 30 minutes\nBaltic 0.90 pu – 1.12 pu Unlimited\n1.12 pu – 1.15 pu 20 minutes\nTable 6.1: This table shows the minimum time periods a Power Generating Module shall\nbe capable of operating for Voltages deviating from the nomina",
+        "vocabulary_check": {
+          "variables_used": [
+            "voltage_pu_min",
+            "voltage_pu_max"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": null,
+        "vocabulary_claim_is_fabricated": false,
+        "reason_concedes_correction": null,
+        "named_in_findings_12_4": "ENTSO-E time-bound envelope (assessed: correct)",
+        "named_in_findings_12_4_verdict_defect_row": false
+      },
+      "adjudication": {
+        "category": "SOUND",
+        "basis": [
+          "SOURCE_TEXT"
+        ],
+        "justification": "Same envelope argument; the cited 20-minute 1.12-1.15 pu Baltic row is verbatim in the chunk.",
+        "repair_was_available": false,
+        "method": "reading, not measurement"
+      }
+    },
+    {
+      "document": "8589935310-Complete Grid Code",
+      "rule_id": "R_260",
+      "mechanical": {
+        "source_clause": "Text CC.6.1.4 Voltage Limits",
+        "standard_document": "8589935310-Complete Grid Code",
+        "condition": "voltage_pu_min < 0.9 or voltage_pu_max > 1.1",
+        "role": "CONSTRAINT",
+        "affirms": null,
+        "action": "ALERT",
+        "severity": "high",
+        "explanation": "Voltage must remain within ±10% of nominal; violation occurs if it falls outside this absolute range.",
+        "fire_rate": {
+          "neurips2020": 0.0,
+          "case14": 0.0,
+          "wcci2022": 0.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The source text describes a ±5% voltage deviation (i.e., 0.95–1.05 pu) with a 15‑minute limit for the upper bound, which is not captured by the condition voltage_pu_min < 0.9 or voltage_pu_max > 1.1; thus the boundary and role are incorrect.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses variables not present in the source text and includes non‑Python syntax such as 'or' without proper parentheses, violating extraction rules.",
+        "source_chunk": "7.5Hz - 49.0Hz Operation for a period of at least 90 minutes is required\neach time the Frequency is below 49.0Hz.\n47Hz - 47.5Hz Operation for a period of at least 20 seconds is required\neach time the Frequency is below 47.5Hz.\nFor the avoidance of doubt, disconnection, by frequency or speed based relays is not\npermitted within the frequency range 47.5Hz to 51.5Hz, unless agreed with NGET in\naccordance with CC.6.3.12.\nGrid Voltage Variations\nCC.6.1.4 Subject as provided below, the voltage on the 400kV part of the National Electricity\nTransmission System at each Connection Site with a User (and in the case of OTSDUW\nPlant and Apparatus, a Transmission Interface Point) will normally remain within 5% of\nthe nominal value unless abnormal conditions prevail. The minimum voltage is -10% and the\nmaximum voltage is +10% unless abnormal conditions prevail, but voltages between +5%\nand +10% will not last longer than 15 minutes unless abnormal conditions prevail. Voltages\non the 275kV and 132kV parts of the National Electricity Transmission System at each\nConnection Site with a User (and in the case of OTSDUW Plant and Apparatus, a\nTransmission Interface Point) will normally remain within the",
+        "vocabulary_check": {
+          "variables_used": [
+            "voltage_pu_min",
+            "voltage_pu_max"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": null,
+        "vocabulary_claim_is_fabricated": false,
+        "reason_concedes_correction": null,
+        "named_in_findings_12_4": null,
+        "named_in_findings_12_4_verdict_defect_row": false
+      },
+      "adjudication": {
+        "category": "WRONG",
+        "basis": [
+          "SOURCE_TEXT"
+        ],
+        "justification": "The reason asserts the source describes only a +/-5% band. The chunk's very next sentence reads 'The minimum voltage is -10% and the maximum voltage is +10%', which is exactly the 0.9/1.1 the condition encodes. The validator stopped reading one sentence early.",
+        "repair_was_available": false,
+        "method": "reading, not measurement"
+      }
+    },
+    {
+      "document": "8589935310-Complete Grid Code",
+      "rule_id": "R_434",
+      "mechanical": {
+        "source_clause": "Scottish Grid Code, Section CC.6.3.15.1(iv)(4)",
+        "standard_document": "8589935310-Complete Grid Code",
+        "condition": "voltage_pu_max > 1.2",
+        "role": "CONSTRAINT",
+        "affirms": null,
+        "action": "DISCONNECT",
+        "severity": "critical",
+        "explanation": "Non-synchronous generating units must disconnect if voltage at the connection point exceeds 120% (or 115% for 275kV systems) to avoid unwanted island operation.",
+        "fire_rate": {
+          "neurips2020": 0.0,
+          "case14": 0.0,
+          "wcci2022": 0.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The source text specifies a voltage limit of 120% (or 115% for 275kV systems), but the condition uses voltage_pu_max > 1.2, which assumes a 1.0 per-unit nominal and does not account for the 115% exception or the specific system context, making the boundary and entity handling incorrect.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses voltage_pu_max > 1.2 which is not stated in the source text; the source specifies voltage above 120% (or 115% for 275kV) without a per-unit threshold, and the role CONSTRAINT is correct but the condition is invalid.",
+        "source_chunk": "tland with a Completion Date\nbefore 1 January 2004 and a Registered Capacity of 30MW and above the\nrequirements in CC.6.3.15.1 (a) are relaxed from the minimum Onshore Transmission\nSystem Supergrid Voltage of zero to a minimum Onshore Transmission System\nSupergrid Voltage of 15% of nominal.\n(iv) To avoid unwanted island operation, Non-Synchronous Generating Units in Scotland\n(and those directly connected to a Scottish Offshore Transmission System), Power\nPark Modules in Scotland (and those directly connected to a Scottish Offshore\nTransmission System) , or OTSDUW Plant and Apparatus with an Interface Point in\nScotland shall be tripped for the following conditions:\n(1) Frequency above 52Hz for more than 2 seconds\n(2) Frequency below 47Hz for more than 2 seconds\n(3) Voltage as measured at the Onshore Connection Point or Onshore User\nSystem Entry Point or Offshore Grid Entry Point or Interface Point in the case\nof OTSDUW Plant and Apparatus is below 80% for more than 2.5 seconds\n(4) Voltage as measured at the Onshore Connection Point or Onshore User\nSystem Entry Point or Offshore Grid Entry Point or Interface Point in the case\nof OTSDUW Plant and Apparatus is above 120% (115% for 275k",
+        "vocabulary_check": {
+          "variables_used": [
+            "voltage_pu_max"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": null,
+        "vocabulary_claim_is_fabricated": false,
+        "reason_concedes_correction": null,
+        "named_in_findings_12_4": "verdict-selection defect",
+        "named_in_findings_12_4_verdict_defect_row": true
+      },
+      "adjudication": {
+        "category": "SHOULD_HAVE_BEEN_CORRECT",
+        "basis": [
+          "SOURCE_TEXT",
+          "VERDICT_SCHEMA"
+        ],
+        "justification": "The chunk states 'above 120% (115% for 275kV)' verbatim, so the 1.2 threshold IS stated. The objection is a scope gap (the 275 kV exception), repairable by narrowing entity/source - precisely what CORRECT exists for.",
+        "repair_was_available": true,
+        "method": "reading, not measurement"
+      }
+    },
+    {
+      "document": "8589935310-Complete Grid Code",
+      "rule_id": "R_741",
+      "mechanical": {
+        "source_clause": "PD II, Terminal Voltage Requirements",
+        "standard_document": "8589935310-Complete Grid Code",
+        "condition": "voltage_pu_max > 1.2 or voltage_pu_min < 0.5",
+        "role": "CONSTRAINT",
+        "affirms": null,
+        "action": "DISCONNECT",
+        "severity": "critical",
+        "explanation": "The generator terminal voltage must remain within the operational range of 50% to 120% of rated voltage.",
+        "fire_rate": {
+          "neurips2020": 0.0,
+          "case14": 0.0,
+          "wcci2022": 0.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The source text does not specify a voltage limit of 1.2 or 0.5 per unit; it only mentions percentages of rated voltage without numeric thresholds, so the condition does not faithfully operationalize any stated requirement.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses variables not present in the source text and includes prose; also the role CONSTRAINT is mismatched with the source's affirmation of normal operation.",
+        "source_chunk": "PD II\n120% rated terminal volts A □ DPD II\n110% rated terminal volts A □ DPD II\n100% rated terminal volts A □ DPD II\n90% rated terminal volts A □ DPD II\n80% rated terminal volts A □\nDPD II\n70% rated terminal volts A □\nDPD II\n60% rated terminal volts A □\nDPD II\n50% rated terminal volts\nIMPEDANCES:\n(Unsaturated)\nDirect axis synchronous reactance % on MVA □ DPD I\n(PC.A.5.3.2(a))\nDirect axis transient reactance % on MVA □ ■ SPD+\n(PC.A.3.3.1(a)& PC.A.5.3.2(a)\nDirect axis sub-transient reactance % on MVA □ DPD I\n(PC.A.5.3.2(a))\nQuad axis synch reactance (PC.A.5.3.2(a)) % on MVA □ DPD I\nQuad axis sub-transient reactance % on MVA □ DPD I\n(PC.A.5.3.2(a))\nStator leakage reactance (PC.A.5.3.2(a)) % on MVA □ DPD I\nArmature winding direct current % on MVA □ DPD I\nresistance. (PC.A.5.3.2(a))\nIn Scotland, negative sequence resistance % on MVA □ DPD I\n(PC.A.2.5.6 (a) (iv)\nIssue 5 Revision 15 DRC 03 February 2016\n13 of 105\n\n[Page 538]\nNote:- the above data item relating to armature winding direct-current resistance need only be provided by Generators in relation to\nGenerating Units commissioned after 1st March 1996 and in cases where, for whatever reason, the Generator is aware of\nthe value of the",
+        "vocabulary_check": {
+          "variables_used": [
+            "voltage_pu_max",
+            "voltage_pu_min"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": null,
+        "vocabulary_claim_is_fabricated": false,
+        "reason_concedes_correction": null,
+        "named_in_findings_12_4": "verdict-selection defect",
+        "named_in_findings_12_4_verdict_defect_row": true
+      },
+      "adjudication": {
+        "category": "SOUND",
+        "basis": [
+          "SOURCE_TEXT"
+        ],
+        "justification": "The chunk is a Generator DATA-SUBMISSION FORM ('120% rated terminal volts A []', '50% rated terminal volts'), a list of data points to supply, not an operating limit. There is no requirement here to operationalize. Good catch.",
+        "repair_was_available": false,
+        "method": "reading, not measurement"
+      }
+    },
+    {
+      "document": "Bangladesh_Electricity-Grid-Code-regulations",
+      "rule_id": "R_797",
+      "mechanical": {
+        "source_clause": "Section 5.4.4",
+        "standard_document": "Bangladesh_Electricity-Grid-Code-regulations",
+        "condition": "voltage_pu_min < 0.90 or voltage_pu_max > 1.10",
+        "role": "CONSTRAINT",
+        "affirms": null,
+        "action": "ALERT",
+        "severity": "critical",
+        "explanation": "Voltage variation on 400 kV buses must remain within ±10% during emergencies.",
+        "fire_rate": {
+          "neurips2020": 0.0,
+          "case14": 0.0,
+          "wcci2022": 0.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The source text specifies a ±10% range (0.90–1.10 pu) for 400 kV buses during emergencies, but the condition uses a lower bound of 0.90 and an upper bound of 1.10, which is correct; however, the role is CONSTRAINT while the source describes a normal operating range, making the role mismatch and thus requiring correction.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses voltage_pu_min and voltage_pu_max with thresholds 0.90 and 1.10, which are not stated in the source text; the source specifies ±5% for 400 kV buses during normal operations and ±10% during emergencies, not 0.90/1.10 absolute limits.",
+        "source_chunk": "rements of the relevant Bangladesh Standard\nSpecification, where no Standard exists, the appropriate IEC\nStandard or other International Standard will apply.\n5.4.2 Installation of all electrical equipment shall comply with The\nElectricity Rules, 2020, and revisions thereof.\n5.4.3 The Transmission System frequency shall normally be 50.0 Hz\nand shall normally be controlled in the range 49.5 – 50.5 Hz\n(50 Hz ± 1%). The User shall, however, be subject to the Grid\ndiscipline directed by the Commission.\n5.4.4 Voltage variation on the Transmission System shall normally\nbe ±5% for 400 kV, ±6% for 230 kV and 132 kV buses during\nnormal operations, and ±10 % at 400 kV, + 10%-15% for 230\nkVand 132 kV buses during emergencies in accordance with\nthe provisions of the Planning and Security Standards for\nTransmission System.\n5.4.5 Insulation coordination of the Users’ equipment and rupturing\ncapacity of switchgear shall conform to applicable Bangladesh\nStandards and Codes.\n5.4.6 Protection schemes and Metering shall be as detailed in the\nProtection and Metering Sections of the Code.\n5.4.7 For existing Power Stations, the equipment for communications\n(voice and data) and the SCADA and EMS systems s",
+        "vocabulary_check": {
+          "variables_used": [
+            "voltage_pu_min",
+            "voltage_pu_max"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": null,
+        "vocabulary_claim_is_fabricated": false,
+        "reason_concedes_correction": "which is correct",
+        "named_in_findings_12_4": "threshold catch (assessed: correct) + verdict-selection defect",
+        "named_in_findings_12_4_verdict_defect_row": true
+      },
+      "adjudication": {
+        "category": "SHOULD_HAVE_BEEN_CORRECT",
+        "basis": [
+          "SOURCE_TEXT",
+          "VERDICT_SCHEMA"
+        ],
+        "justification": "The reason concedes the threshold 'is correct' and closes 'thus requiring correction', then returns REJECT. The chunk backs the concession: '+/-10 % at 400 kV ... during emergencies' is 0.90/1.10 exactly.",
+        "repair_was_available": true,
+        "method": "reading, not measurement"
+      }
+    },
+    {
+      "document": "Bangladesh_Electricity-Grid-Code-regulations",
+      "rule_id": "R_798",
+      "mechanical": {
+        "source_clause": "Section 5.4.4",
+        "standard_document": "Bangladesh_Electricity-Grid-Code-regulations",
+        "condition": "voltage_pu_min < 0.85 or voltage_pu_max > 1.10",
+        "role": "CONSTRAINT",
+        "affirms": null,
+        "action": "ALERT",
+        "severity": "critical",
+        "explanation": "Voltage variation on 230 kV and 132 kV buses must remain within +10%/-15% during emergencies.",
+        "fire_rate": {
+          "neurips2020": 0.0,
+          "case14": 0.0,
+          "wcci2022": 0.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The source text defines a +10%/-15% emergency range (0.85–1.10 pu) for 230 kV and 132 kV buses, but the condition uses a lower bound of 0.85 and an upper bound of 1.10, which is correct; however, the role is CONSTRAINT while the source describes a normal operating range, making the role mismatch and thus requiring correction.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses voltage_pu_min < 0.85 and voltage_pu_max > 1.10, which are not derived from the source text; the source specifies ±6% for 230 kV/132 kV buses during normal operations and ±10%/-15% during emergencies, not 0.85/1.10 absolute limits.",
+        "source_chunk": "rements of the relevant Bangladesh Standard\nSpecification, where no Standard exists, the appropriate IEC\nStandard or other International Standard will apply.\n5.4.2 Installation of all electrical equipment shall comply with The\nElectricity Rules, 2020, and revisions thereof.\n5.4.3 The Transmission System frequency shall normally be 50.0 Hz\nand shall normally be controlled in the range 49.5 – 50.5 Hz\n(50 Hz ± 1%). The User shall, however, be subject to the Grid\ndiscipline directed by the Commission.\n5.4.4 Voltage variation on the Transmission System shall normally\nbe ±5% for 400 kV, ±6% for 230 kV and 132 kV buses during\nnormal operations, and ±10 % at 400 kV, + 10%-15% for 230\nkVand 132 kV buses during emergencies in accordance with\nthe provisions of the Planning and Security Standards for\nTransmission System.\n5.4.5 Insulation coordination of the Users’ equipment and rupturing\ncapacity of switchgear shall conform to applicable Bangladesh\nStandards and Codes.\n5.4.6 Protection schemes and Metering shall be as detailed in the\nProtection and Metering Sections of the Code.\n5.4.7 For existing Power Stations, the equipment for communications\n(voice and data) and the SCADA and EMS systems s",
+        "vocabulary_check": {
+          "variables_used": [
+            "voltage_pu_min",
+            "voltage_pu_max"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": null,
+        "vocabulary_claim_is_fabricated": false,
+        "reason_concedes_correction": "which is correct",
+        "named_in_findings_12_4": "threshold catch (assessed: correct) + verdict-selection defect",
+        "named_in_findings_12_4_verdict_defect_row": true
+      },
+      "adjudication": {
+        "category": "SHOULD_HAVE_BEEN_CORRECT",
+        "basis": [
+          "SOURCE_TEXT",
+          "VERDICT_SCHEMA"
+        ],
+        "justification": "Identical structure to R_797. Chunk: '+ 10%-15% for 230 kV and 132 kV buses during emergencies' is 0.85/1.10 exactly. Reason says 'which is correct ... requiring correction', verdict says REJECT.",
+        "repair_was_available": true,
+        "method": "reading, not measurement"
+      }
+    },
+    {
+      "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+      "rule_id": "R_1444",
+      "mechanical": {
+        "source_clause": "Guidelines and Technical Basis, Page 465, Example criteria (b)",
+        "standard_document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+        "condition": "voltage_pu_min < 0.9 or voltage_pu_max > 1.1",
+        "role": "CONSTRAINT",
+        "affirms": null,
+        "action": "ALERT",
+        "severity": "high",
+        "explanation": "Voltage deviation exceeding ± 10% indicates potential instability or uncontrolled separation.",
+        "fire_rate": {
+          "neurips2020": 0.0,
+          "case14": 0.0,
+          "wcci2022": 0.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The source text specifies a voltage deviation of ±10% (i.e., 0.90–1.10 pu), but the condition uses voltage_pu_min < 0.9 or voltage_pu_max > 1.1, which incorrectly sets the lower bound at 0.9 and upper bound at 1.1, deviating from the ±10% range; also, the rule describes a fault-ride-through scenario, which is a REJECT per rule 6.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses '0.9' and '1.1' which are not valid variables; it must use only the allowed variables with Python syntax, and the role CONSTRAINT is correct but the condition is invalid.",
+        "source_chunk": "should develop criteria (e.g.\nimposing a fault near the removed Transmission station or Transmission substation) to identify\na contingency or parameters that result in potential instability, uncontrolled separation, or\nCascading within an Interconnection. Regional consultation on these matters is likely to be\nPage 25 of 36\n\n[Page 465]\nGuidelines and Technical Basis\nhelpful and informative, given that the inputs for the risk assessment and the attributes of what\nconstitutes instability, uncontrolled separation, or Cascading within an Interconnection will\nlikely vary from region-to-region or from ISO-to-ISO based on topology, system characteristics,\nand system configurations. Criteria could also include post-contingency facilities loadings above\na certain emergency rating or failure of a power flow case to converge. Available special\nprotection systems (SPS), if any, could be applied to determine if the system experiences any\nadditional instability which may result in uncontrolled separation. Example criteria may\ninclude:\n(a) Thermal overloads beyond facility emergency ratings;\n(b) Voltage deviation exceeding ± 10%; or\n(c) Cascading outage/voltage collapse; or\n(d) Frequency below und",
+        "vocabulary_check": {
+          "variables_used": [
+            "voltage_pu_min",
+            "voltage_pu_max"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": null,
+        "vocabulary_claim_is_fabricated": false,
+        "reason_concedes_correction": null,
+        "named_in_findings_12_4": null,
+        "named_in_findings_12_4_verdict_defect_row": false
+      },
+      "adjudication": {
+        "category": "WRONG",
+        "basis": [
+          "SOURCE_TEXT"
+        ],
+        "justification": "Self-contradictory: it grants the source says '+/- 10%' and then calls 0.9/1.1 a deviation from that range. 0.9 and 1.1 ARE +/-10%. The appended rule-6 ride-through claim is also false - the chunk is a planning-study cascading screen, not a ride-through curve.",
+        "repair_was_available": false,
+        "method": "reading, not measurement"
+      }
+    },
+    {
+      "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+      "rule_id": "R_1575",
+      "mechanical": {
+        "source_clause": "PRC-006-5, Requirement R3",
+        "standard_document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+        "condition": "generation_load_imbalance_pct > 25.0",
+        "role": "CONSTRAINT",
+        "affirms": null,
+        "action": "ALERT",
+        "severity": "high",
+        "explanation": "The UFLS program must be designed to handle imbalance scenarios up to 25 percent.",
+        "fire_rate": {
+          "neurips2020": 0.0,
+          "case14": 0.0,
+          "wcci2022": 0.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The source text does not specify a 25% imbalance limit; it only requires handling up to 25% without defining a threshold.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses an undefined variable generation_load_imbalance_pct not listed in the allowed variables.",
+        "source_chunk": "oundaries by\nmutual consent where necessary for the sole purpose of producing contiguous\nregional islands more suitable for simulation.\nM2. Each Planning Coordinator shall have evidence such as reports, memorandums,\ne-mails, or other documentation supporting its identification of an island(s) as a basis\nfor designing a UFLS program that meet the criteria in Requirement R2, Parts 2.1\nthrough 2.3.\nR3. Each Planning Coordinator shall develop a UFLS program, including notification of and\na schedule for implementation by UFLS entities within its area, that meets the\nfollowing performance characteristics in simulations of underfrequency conditions\nresulting from an imbalance scenario, where an imbalance = [(load — actual\ngeneration output) / (load)], of up to 25 percent within the identified island(s). [VRF:\nHigh][Time Horizon: Long-term Planning]\n3.1. Frequency shall remain above the Underfrequency Performance Characteristic\ncurve in PRC-006-5 - Attachment 1, either for 60 seconds or until a steady-state\ncondition between 59.3 Hz and 60.7 Hz is reached, and\n3.2. Frequency shall remain below the Overfrequency Performance Characteristic\ncurve in PRC-006-5 - Attachment 1, either for 60 sec",
+        "vocabulary_check": {
+          "variables_used": [
+            "generation_load_imbalance_pct"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": null,
+        "vocabulary_claim_is_fabricated": false,
+        "reason_concedes_correction": null,
+        "named_in_findings_12_4": null,
+        "named_in_findings_12_4_verdict_defect_row": false
+      },
+      "adjudication": {
+        "category": "SOUND",
+        "basis": [
+          "SOURCE_TEXT"
+        ],
+        "justification": "PRC-006-5 R3 makes 25% a DESIGN ENVELOPE the UFLS scheme must survive, not a limit whose breach is a violation. Rendering it as a CONSTRAINT that BLOCKs is a genuine semantic error, and the reason names it precisely.",
+        "repair_was_available": false,
+        "method": "reading, not measurement"
+      }
+    },
+    {
+      "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+      "rule_id": "R_1833",
+      "mechanical": {
+        "source_clause": "PRC-024-3, Attachment 2a, Table 1 (High Voltage - Continuous)",
+        "standard_document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+        "condition": "voltage_pu_max > 1.10",
+        "role": "CONSTRAINT",
+        "affirms": null,
+        "action": "DISCONNECT",
+        "severity": "critical",
+        "explanation": "Voltage must not exceed 1.10 pu continuously; exceeding this limit requires disconnection.",
+        "fire_rate": {
+          "neurips2020": 0.0,
+          "case14": 0.0,
+          "wcci2022": 0.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The source text does not state a requirement that voltage must not exceed 1.10 pu continuously; it only provides minimum time durations for voltage excursions, not a continuous limit.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses voltage_pu_max > 1.10, but the source text only provides minimum time durations for voltage excursions, not a continuous upper bound; also the role CONSTRAINT is not supported by the source.",
+        "source_chunk": "ng Resources\nVoltage Boundary Data Points – Quebec Interconnection\nHigh Voltage Duration for all Power High Voltage Duration for strategic\nPlants Power Plants\nVoltage (pu) Minimum Time (sec) Voltage (pu) Minimum Time (sec)\n--- --- >1.50 0.033\n>1.40 0.033 >1.40 0.10\n>1.25 0.10 >1.25 2.50\n>1.20 2.00 >1.20 5.00\n>1.15 30 >1.15 30\n>1.10 300 >1.10 300\n≤1.10 continuous ≤1.10 continuous\nTable 1\nVoltage Boundary Data Points – Quebec Interconnection\nLow Voltage Duration for all Power Low Voltage Duration for Inverter-\nPlants Based Resources\nVoltage (pu) Minimum Time (sec) Voltage (pu) Minimum Time (sec)\n<0.25 0.15 <0.25 3.4*V(pu)+0.15\n<0.75 1.00 <0.75 1.00\n<0.85 2.00 <0.85 2.00\n<0.90 30 <0.90 30\n≥0.90 continuous ≥0.90 continuous\nTable 2\nPage 21 of 22\n\n[Page 1262]\nPRC-024-3 —Frequency and Voltage Protection Settings for Generating Resources\nAttachment 2a: Voltage Boundary Clarifications – Quebec\nInterconnection\nBoundary Details:\n1. The per unit voltage base for these boundaries is the nominal operating voltage (e.g., 120\nkV, 161 kV, 230 kV, 315 kV, 735 kV, etc.).\n2. The values in the table represent the minimum time durations allowed for specified\nvoltage excursion thresholds.\n3. When evaluat",
+        "vocabulary_check": {
+          "variables_used": [
+            "voltage_pu_max"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": null,
+        "vocabulary_claim_is_fabricated": false,
+        "reason_concedes_correction": null,
+        "named_in_findings_12_4": "PRC-024 ride-through (assessed: correct)",
+        "named_in_findings_12_4_verdict_defect_row": false
+      },
+      "adjudication": {
+        "category": "SOUND",
+        "basis": [
+          "SOURCE_TEXT"
+        ],
+        "justification": "PRC-024 Attachment tables are ride-through envelopes - they state how long a unit must NOT trip, not a continuous ceiling. Reading 1.10 pu as a standing limit inverts the standard's purpose.",
+        "repair_was_available": false,
+        "method": "reading, not measurement"
+      }
+    },
+    {
+      "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+      "rule_id": "R_1835",
+      "mechanical": {
+        "source_clause": "PRC-024-3, Attachment 2a, Table 2 (Low Voltage - Continuous)",
+        "standard_document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+        "condition": "voltage_pu_min < 0.90",
+        "role": "CONSTRAINT",
+        "affirms": null,
+        "action": "DISCONNECT",
+        "severity": "critical",
+        "explanation": "Voltage must not remain below 0.90 pu continuously; exceeding this limit requires disconnection.",
+        "fire_rate": {
+          "neurips2020": 0.0,
+          "case14": 0.0,
+          "wcci2022": 0.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The source text does not state a requirement that voltage must not remain below 0.90 pu continuously; it only provides minimum time durations for voltage excursions, not a continuous limit.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses voltage_pu_min < 0.90, but the source text only defines minimum time durations for low voltage excursions, not a continuous lower bound; also the role CONSTRAINT is not supported by the source.",
+        "source_chunk": "ng Resources\nVoltage Boundary Data Points – Quebec Interconnection\nHigh Voltage Duration for all Power High Voltage Duration for strategic\nPlants Power Plants\nVoltage (pu) Minimum Time (sec) Voltage (pu) Minimum Time (sec)\n--- --- >1.50 0.033\n>1.40 0.033 >1.40 0.10\n>1.25 0.10 >1.25 2.50\n>1.20 2.00 >1.20 5.00\n>1.15 30 >1.15 30\n>1.10 300 >1.10 300\n≤1.10 continuous ≤1.10 continuous\nTable 1\nVoltage Boundary Data Points – Quebec Interconnection\nLow Voltage Duration for all Power Low Voltage Duration for Inverter-\nPlants Based Resources\nVoltage (pu) Minimum Time (sec) Voltage (pu) Minimum Time (sec)\n<0.25 0.15 <0.25 3.4*V(pu)+0.15\n<0.75 1.00 <0.75 1.00\n<0.85 2.00 <0.85 2.00\n<0.90 30 <0.90 30\n≥0.90 continuous ≥0.90 continuous\nTable 2\nPage 21 of 22\n\n[Page 1262]\nPRC-024-3 —Frequency and Voltage Protection Settings for Generating Resources\nAttachment 2a: Voltage Boundary Clarifications – Quebec\nInterconnection\nBoundary Details:\n1. The per unit voltage base for these boundaries is the nominal operating voltage (e.g., 120\nkV, 161 kV, 230 kV, 315 kV, 735 kV, etc.).\n2. The values in the table represent the minimum time durations allowed for specified\nvoltage excursion thresholds.\n3. When evaluat",
+        "vocabulary_check": {
+          "variables_used": [
+            "voltage_pu_min"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": null,
+        "vocabulary_claim_is_fabricated": false,
+        "reason_concedes_correction": null,
+        "named_in_findings_12_4": "PRC-024 ride-through (assessed: correct)",
+        "named_in_findings_12_4_verdict_defect_row": false
+      },
+      "adjudication": {
+        "category": "SOUND",
+        "basis": [
+          "SOURCE_TEXT"
+        ],
+        "justification": "Low-voltage mirror of R_1833; same correct reading of the attachment as a duration curve.",
+        "repair_was_available": false,
+        "method": "reading, not measurement"
+      }
+    },
+    {
+      "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+      "rule_id": "R_1926",
+      "mechanical": {
+        "source_clause": "PRC-025-2 Application Guidelines, Example Calculations: Option 2a",
+        "standard_document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+        "condition": "voltage_pu_min < 0.95",
+        "role": "CONSTRAINT",
+        "affirms": null,
+        "action": "ALERT",
+        "severity": "high",
+        "explanation": "The generator bus voltage must remain at or above 0.95 per unit of the high-side nominal voltage.",
+        "fire_rate": {
+          "neurips2020": 0.0,
+          "case14": 0.0,
+          "wcci2022": 0.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The source text requires voltage to be at least 0.95 pu, but the condition uses voltage_pu_min < 0.95, which is the opposite logical requirement and also uses an invalid variable name.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses a variable not listed in the allowed set and the threshold is not expressed as a pure comparison.",
+        "source_chunk": "𝑆\nTo satisfy the 115% margin in the requirement in Options 1c and 7c:\n𝑍𝑍\n𝑏𝑏𝑛𝑛𝑆 𝑆\nEq. (27) 𝑍𝑍 =\nsec\n115%\n𝑛𝑛𝑟𝑟𝑛𝑛𝑟𝑟𝑛𝑛\n10.9249.8° Ω\n𝑍𝑍 =\nsec 𝑛𝑛𝑟𝑟𝑛𝑛𝑟𝑟𝑛𝑛\n1.15\n𝑍𝑍 = 9.5049.8° Ω\nsec𝑛𝑛𝑟𝑟𝑛𝑛𝑟𝑟𝑛𝑛\nPage 66 of 114\n\n[Page 1329]\nPRC-025-2 Application Guidelines\nExample Calculations: Options 1c and 7c\n𝜃𝜃 = 49.8°\n𝑛𝑛𝑟𝑟𝑛𝑛𝑆𝑆𝑏𝑏𝑟𝑟𝑛𝑛𝑆𝑆𝑛𝑛 𝑛𝑛𝑛𝑛𝑛𝑛𝑟𝑟 𝑛𝑛𝑆𝑆𝑔𝑔𝑛𝑛𝑛𝑛\nAssume a Mho distance impedance relay with a maximum torque angle (MTA) set at 85°,\nthen the maximum allowable impedance reach is:\n|𝑍𝑍 |\nsec 𝑛𝑛𝑟𝑟𝑛𝑛𝑟𝑟𝑛𝑛\nEq. (28) 𝑍𝑍 <\n𝑛𝑛𝑛𝑛𝑚𝑚\ncos�𝜃𝜃 − 𝜃𝜃 �\n𝑀𝑀𝑈𝑈𝑈𝑈 𝑛𝑛𝑟𝑟𝑛𝑛𝑆𝑆𝑏𝑏𝑟𝑟𝑛𝑛𝑆𝑆𝑛𝑛 𝑛𝑛𝑛𝑛𝑛𝑛𝑟𝑟 𝑛𝑛𝑆𝑆𝑔𝑔𝑛𝑛𝑛𝑛\n9.50 Ω\n𝑍𝑍 <\n𝑛𝑛𝑛𝑛𝑚𝑚 cos(85.0° − 49.8°)\n9.50 Ω\n𝑍𝑍 <\n𝑛𝑛𝑛𝑛𝑚𝑚 0.8171\n𝑍𝑍 < 11.6385.0° Ω\n𝑛𝑛𝑛𝑛𝑚𝑚\nExample Calculations: Option 2a\nOption 2a represents the simplest calculation for synchronous generators applying a phase\novercurrent (e.g., 50, 51, or 51V-R) relay:\nReal Power output (P):\nEq. (29) 𝑃𝑃 = 𝐺𝐺𝐺𝐺𝐺𝐺 × 𝑝𝑝𝑝𝑝\n𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆ℎ_𝑆𝑆𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛\n𝑃𝑃 = 903 𝑀𝑀𝑀𝑀𝑀𝑀 × 0.85\n𝑃𝑃 = 767.6 𝑀𝑀𝑀𝑀\nReactive Power output (Q):\nEq. (30) 𝑄𝑄 = 150% × 𝑃𝑃\n𝑄𝑄 = 1.50 × 767.6 𝑀𝑀𝑀𝑀\n𝑄𝑄 = 1151.3 𝑀𝑀𝑀𝑀𝑀𝑀𝑀𝑀\nOption 2a, Table 1 – Bus Voltage, calls for a 0.95 per unit of the high-side nominal voltage for\nthe generator bus voltage (V ):\ngen\nEq. (31) 𝑀𝑀 𝑔𝑔𝑛𝑛𝑆𝑆 = 0.95 𝑝",
+        "vocabulary_check": {
+          "variables_used": [
+            "voltage_pu_min"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": "invalid variable",
+        "vocabulary_claim_is_fabricated": true,
+        "reason_concedes_correction": null,
+        "named_in_findings_12_4": "role inversion (assessed: WRONG)",
+        "named_in_findings_12_4_verdict_defect_row": false
+      },
+      "adjudication": {
+        "category": "WRONG",
+        "basis": [
+          "CONSTRAINT_LOGIC",
+          "VOCABULARY"
+        ],
+        "justification": "Two errors, both load-bearing. (a) For role=CONSTRAINT the condition IS the violation predicate, so 'must be >= 0.95' correctly negates to 'voltage_pu_min < 0.95'; calling that 'the opposite logical requirement' applies affirmation semantics to a constraint. (b) 'invalid variable name' is false - voltage_pu_min is in CONDITION_VOCABULARY.",
+        "repair_was_available": false,
+        "method": "reading, not measurement"
+      }
+    },
+    {
+      "document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+      "rule_id": "R_1927",
+      "mechanical": {
+        "source_clause": "PRC-025-2 Application Guidelines, Option 2a, Table 1",
+        "standard_document": "NERC Reliability Standards (Complete Set - PRC, TOP, TPL, VAR, BAL, CIP, EOP, FAC, MOD)",
+        "condition": "voltage_pu_min < 0.95",
+        "role": "CONSTRAINT",
+        "affirms": null,
+        "action": "ALERT",
+        "severity": "high",
+        "explanation": "The generator bus voltage must not fall below 0.95 per unit of the high-side nominal voltage.",
+        "fire_rate": {
+          "neurips2020": 0.0,
+          "case14": 0.0,
+          "wcci2022": 0.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The source text requires voltage to be at least 0.95 pu, but the condition uses voltage_pu_min < 0.95, which is the opposite logical requirement and thus does not faithfully operationalize the source.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses voltage_pu_min < 0.95 which is not stated in the source; the source requires voltage to be at least 0.95 pu, not less than 0.95.",
+        "source_chunk": "1.50 × 767.6 𝑀𝑀𝑀𝑀\n𝑄𝑄 = 1151.3 𝑀𝑀𝑀𝑀𝑀𝑀𝑀𝑀\nOption 2a, Table 1 – Bus Voltage, calls for a 0.95 per unit of the high-side nominal voltage for\nthe generator bus voltage (V ):\ngen\nEq. (31) 𝑀𝑀 𝑔𝑔𝑛𝑛𝑆𝑆 = 0.95 𝑝𝑝. 𝑢𝑢.× 𝑀𝑀 𝑆𝑆𝑛𝑛𝑛𝑛 × 𝐺𝐺𝐺𝐺𝑈𝑈 𝑟𝑟𝑛𝑛𝑛𝑛𝑟𝑟𝑛𝑛\nPage 67 of 114\n\n[Page 1330]\nPRC-025-2 Application Guidelines\nExample Calculations: Option 2a\n22 𝑘𝑘𝑀𝑀\n𝑀𝑀 = 0.95 × 345 𝑘𝑘𝑀𝑀 × � �\n𝑔𝑔𝑛𝑛𝑆𝑆\n346.5 𝑘𝑘𝑀𝑀\n𝑀𝑀 = 20.81 𝑘𝑘𝑀𝑀\n𝑔𝑔𝑛𝑛𝑆𝑆\nApparent power (S):\nEq. (32) 𝐺𝐺 = 𝑃𝑃 + 𝑗𝑗𝑄𝑄\n𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆ℎ_𝑟𝑟𝑛𝑛𝑛𝑛𝑛𝑛𝑟𝑟𝑛𝑛𝑛𝑛𝑟𝑟\n𝐺𝐺 = 700.0 𝑀𝑀𝑀𝑀 + 𝑗𝑗1151.3 𝑀𝑀𝑀𝑀𝑀𝑀𝑀𝑀\n𝐺𝐺 = 1347.458.7° 𝑀𝑀𝑀𝑀𝑀𝑀\nPrimary current (I ):\npri\n𝐺𝐺\nEq. (33) 𝐼𝐼 𝑛𝑛𝑟𝑟𝑟𝑟 =\n√3 × 𝑀𝑀\n𝑔𝑔𝑛𝑛𝑆𝑆\n1347.4 𝑀𝑀𝑀𝑀𝑀𝑀\n𝐼𝐼 =\n𝑛𝑛𝑟𝑟𝑟𝑟 1.73 × 20.81 𝑘𝑘𝑀𝑀\n𝐼𝐼 = 37383 𝑀𝑀\n𝑛𝑛𝑟𝑟𝑟𝑟\nSecondary current (I ):\nsec\n𝐼𝐼\n𝑛𝑛𝑟𝑟𝑟𝑟\nEq. (34) 𝐼𝐼 =\n𝑏𝑏𝑛𝑛𝑆𝑆\n𝐶𝐶𝐶𝐶\n𝑟𝑟𝑛𝑛𝑛𝑛𝑟𝑟𝑛𝑛\n37383 𝑀𝑀\n𝐼𝐼 =\n𝑏𝑏𝑛𝑛𝑆𝑆 25000\n5\n𝐼𝐼 = 7.477 𝑀𝑀\n𝑏𝑏𝑛𝑛𝑆𝑆\nTo satisfy the 115% margin in Option 2a:\nEq. (35) 𝐼𝐼 > 𝐼𝐼 × 115%\nsec𝑛𝑛𝑟𝑟𝑛𝑛𝑟𝑟𝑛𝑛 𝑏𝑏𝑛𝑛𝑆𝑆\n𝐼𝐼 > 7.477 𝑀𝑀 × 1.15\nsec𝑛𝑛𝑟𝑟𝑛𝑛𝑟𝑟𝑛𝑛\n𝐼𝐼 > 8.598 𝑀𝑀\nsec 𝑛𝑛𝑟𝑟𝑛𝑛𝑟𝑟𝑛𝑛\nPage 68 of 114\n\n[Page 1331]\nPRC-025-2 Application Guidelines\nExample Calculations: Option 2b\nOption 2b represents a more complex calculation for synchronous generators applying a\nphase overcurrent (e.g., 50, 51, or 51V-R) relay:\nReal Power output (P):\nEq.",
+        "vocabulary_check": {
+          "variables_used": [
+            "voltage_pu_min"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": null,
+        "vocabulary_claim_is_fabricated": false,
+        "reason_concedes_correction": null,
+        "named_in_findings_12_4": "role inversion (assessed: WRONG)",
+        "named_in_findings_12_4_verdict_defect_row": false
+      },
+      "adjudication": {
+        "category": "WRONG",
+        "basis": [
+          "CONSTRAINT_LOGIC"
+        ],
+        "justification": "Same inversion error as R_1926, without the vocabulary fabrication. The chunk's 'calls for a 0.95 per unit ... for the generator bus voltage' negates to exactly this condition.",
+        "repair_was_available": false,
+        "method": "reading, not measurement"
+      }
+    },
+    {
+      "document": "guideline-ieee_1547-2018_bps_perspectives_clean-1",
+      "rule_id": "R_1098",
+      "mechanical": {
+        "source_clause": "IEEE 1547-2018, Table 2.7 (Enter Service Criteria), Applicable Voltage Minimum Value",
+        "standard_document": "guideline-ieee_1547-2018_bps_perspectives_clean-1",
+        "condition": "voltage_pu_min < 0.917",
+        "role": "CONSTRAINT",
+        "affirms": null,
+        "action": "BLOCK",
+        "severity": "critical",
+        "explanation": "DERs are prohibited from energizing the grid if the voltage is below the minimum threshold of 0.917 pu.",
+        "fire_rate": {
+          "neurips2020": 0.0,
+          "case14": 0.0,
+          "wcci2022": 0.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The source text requires voltage to be within 0.917-1.05 pu, but the condition uses voltage_pu_min < 0.917 which is the opposite of the stated minimum requirement.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses a variable not present in the source text and the threshold is incorrectly parsed.",
+        "source_chunk": "entering service, DERs shall not energize the Area EPS until the applicable voltage\n762 and system frequency are within the ranges specified in Table and the permit service setting is set to\n763 “Enabled.””\n764\n86 A six-degree phase jump is not uncommon for BPS fault events. UK disturbance report can be found here:\nhttps://www.ofgem.gov.uk/publications-and-updates/ofgem-has-published-national-grid-electricity-system-operator-s-technical-report\n\n[Page 31]\nChapter 2: BPS Perspectives on IEEE 1547-2018 Clauses\n765 Table 2.7 shows the return to service following trip and enter service criteria for Category I, II, and III DERs.\n766\n767\nTable 2.7: Enter Service Criteria for Category I, I, and III DERs\n(Table 4 in IEEE 1547-2018)\nEnter Service Criteria Objective Foundation\nMinimum Value ≥ 0.917 pua 0.88 pu to 0.95 pu\nApplicable Voltage\nwithin Range\nMaximum Value ≤ 1.05 pu 1.05 pu to 1.06 pu\nMinimum Value ≥ 59.5 Hz 59.0 Hz to 59.9 Hz\nFrequency within\nRange\nMaximum Value ≤ 60.1 Hz 60.1 Hz to 61.0 Hz\n768 a Corresponds to Range B of ANSI C84.1, Table 1, column for service voltage of 120−600 V.\n769\n770 Legacy DERs will return to service after steady-state frequency and voltage are restored an",
+        "vocabulary_check": {
+          "variables_used": [
+            "voltage_pu_min"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": null,
+        "vocabulary_claim_is_fabricated": false,
+        "reason_concedes_correction": null,
+        "named_in_findings_12_4": "role inversion (assessed: WRONG)",
+        "named_in_findings_12_4_verdict_defect_row": false
+      },
+      "adjudication": {
+        "category": "WRONG",
+        "basis": [
+          "CONSTRAINT_LOGIC"
+        ],
+        "justification": "Table 2.7 reads 'Minimum Value >= 0.917 pu'; for a CONSTRAINT the violation predicate is its negation, i.e. < 0.917. Calling that 'the opposite of the stated minimum requirement' is the same polarity error as R_1926/R_1927. (A sound rejection was available on other grounds - enter-service criteria are not an N-1 security limit - but that is not the ground given.)",
+        "repair_was_available": false,
+        "method": "reading, not measurement"
+      }
+    },
+    {
+      "document": "inverter-based_resource_performance_guideline",
+      "rule_id": "R_1108",
+      "mechanical": {
+        "source_clause": "Text Fragment, Voltage Range Specification",
+        "standard_document": "inverter-based_resource_performance_guideline",
+        "condition": "voltage_pu_min < 0.9 or voltage_pu_max > 1.1",
+        "role": "CONSTRAINT",
+        "affirms": null,
+        "action": "DISCONNECT",
+        "severity": "high",
+        "explanation": "Inverter protective controls are required to maintain voltage within the 0.9–1.1 pu range, and tripping occurs outside this limit.",
+        "fire_rate": {
+          "neurips2020": 0.0,
+          "case14": 0.0,
+          "wcci2022": 0.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The source text specifies a voltage range of 0.9–1.1 pu, but the condition uses voltage_pu_min < 0.9 or voltage_pu_max > 1.1, which incorrectly treats the bounds as exclusive and misrepresents the requirement as a constraint rather than an affirmation of normal operation.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses voltage_pu_min and voltage_pu_max but the source text states a voltage range of 0.9–1.1 pu, which is an affirmation of normal operation, not a constraint to be inverted; also the role CONSTRAINT is incorrect.",
+        "source_chunk": "ound 0.9–1.1 pu\nCanyon 2 Fire Disturbance\nOn October 9, 2017, the Canyon 2 Fire caused two transmission system faults east of Los Angeles. The first fault\nwas a normally cleared phase-to-phase fault on a 220 kV transmission line that occurred at 12:12:16 PST, and the\nsecond fault was a normally cleared phase-to-phase fault on a 500 kV transmission line that occurred at 12:14:30\nPST. Both faults resulted in the reduction of solar PV generation across a wide region of the SCE footprint. NERC\nand WECC published a disturbance report that identified the following key findings:8\n• The erroneous tripping on calculated frequency issues appeared to be mitigated\n• Inverters continued to use momentary cessation as a form of ride-through\n• Plant-level controller ramp rates were interacting with the recovery from momentary cessation\n• Many inverter protective controls were set solely based on the PRC-024-2 voltage curve, rather than\nactual equipment limitations\n• Many inverter protective controls were set to trip for instantaneous voltage over 1.2 pu, using an\nunfiltered measurement\n• One inverter manufacturer reported phase lock loop (PLL) synchronization issues\n• One inverter manufacturer rep",
+        "vocabulary_check": {
+          "variables_used": [
+            "voltage_pu_min",
+            "voltage_pu_max"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": null,
+        "vocabulary_claim_is_fabricated": false,
+        "reason_concedes_correction": null,
+        "named_in_findings_12_4": "role catch, 0.9-1.1 affirmation (assessed: correct)",
+        "named_in_findings_12_4_verdict_defect_row": false
+      },
+      "adjudication": {
+        "category": "SHOULD_HAVE_BEEN_CORRECT",
+        "basis": [
+          "SOURCE_TEXT",
+          "VERDICT_SCHEMA"
+        ],
+        "justification": "The role objection is right - the chunk frames 0.9-1.1 pu as the continuous operating range, and separately records inverters tripping at 1.2 pu, so CONSTRAINT at 0.9/1.1 misreads it. But 'CONSTRAINT should be AFFIRMATION' is a one-field repair, which is what CORRECT is for.",
+        "repair_was_available": true,
+        "method": "reading, not measurement"
+      }
+    },
+    {
+      "document": "inverter-based_resource_performance_guideline",
+      "rule_id": "R_1152",
+      "mechanical": {
+        "source_clause": "Text, Section on Large Disturbance Reactive Current-Voltage Performance",
+        "standard_document": "inverter-based_resource_performance_guideline",
+        "condition": "voltage_pu_min >= 0.9 and voltage_pu_max <= 1.1",
+        "role": "AFFIRMATION",
+        "affirms": "normal",
+        "action": "ALERT",
+        "severity": "high",
+        "explanation": "Disturbances causing voltage to fall outside the continuous operating range of 0.9–1.1 pu are defined as large disturbances.",
+        "fire_rate": {
+          "neurips2020": 1.0,
+          "case14": 1.0,
+          "wcci2022": 1.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The condition uses voltage_pu_min and voltage_pu_max, but the source text describes a continuous operating range of 0.9–1.1 pu for large disturbances, which is not a normal operating affirmation; it is a fault condition requiring ride‑through, and the rule incorrectly treats it as an AFFIRMATION of normal operation.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses voltage_pu_min and voltage_pu_max, which are not defined in the source text; the source only mentions a continuous operating range of 0.9–1.1 pu without defining these variables.",
+        "source_chunk": "inverter voltage control and the plant-level voltage control. If this capability is not possible for existing inverter-\nbased resources, then the response time of these resources should be relatively fast (at least in the two–four\nsecond range) to accommodate the lack of automatic voltage control at the inverter level. While faster response\ntimes typically support postcontingency voltage support and voltage stability, the response should not cause\ntransient voltage overshoot issues. Tuning should be based on system impact studies performed during the\ninterconnection process as described in NERC Reliability Standard FAC-002-2. Default response times should be\nrelatively fast unless system stability studies identify any issues. GOPs of inverter-based resources have stated\nthat their plants in the high penetration areas of ERCOT are tuned with overall plant response times of less than\nfive seconds.\nLarge Disturbance Reactive Current-Voltage Performance\nLarge disturbances, for the purposes of this guideline, are disturbances that cause voltage to fall outside the\ncontinuous operating range (e.g., 0.9–1.1 pu voltage). The plant-level controller cedes control to the individual\ninverters",
+        "vocabulary_check": {
+          "variables_used": [
+            "voltage_pu_min",
+            "voltage_pu_max"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": null,
+        "vocabulary_claim_is_fabricated": false,
+        "reason_concedes_correction": null,
+        "named_in_findings_12_4": null,
+        "named_in_findings_12_4_verdict_defect_row": false
+      },
+      "adjudication": {
+        "category": "SOUND",
+        "basis": [
+          "SOURCE_TEXT"
+        ],
+        "justification": "The chunk uses 0.9-1.1 pu parenthetically ('e.g.') while DEFINING the term 'large disturbance'. Promoting a definitional aside to a normative affirmation of `normal` is not a field-level repair, and the rule holds on 100% of frames on all three grids.",
+        "repair_was_available": false,
+        "method": "reading, not measurement"
+      }
+    },
+    {
+      "document": "inverter-based_resource_performance_guideline",
+      "rule_id": "R_1319",
+      "mechanical": {
+        "source_clause": "Text Segment, STATCOM Design Specification",
+        "standard_document": "inverter-based_resource_performance_guideline",
+        "condition": "voltage_pu_min < 0.3",
+        "role": "CONSTRAINT",
+        "affirms": null,
+        "action": "BLOCK",
+        "severity": "high",
+        "explanation": "STATCOMs must block operation when voltage drops below the design threshold to prevent damage.",
+        "fire_rate": {
+          "neurips2020": 0.0,
+          "case14": 0.0,
+          "wcci2022": 0.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The source text describes a blocking condition at very low voltages around 0.2 to 0.3 pu, but the rule uses voltage_pu_min < 0.3 without specifying the lower bound context; however, the primary issue is that the rule is a CONSTRAINT for a fault-ride-through scenario, which should be rejected per rule 6.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses voltage_pu_min < 0.3, but the source text states STATCOMs block at very low voltages around 0.2 to 0.3 pu, which is a ride‑through range and not a constraint; also the role CONSTRAINT is incorrect for this context.",
+        "source_chunk": "ng on the direction of active power flow. For this reason,\nSTATCOMs are designed to block at very low voltages around 0.2 to 0.3 pu.\n• Line commutated converter (LCC) HVDC may use both blocking or bypassing of the thyristor valves at low\nvoltage to protect the valves and avoid thyristor misfiring when synchronization is lost. To ensure grid\nstability and proper control of the dc circuit, LCC HVDC uses voltage-dependent current order limits\n(VDCOL) to deliberately reduce the power transfer (current order) during ac faults. These are necessary\nfunctions for stable operation of an LCC HVDC system and should be properly designed and tuned for each\ninstallation.118 Also, ac faults on the inverter end may result in temporary commutation failure. This may\nappear as “momentary cessation,” but this is a well-understood behavior of LCC HVDC that needs to be\nproperly accounted for in planning, design, and control of such systems (and modeled accordingly). For\nvoltage source converter (VSC) HVDC, blocking is used to protect the dc bus voltage to avoid tripping the\nentire circuit, to maintain current control, and to not adversely impact the other end of the dc circuit.\nTable E.1 shows common mo",
+        "vocabulary_check": {
+          "variables_used": [
+            "voltage_pu_min"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": null,
+        "vocabulary_claim_is_fabricated": false,
+        "reason_concedes_correction": null,
+        "named_in_findings_12_4": "STATCOM ride-through range (assessed: correct)",
+        "named_in_findings_12_4_verdict_defect_row": false
+      },
+      "adjudication": {
+        "category": "SOUND",
+        "basis": [
+          "SOURCE_TEXT"
+        ],
+        "justification": "'STATCOMs block at very low voltages around 0.2 to 0.3 pu' is device self-protection inside a ride-through range, not a grid limit. Matches the deterministic criterion-6 flag.",
+        "repair_was_available": false,
+        "method": "reading, not measurement"
+      }
+    },
+    {
+      "document": "prc-024-4",
+      "rule_id": "R_2282",
+      "mechanical": {
+        "source_clause": "PRC-024-4 Attachment 2A, Table 7: Low Voltage Boundary Data Points – Quebec Interconnection",
+        "standard_document": "prc-024-4",
+        "condition": "voltage_pu_min >= 0.90",
+        "role": "AFFIRMATION",
+        "affirms": "normal",
+        "action": "ALERT",
+        "severity": "high",
+        "explanation": "Voltage below 0.90 pu is a boundary condition requiring monitoring, though continuous operation is allowed above this threshold.",
+        "fire_rate": {
+          "neurips2020": 1.0,
+          "case14": 1.0,
+          "wcci2022": 1.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The source text defines a minimum voltage duration of 30 seconds for 0.90 pu, not a static threshold; the condition uses voltage_pu_min which is the minimum observed voltage, not the duration, and the role AFFIRMATION of normal is incorrect because the source describes a fault ride-through requirement, not a normal operation affirmation.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses voltage_pu_min >= 0.90, but the source text defines a lower bound of 0.75 pu with a 1.00 s duration, and the rule's threshold is not directly stated; also the role AFFIRMATION of normal is inconsistent with the source's continuous operation requirement below 0.90 pu.",
+        "source_chunk": "ndary Data Points – Quebec Interconnection\nHigh Voltage Duration for all\nHigh Voltage Duration for strategic\nSynchronous Generators and\nPower Plants\nCondensers\nVoltage (per unit) Minimum Time (sec) Voltage (per unit) Minimum Time (sec)\n--- --- >1.50 0.033\n>1.40 0.033 >1.40 0.10\n>1.25 0.10 >1.25 2.50\n>1.20 2.00 >1.20 5.00\n>1.15 30 >1.15 30\n>1.10 300 >1.10 300\n≤1.10 continuous ≤1.10 continuous\nTable 7: Low Voltage Boundary Data Points – Quebec Interconnection\nLow Voltage Duration for all\nSynchronous Generators and\nCondensers\nVoltage (per unit) Minimum Time (sec)\n<0.25 0.15\n<0.75 1.00\n<0.85 2.00\n<0.90 30\n≥0.90 continuous\nPage 19 of 20\n\n[Page 20]\nPRC-024-4 Frequency and Voltage Protection Settings for Synchronous Generators, Type 1 and 2 Wind,\nand Synchronous Condensers\nAttachment 2A: Voltage Boundary Clarifications – Quebec\nInterconnection\nBoundary Details:\n1. The per unit voltage base for these boundaries is the nominal operating voltage (e.g.,\n120 kV, 161 kV, 230 kV, 315 kV, 735 kV, etc.).\n2. The values in the table represent the minimum time durations allowed for specified\nvoltage excursion thresholds.\n3. When evaluating volts per hertz protection, either assume a system frequency",
+        "vocabulary_check": {
+          "variables_used": [
+            "voltage_pu_min"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": null,
+        "vocabulary_claim_is_fabricated": false,
+        "reason_concedes_correction": null,
+        "named_in_findings_12_4": "PRC-024 ride-through (assessed: correct)",
+        "named_in_findings_12_4_verdict_defect_row": false
+      },
+      "adjudication": {
+        "category": "SOUND",
+        "basis": [
+          "SOURCE_TEXT"
+        ],
+        "justification": "Attachment 2A Table 7 is a list of (voltage, duration) boundary points. Reading one endpoint as a static affirmation of `normal` drops the axis that makes it meaningful; the rule then holds on 100% of frames everywhere.",
+        "repair_was_available": false,
+        "method": "reading, not measurement"
+      }
+    },
+    {
+      "document": "prc-025-2",
+      "rule_id": "R_069",
+      "mechanical": {
+        "source_clause": "PRC-025-2 Application Guidelines, Example Calculations, Option 8a",
+        "standard_document": "prc-025-2",
+        "condition": "voltage_pu_min < 0.95",
+        "role": "CONSTRAINT",
+        "affirms": null,
+        "action": "ALERT",
+        "severity": "high",
+        "explanation": "Generator bus voltage must not fall below 0.95 per unit of the high-side nominal voltage.",
+        "fire_rate": {
+          "neurips2020": 0.0,
+          "case14": 0.0,
+          "wcci2022": 0.0
+        },
+        "verdict": "REJECT",
+        "reason_verbatim": "The source text requires voltage to stay within 0.95-1.05 pu, not below 0.95 pu; the condition uses an invalid variable and misrepresents the requirement.",
+        "corrected_fields": null,
+        "also_rejected_by_strict_arm": true,
+        "strict_reason_verbatim": "The condition uses voltage_pu_min < 0.95 which is not stated; the source requires voltage to remain within 0.95-1.05 pu, i.e., an affirmation of normal, not a constraint.",
+        "source_chunk": "3 𝑀𝑀𝑀𝑀𝑀𝑀𝑀𝑀\nOption 8a, T𝐺𝐺a 𝑆𝑆 b 𝑆𝑆 le 𝑆𝑆𝑆𝑆 1 ℎ –= B1u3s 4V7o.l4ta ge5 8ca.7ll°s 𝑀𝑀fo𝑀𝑀r 𝑀𝑀a 0.95 per unit of the high-side nominal voltage as a\nbasis for generator bus voltage (V ):\ngen\nEq. (113)\n𝑀𝑀𝑔𝑔𝑛𝑛𝑆𝑆 = 0.95 𝑝𝑝.𝑢𝑢.×𝑀𝑀𝑆𝑆𝑛𝑛𝑛𝑛 ×𝐺𝐺𝐺𝐺𝐺𝐺𝑟𝑟𝑛𝑛𝑛𝑛𝑟𝑟𝑛𝑛\n22 𝑘𝑘𝑀𝑀\n𝑀𝑀𝑔𝑔𝑛𝑛𝑆𝑆 = 0.95×345 𝑘𝑘𝑀𝑀×� �\n346.5 𝑘𝑘𝑀𝑀\nPrimary curr𝑀𝑀e 𝑔𝑔 n 𝑛𝑛 t 𝑆𝑆 (I= 20.8):1 𝑘𝑘𝑀𝑀\npri-sync\nEq. (114)\n∗\n115%×𝐺𝐺𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆ℎ\n𝐼𝐼𝑛𝑛𝑟𝑟𝑟𝑟−𝑏𝑏𝑆𝑆𝑆𝑆𝑆𝑆 =\n√3×𝑀𝑀𝑔𝑔𝑛𝑛𝑆𝑆 ∠\n1.15×(1347.4 −58.7° 𝑀𝑀𝑀𝑀𝑀𝑀)\n𝐼𝐼𝑛𝑛𝑟𝑟𝑟𝑟−𝑏𝑏𝑆𝑆𝑆𝑆𝑆𝑆 =\n1.73×20.81 𝑘𝑘𝑀𝑀\nPage 89 of 114\n\n[Page 90]\nPRC-025-2 Application Guidelines\nExample Calculations: Options 8a, 9a, 11, and 12\n∠\n𝐼𝐼𝑛𝑛𝑟𝑟𝑟𝑟−𝑏𝑏𝑆𝑆𝑆𝑆𝑆𝑆 = 43061 −58.7° 𝑀𝑀\nAsynchronous Generation (Options 11 and 12)\nReal Power output (P ):\nAsynch\nEq. (115)\n𝑃𝑃𝑈𝑈𝑏𝑏𝑆𝑆𝑆𝑆𝑆𝑆ℎ = 3×𝐺𝐺𝐺𝐺𝐺𝐺𝑈𝑈𝑏𝑏𝑆𝑆𝑆𝑆𝑆𝑆ℎ_𝑆𝑆𝑛𝑛𝑛𝑛𝑛𝑛 𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛 ×𝑝𝑝𝑝𝑝\n𝑃𝑃𝑈𝑈𝑏𝑏𝑆𝑆𝑆𝑆𝑆𝑆ℎ = 3×40 𝑀𝑀𝑀𝑀 𝑀𝑀 ×0.85\nReactive Pow𝑃𝑃𝑈𝑈 e 𝑏𝑏 r 𝑆𝑆 o 𝑆𝑆 u 𝑆𝑆ℎ tp=ut 1(Q02.0 𝑀𝑀):𝑀𝑀\nAsynch\nEq. (116)\n−1\n𝑄𝑄𝑈𝑈𝑏𝑏𝑆𝑆𝑆𝑆𝑆𝑆ℎ = 𝑀𝑀𝑀𝑀𝑀𝑀𝑀𝑀𝑏𝑏𝑛𝑛𝑛𝑛𝑛𝑛𝑟𝑟𝑆𝑆 +𝑀𝑀𝑀𝑀𝑀𝑀𝑀𝑀𝑔𝑔𝑛𝑛𝑆𝑆_𝑏𝑏𝑛𝑛𝑛𝑛𝑛𝑛𝑟𝑟𝑆𝑆 +𝐺𝐺𝐺𝐺𝐺𝐺𝑈𝑈𝑏𝑏𝑆𝑆𝑆𝑆𝑆𝑆ℎ_𝑆𝑆𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛𝑛 ×sin(cos (𝑝𝑝𝑝𝑝))\n−1\n𝑄𝑄𝑈𝑈𝑏𝑏𝑆𝑆𝑆𝑆𝑆𝑆ℎ = 15 𝑀𝑀𝑀𝑀𝑀𝑀𝑀𝑀+ 5 𝑀𝑀𝑀𝑀𝑀𝑀𝑀𝑀+(3×40 𝑀𝑀𝑀𝑀𝑀𝑀×sin(cos (0.85)))\nOption 11, T𝑄𝑄ab 𝑈𝑈 l 𝑏𝑏 e 𝑆𝑆 𝑆𝑆 1 𝑆𝑆 ℎ – B=u8s 3V.o2l t𝑀𝑀ag𝑀𝑀e𝑀𝑀, 𝑀𝑀calls for a 1.0 per unit of the high-side nominal volt",
+        "vocabulary_check": {
+          "variables_used": [
+            "voltage_pu_min"
+          ],
+          "unknown_variables": [],
+          "all_in_vocabulary": true
+        },
+        "reason_claims_vocabulary_breach": "invalid variable",
+        "vocabulary_claim_is_fabricated": true,
+        "reason_concedes_correction": null,
+        "named_in_findings_12_4": "role catch, 0.9-1.1 affirmation (assessed: correct)",
+        "named_in_findings_12_4_verdict_defect_row": false
+      },
+      "adjudication": {
+        "category": "WRONG",
+        "basis": [
+          "CONSTRAINT_LOGIC",
+          "VOCABULARY"
+        ],
+        "justification": "Same pair of errors as R_1926: the inversion claim applies affirmation semantics to a CONSTRAINT, and 'uses an invalid variable' is false for voltage_pu_min. NOTE: findings 12.4 files R_069 under 'correct role catch' - but that wording is the STRICT arm's reason, not this one.",
+        "repair_was_available": false,
+        "method": "reading, not measurement"
+      }
+    }
+  ]
+}

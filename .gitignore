@@ -219,6 +219,14 @@ docs/*.pdf
 # Retraining yields *a* good model, not *this* model. It is tracked deliberately.
 *.pt
 !gnn_checkpoint_n1.pt
+# The training run record (training/checkpoint.py) is deliberately NOT ignored.
+# `gnn_checkpoint_n1_full.pt` is the enriched, self-describing copy of the
+# weights and falls under `*.pt` above — it is regenerable from the bare file
+# plus the sidecar. The sidecars themselves are a few KB and are the ONLY place
+# a run's epoch count, config and per-epoch history survive; losing them is the
+# exact failure this project already suffered once, so they are tracked:
+#   gnn_checkpoint_*_meta.json      run metadata + full history
+#   gnn_checkpoint_*_history.jsonl  one line per epoch, written as it runs
 done_pdfs/
 
 # ── project eval output (see component_d_plan.md §11) ──────────────────

@@ -1,0 +1,35 @@
+{
+  "n_warn_records": 20,
+  "stamped": 20,
+  "unmeasured": 0,
+  "degenerate_cutoff": 0.999,
+  "degenerate_by_grid": {
+    "case14": [
+      "R_068",
+      "R_1003",
+      "R_1004",
+      "R_1489",
+      "R_1930",
+      "R_351",
+      "R_352",
+      "R_578",
+      "R_795",
+      "R_907"
+    ],
+    "neurips2020": [
+      "R_068",
+      "R_1004",
+      "R_1489",
+      "R_1930",
+      "R_351",
+      "R_352",
+      "R_578",
+      "R_795",
+      "R_907"
+    ]
+  },
+  "n_degenerate_by_grid": {
+    "case14": 10,
+    "neurips2020": 9
+  }
+}

@@ -1,0 +1,1035 @@
+{
+  "channel": "WARN",
+  "conditioning": "contingencies the model predicted SECURE (logit <= held threshold)",
+  "n_distinct_conditions": 11,
+  "n_rule_records": 25,
+  "threshold": 0.8848528861999512,
+  "threshold_source": "selected on the neurips2020 val split, held fixed across grids",
+  "eval_batch_size": 64,
+  "checkpoint": "gnn_checkpoint_n1.pt",
+  "neurips_scope": "all",
+  "scopes": {
+    "neurips2020": "all 12,000 frames (topology never seen in training)",
+    "case14": "all 6,000 frames (topology never seen in training)",
+    "wcci2022": "all 4,000 frames (topology never seen in training)"
+  },
+  "max_frames": null,
+  "min_frames_for_a_rate": 30,
+  "min_discrimination": 0.05,
+  "frames_scanned": {
+    "neurips2020": 11985,
+    "case14": 5820,
+    "wcci2022": 4000
+  },
+  "grid_stats": {
+    "neurips2020": {
+      "n_frames": 11985,
+      "n_skipped": 0,
+      "frames_no_secure_contingency": 15,
+      "contingencies_total": 702618,
+      "contingencies_model_secure": 567394,
+      "model_secure_fraction": 0.807542647640681,
+      "violation_rate_all": 0.19543336492944957,
+      "violation_rate_model_secure": 0.030174799169536512
+    },
+    "case14": {
+      "n_frames": 5820,
+      "n_skipped": 0,
+      "frames_no_secure_contingency": 180,
+      "contingencies_total": 118502,
+      "contingencies_model_secure": 82775,
+      "model_secure_fraction": 0.6985114175288181,
+      "violation_rate_all": 0.2775311809083391,
+      "violation_rate_model_secure": 0.22460887949260042
+    },
+    "wcci2022": {
+      "n_frames": 4000,
+      "n_skipped": 0,
+      "frames_no_secure_contingency": 0,
+      "contingencies_total": 742472,
+      "contingencies_model_secure": 511515,
+      "model_secure_fraction": 0.6889350709521705,
+      "violation_rate_all": 0.24760529690008512,
+      "violation_rate_model_secure": 0.133262954165567
+    }
+  },
+  "verdict_tally_pooled": {
+    "ELEVATED": 7,
+    "INVERTED": 2,
+    "INSUFFICIENT": 2
+  },
+  "verdicts_changed_vs_grid_conditional": [
+    {
+      "condition": "voltage_pu_min < 0.917",
+      "from": "ELEVATED",
+      "to": "INSUFFICIENT",
+      "discrimination_before": 0.7262871249331941,
+      "discrimination_after": null
+    }
+  ],
+  "compared_against": "results/audit/warn_n1_calibration.json",
+  "note": "MODEL-CONDITIONAL calibration: the conditioning set is contingencies the model predicted SECURE, which is the WARN channel's actual semantic ('let through, but this could happen'). Statistic, verdict thresholds and grid stratification are imported from evaluation/warn_rule_calibration.py so the two passes cannot disagree about what a word means. The verdict is taken on `discrimination` (P|fire - P|silent), never on lift against the base rate. Pooled values are STRATIFIED BY GRID, weighted by FRAMES, and a grid whose own verdict is INSUFFICIENT gets no vote; *_unstratified is kept for inspection and must not be quoted. -1 labels are NOT EVALUATED and are masked out upstream by build_line_targets. NOT_EVALUABLE/ERROR rule verdicts are excluded from both arms. Frames where the model predicted secure on NO contingency contribute to neither arm and are counted as frames_no_secure_contingency. Eval batch size 64 is part of the measurement (BatchNorm live batch statistics). Threshold selected on the neurips2020 val split and held fixed.",
+  "conditions": [
+    {
+      "condition": "voltage_pu_min < 0.9 or voltage_pu_max > 1.1",
+      "rule_ids": [
+        "R_1108",
+        "R_1444",
+        "R_260"
+      ],
+      "n_records": 3,
+      "role": "CONSTRAINT",
+      "shipped_in_corpus": true,
+      "per_grid": {
+        "neurips2020": {
+          "frames_fired": 71,
+          "frames_silent": 11914,
+          "frames_evaluable": 11985,
+          "frames_unevaluable": 0,
+          "coverage": 0.005924071756362119,
+          "contingencies_fired": 2236,
+          "p_violation_given_fires": 0.18202146690518783,
+          "p_violation_given_silent": 0.02957403062506414,
+          "p_violation_base": 0.030174799169536512,
+          "lift_vs_base": 0.1518466677356513,
+          "discrimination": 0.1524474362801237,
+          "verdict": "ELEVATED"
+        },
+        "case14": {
+          "frames_fired": 0,
+          "frames_silent": 5820,
+          "frames_evaluable": 5820,
+          "frames_unevaluable": 0,
+          "coverage": 0.0,
+          "contingencies_fired": 0,
+          "p_violation_given_fires": null,
+          "p_violation_given_silent": 0.22460887949260042,
+          "p_violation_base": 0.22460887949260042,
+          "lift_vs_base": null,
+          "discrimination": null,
+          "verdict": "INSUFFICIENT"
+        },
+        "wcci2022": {
+          "frames_fired": 3,
+          "frames_silent": 3997,
+          "frames_evaluable": 4000,
+          "frames_unevaluable": 0,
+          "coverage": 0.00075,
+          "contingencies_fired": 330,
+          "p_violation_given_fires": 0.6636363636363637,
+          "p_violation_given_silent": 0.13292056691804338,
+          "p_violation_base": 0.133262954165567,
+          "lift_vs_base": 0.5303734094707967,
+          "discrimination": 0.5307157967183203,
+          "verdict": "INSUFFICIENT"
+        }
+      },
+      "pooled": {
+        "frames_fired": 74,
+        "frames_silent": 21731,
+        "frames_evaluable": 21805,
+        "frames_unevaluable": 0,
+        "coverage": 0.0033937170373767485,
+        "contingencies_fired": 2566,
+        "p_violation_given_fires": 0.24395946999220577,
+        "p_violation_given_silent": 0.08907893760600732,
+        "p_violation_base": 0.08942104737605062,
+        "lift_vs_base": 0.1518466677356513,
+        "discrimination": 0.1524474362801237,
+        "verdict": "ELEVATED",
+        "discrimination_unstratified": 0.15488053238619845,
+        "lift_vs_base_unstratified": 0.15453842261615514,
+        "stratified_by_grid": true,
+        "n_grids_contributing": 1,
+        "grids_contributing": [
+          "neurips2020"
+        ],
+        "p_fires_scoring_grids": 0.18202146690518783,
+        "p_silent_scoring_grids": 0.02957403062506414
+      },
+      "grid_conditional": {
+        "verdict": "ELEVATED",
+        "discrimination": 0.2972427778141195,
+        "p_violation_given_fires": 0.5616548940464178,
+        "p_violation_given_silent": 0.2253635708635173,
+        "grids_contributing": [
+          "neurips2020"
+        ]
+      },
+      "verdict_changed": false
+    },
+    {
+      "condition": "voltage_pu_min < 0.95 or voltage_pu_max > 1.05",
+      "rule_ids": [
+        "R_068",
+        "R_1004",
+        "R_1489",
+        "R_1930",
+        "R_351",
+        "R_352",
+        "R_578",
+        "R_795",
+        "R_907"
+      ],
+      "n_records": 9,
+      "role": "CONSTRAINT",
+      "shipped_in_corpus": true,
+      "per_grid": {
+        "neurips2020": {
+          "frames_fired": 11985,
+          "frames_silent": 0,
+          "frames_evaluable": 11985,
+          "frames_unevaluable": 0,
+          "coverage": 1.0,
+          "contingencies_fired": 567394,
+          "p_violation_given_fires": 0.030174799169536512,
+          "p_violation_given_silent": null,
+          "p_violation_base": 0.030174799169536512,
+          "lift_vs_base": 0.0,
+          "discrimination": null,
+          "verdict": "INSUFFICIENT"
+        },
+        "case14": {
+          "frames_fired": 5820,
+          "frames_silent": 0,
+          "frames_evaluable": 5820,
+          "frames_unevaluable": 0,
+          "coverage": 1.0,
+          "contingencies_fired": 82775,
+          "p_violation_given_fires": 0.22460887949260042,
+          "p_violation_given_silent": null,
+          "p_violation_base": 0.22460887949260042,
+          "lift_vs_base": 0.0,
+          "discrimination": null,
+          "verdict": "INSUFFICIENT"
+        },
+        "wcci2022": {
+          "frames_fired": 45,
+          "frames_silent": 3955,
+          "frames_evaluable": 4000,
+          "frames_unevaluable": 0,
+          "coverage": 0.01125,
+          "contingencies_fired": 5343,
+          "p_violation_given_fires": 0.3468089088527045,
+          "p_violation_given_silent": 0.13100882703903022,
+          "p_violation_base": 0.133262954165567,
+          "lift_vs_base": 0.2135459546871375,
+          "discrimination": 0.21580008181367427,
+          "verdict": "ELEVATED"
+        }
+      },
+      "pooled": {
+        "frames_fired": 17850,
+        "frames_silent": 3955,
+        "frames_evaluable": 21805,
+        "frames_unevaluable": 0,
+        "coverage": 0.8186195826645265,
+        "contingencies_fired": 655512,
+        "p_violation_given_fires": 0.057307875370702595,
+        "p_violation_given_silent": 0.13100882703903022,
+        "p_violation_base": 0.08942104737605062,
+        "lift_vs_base": 0.21354595468713752,
+        "discrimination": 0.21580008181367427,
+        "verdict": "ELEVATED",
+        "discrimination_unstratified": -0.07370095166832763,
+        "lift_vs_base_unstratified": -0.03211317200534803,
+        "stratified_by_grid": true,
+        "n_grids_contributing": 1,
+        "grids_contributing": [
+          "wcci2022"
+        ],
+        "p_fires_scoring_grids": 0.3468089088527045,
+        "p_silent_scoring_grids": 0.13100882703903022
+      },
+      "grid_conditional": {
+        "verdict": "ELEVATED",
+        "discrimination": 0.22916185404899786,
+        "p_violation_given_fires": 0.20994599704123107,
+        "p_violation_given_silent": 0.24505000728691229,
+        "grids_contributing": [
+          "wcci2022"
+        ]
+      },
+      "verdict_changed": false
+    },
+    {
+      "condition": "voltage_pu_min < 0.90 or voltage_pu_max > 1.10",
+      "rule_ids": [
+        "R_797"
+      ],
+      "n_records": 1,
+      "role": "CONSTRAINT",
+      "shipped_in_corpus": true,
+      "per_grid": {
+        "neurips2020": {
+          "frames_fired": 71,
+          "frames_silent": 11914,
+          "frames_evaluable": 11985,
+          "frames_unevaluable": 0,
+          "coverage": 0.005924071756362119,
+          "contingencies_fired": 2236,
+          "p_violation_given_fires": 0.18202146690518783,
+          "p_violation_given_silent": 0.02957403062506414,
+          "p_violation_base": 0.030174799169536512,
+          "lift_vs_base": 0.1518466677356513,
+          "discrimination": 0.1524474362801237,
+          "verdict": "ELEVATED"
+        },
+        "case14": {
+          "frames_fired": 0,
+          "frames_silent": 5820,
+          "frames_evaluable": 5820,
+          "frames_unevaluable": 0,
+          "coverage": 0.0,
+          "contingencies_fired": 0,
+          "p_violation_given_fires": null,
+          "p_violation_given_silent": 0.22460887949260042,
+          "p_violation_base": 0.22460887949260042,
+          "lift_vs_base": null,
+          "discrimination": null,
+          "verdict": "INSUFFICIENT"
+        },
+        "wcci2022": {
+          "frames_fired": 3,
+          "frames_silent": 3997,
+          "frames_evaluable": 4000,
+          "frames_unevaluable": 0,
+          "coverage": 0.00075,
+          "contingencies_fired": 330,
+          "p_violation_given_fires": 0.6636363636363637,
+          "p_violation_given_silent": 0.13292056691804338,
+          "p_violation_base": 0.133262954165567,
+          "lift_vs_base": 0.5303734094707967,
+          "discrimination": 0.5307157967183203,
+          "verdict": "INSUFFICIENT"
+        }
+      },
+      "pooled": {
+        "frames_fired": 74,
+        "frames_silent": 21731,
+        "frames_evaluable": 21805,
+        "frames_unevaluable": 0,
+        "coverage": 0.0033937170373767485,
+        "contingencies_fired": 2566,
+        "p_violation_given_fires": 0.24395946999220577,
+        "p_violation_given_silent": 0.08907893760600732,
+        "p_violation_base": 0.08942104737605062,
+        "lift_vs_base": 0.1518466677356513,
+        "discrimination": 0.1524474362801237,
+        "verdict": "ELEVATED",
+        "discrimination_unstratified": 0.15488053238619845,
+        "lift_vs_base_unstratified": 0.15453842261615514,
+        "stratified_by_grid": true,
+        "n_grids_contributing": 1,
+        "grids_contributing": [
+          "neurips2020"
+        ],
+        "p_fires_scoring_grids": 0.18202146690518783,
+        "p_silent_scoring_grids": 0.02957403062506414
+      },
+      "grid_conditional": {
+        "verdict": "ELEVATED",
+        "discrimination": 0.2972427778141195,
+        "p_violation_given_fires": 0.5616548940464178,
+        "p_violation_given_silent": 0.2253635708635173,
+        "grids_contributing": [
+          "neurips2020"
+        ]
+      },
+      "verdict_changed": false
+    },
+    {
+      "condition": "voltage_pu_min < 0.85 or voltage_pu_max > 1.10",
+      "rule_ids": [
+        "R_798"
+      ],
+      "n_records": 1,
+      "role": "CONSTRAINT",
+      "shipped_in_corpus": true,
+      "per_grid": {
+        "neurips2020": {
+          "frames_fired": 71,
+          "frames_silent": 11914,
+          "frames_evaluable": 11985,
+          "frames_unevaluable": 0,
+          "coverage": 0.005924071756362119,
+          "contingencies_fired": 2236,
+          "p_violation_given_fires": 0.18202146690518783,
+          "p_violation_given_silent": 0.02957403062506414,
+          "p_violation_base": 0.030174799169536512,
+          "lift_vs_base": 0.1518466677356513,
+          "discrimination": 0.1524474362801237,
+          "verdict": "ELEVATED"
+        },
+        "case14": {
+          "frames_fired": 0,
+          "frames_silent": 5820,
+          "frames_evaluable": 5820,
+          "frames_unevaluable": 0,
+          "coverage": 0.0,
+          "contingencies_fired": 0,
+          "p_violation_given_fires": null,
+          "p_violation_given_silent": 0.22460887949260042,
+          "p_violation_base": 0.22460887949260042,
+          "lift_vs_base": null,
+          "discrimination": null,
+          "verdict": "INSUFFICIENT"
+        },
+        "wcci2022": {
+          "frames_fired": 1,
+          "frames_silent": 3999,
+          "frames_evaluable": 4000,
+          "frames_unevaluable": 0,
+          "coverage": 0.00025,
+          "contingencies_fired": 99,
+          "p_violation_given_fires": 1.0,
+          "p_violation_given_silent": 0.133095171054484,
+          "p_violation_base": 0.133262954165567,
+          "lift_vs_base": 0.866737045834433,
+          "discrimination": 0.866904828945516,
+          "verdict": "INSUFFICIENT"
+        }
+      },
+      "pooled": {
+        "frames_fired": 72,
+        "frames_silent": 21733,
+        "frames_evaluable": 21805,
+        "frames_unevaluable": 0,
+        "coverage": 0.0033019949552854848,
+        "contingencies_fired": 2335,
+        "p_violation_given_fires": 0.21670235546038544,
+        "p_violation_given_silent": 0.08916469501418468,
+        "p_violation_base": 0.08942104737605062,
+        "lift_vs_base": 0.1518466677356513,
+        "discrimination": 0.1524474362801237,
+        "verdict": "ELEVATED",
+        "discrimination_unstratified": 0.12753766044620074,
+        "lift_vs_base_unstratified": 0.1272813080843348,
+        "stratified_by_grid": true,
+        "n_grids_contributing": 1,
+        "grids_contributing": [
+          "neurips2020"
+        ],
+        "p_fires_scoring_grids": 0.18202146690518783,
+        "p_silent_scoring_grids": 0.02957403062506414
+      },
+      "grid_conditional": {
+        "verdict": "ELEVATED",
+        "discrimination": 0.2972427778141195,
+        "p_violation_given_fires": 0.5215344787008708,
+        "p_violation_given_silent": 0.22562515110530526,
+        "grids_contributing": [
+          "neurips2020"
+        ]
+      },
+      "verdict_changed": false
+    },
+    {
+      "condition": "power_factor_at_max_load < -0.95 or power_factor_at_max_load > 0.90",
+      "rule_ids": [
+        "R_909"
+      ],
+      "n_records": 1,
+      "role": "CONSTRAINT",
+      "shipped_in_corpus": false,
+      "per_grid": {
+        "neurips2020": {
+          "frames_fired": 59,
+          "frames_silent": 11926,
+          "frames_evaluable": 11985,
+          "frames_unevaluable": 0,
+          "coverage": 0.00492282019190655,
+          "contingencies_fired": 1647,
+          "p_violation_given_fires": 0.21554341226472373,
+          "p_violation_given_silent": 0.029635154936747343,
+          "p_violation_base": 0.030174799169536512,
+          "lift_vs_base": 0.1853686130951872,
+          "discrimination": 0.1859082573279764,
+          "verdict": "ELEVATED"
+        },
+        "case14": {
+          "frames_fired": 5820,
+          "frames_silent": 0,
+          "frames_evaluable": 5820,
+          "frames_unevaluable": 0,
+          "coverage": 1.0,
+          "contingencies_fired": 82775,
+          "p_violation_given_fires": 0.22460887949260042,
+          "p_violation_given_silent": null,
+          "p_violation_base": 0.22460887949260042,
+          "lift_vs_base": 0.0,
+          "discrimination": null,
+          "verdict": "INSUFFICIENT"
+        },
+        "wcci2022": {
+          "frames_fired": 3948,
+          "frames_silent": 52,
+          "frames_evaluable": 4000,
+          "frames_unevaluable": 0,
+          "coverage": 0.987,
+          "contingencies_fired": 504902,
+          "p_violation_given_fires": 0.13255839747119244,
+          "p_violation_given_silent": 0.18705579918342657,
+          "p_violation_base": 0.133262954165567,
+          "lift_vs_base": -0.0007045566943745529,
+          "discrimination": -0.054497401712234134,
+          "verdict": "INVERTED"
+        }
+      },
+      "pooled": {
+        "frames_fired": 9827,
+        "frames_silent": 11978,
+        "frames_evaluable": 21805,
+        "frames_unevaluable": 0,
+        "coverage": 0.4506764503554231,
+        "contingencies_fired": 589324,
+        "p_violation_given_fires": 0.14571950234505976,
+        "p_violation_given_silent": 0.03145398001257949,
+        "p_violation_base": 0.08942104737605062,
+        "lift_vs_base": 0.002035227936916723,
+        "discrimination": -0.05095761287186168,
+        "verdict": "INVERTED",
+        "discrimination_unstratified": 0.11426552233248027,
+        "lift_vs_base_unstratified": 0.056298454969009135,
+        "stratified_by_grid": true,
+        "n_grids_contributing": 2,
+        "grids_contributing": [
+          "neurips2020",
+          "wcci2022"
+        ],
+        "p_fires_scoring_grids": 0.1337802881307428,
+        "p_silent_scoring_grids": 0.18473790100260448
+      },
+      "grid_conditional": {
+        "verdict": "INVERTED",
+        "discrimination": -0.07039877668492994,
+        "p_violation_given_fires": 0.25230396422189166,
+        "p_violation_given_silent": 0.19520453211092043,
+        "grids_contributing": [
+          "neurips2020",
+          "wcci2022"
+        ]
+      },
+      "verdict_changed": false
+    },
+    {
+      "condition": "voltage_pu_min <= 0.90 or voltage_pu_max >= 1.10",
+      "rule_ids": [
+        "R_1003"
+      ],
+      "n_records": 1,
+      "role": "CONSTRAINT",
+      "shipped_in_corpus": true,
+      "per_grid": {
+        "neurips2020": {
+          "frames_fired": 71,
+          "frames_silent": 11914,
+          "frames_evaluable": 11985,
+          "frames_unevaluable": 0,
+          "coverage": 0.005924071756362119,
+          "contingencies_fired": 2236,
+          "p_violation_given_fires": 0.18202146690518783,
+          "p_violation_given_silent": 0.02957403062506414,
+          "p_violation_base": 0.030174799169536512,
+          "lift_vs_base": 0.1518466677356513,
+          "discrimination": 0.1524474362801237,
+          "verdict": "ELEVATED"
+        },
+        "case14": {
+          "frames_fired": 5820,
+          "frames_silent": 0,
+          "frames_evaluable": 5820,
+          "frames_unevaluable": 0,
+          "coverage": 1.0,
+          "contingencies_fired": 82775,
+          "p_violation_given_fires": 0.22460887949260042,
+          "p_violation_given_silent": null,
+          "p_violation_base": 0.22460887949260042,
+          "lift_vs_base": 0.0,
+          "discrimination": null,
+          "verdict": "INSUFFICIENT"
+        },
+        "wcci2022": {
+          "frames_fired": 3,
+          "frames_silent": 3997,
+          "frames_evaluable": 4000,
+          "frames_unevaluable": 0,
+          "coverage": 0.00075,
+          "contingencies_fired": 330,
+          "p_violation_given_fires": 0.6636363636363637,
+          "p_violation_given_silent": 0.13292056691804338,
+          "p_violation_base": 0.133262954165567,
+          "lift_vs_base": 0.5303734094707967,
+          "discrimination": 0.5307157967183203,
+          "verdict": "INSUFFICIENT"
+        }
+      },
+      "pooled": {
+        "frames_fired": 5894,
+        "frames_silent": 15911,
+        "frames_evaluable": 21805,
+        "frames_unevaluable": 0,
+        "coverage": 0.27030497592295344,
+        "contingencies_fired": 85341,
+        "p_violation_given_fires": 0.22519070552255072,
+        "p_violation_given_silent": 0.07865615328942539,
+        "p_violation_base": 0.08942104737605062,
+        "lift_vs_base": 0.1518466677356513,
+        "discrimination": 0.1524474362801237,
+        "verdict": "ELEVATED",
+        "discrimination_unstratified": 0.14653455223312534,
+        "lift_vs_base_unstratified": 0.1357696581465001,
+        "stratified_by_grid": true,
+        "n_grids_contributing": 1,
+        "grids_contributing": [
+          "neurips2020"
+        ],
+        "p_fires_scoring_grids": 0.18202146690518783,
+        "p_silent_scoring_grids": 0.02957403062506414
+      },
+      "grid_conditional": {
+        "verdict": "ELEVATED",
+        "discrimination": 0.2972427778141195,
+        "p_violation_given_fires": 0.28657689213240256,
+        "p_violation_given_silent": 0.22129155464293673,
+        "grids_contributing": [
+          "neurips2020"
+        ]
+      },
+      "verdict_changed": false
+    },
+    {
+      "condition": "voltage_pu_min < 0.917",
+      "rule_ids": [
+        "R_1098"
+      ],
+      "n_records": 1,
+      "role": "CONSTRAINT",
+      "shipped_in_corpus": true,
+      "per_grid": {
+        "neurips2020": {
+          "frames_fired": 0,
+          "frames_silent": 11985,
+          "frames_evaluable": 11985,
+          "frames_unevaluable": 0,
+          "coverage": 0.0,
+          "contingencies_fired": 0,
+          "p_violation_given_fires": null,
+          "p_violation_given_silent": 0.030174799169536512,
+          "p_violation_base": 0.030174799169536512,
+          "lift_vs_base": null,
+          "discrimination": null,
+          "verdict": "INSUFFICIENT"
+        },
+        "case14": {
+          "frames_fired": 2,
+          "frames_silent": 5818,
+          "frames_evaluable": 5820,
+          "frames_unevaluable": 0,
+          "coverage": 0.0003436426116838488,
+          "contingencies_fired": 4,
+          "p_violation_given_fires": 1.0,
+          "p_violation_given_silent": 0.2245714078602409,
+          "p_violation_base": 0.22460887949260042,
+          "lift_vs_base": 0.7753911205073996,
+          "discrimination": 0.7754285921397591,
+          "verdict": "INSUFFICIENT"
+        },
+        "wcci2022": {
+          "frames_fired": 6,
+          "frames_silent": 3994,
+          "frames_evaluable": 4000,
+          "frames_unevaluable": 0,
+          "coverage": 0.0015,
+          "contingencies_fired": 673,
+          "p_violation_given_fires": 0.6760772659732541,
+          "p_violation_given_silent": 0.1325478327937014,
+          "p_violation_base": 0.133262954165567,
+          "lift_vs_base": 0.5428143118076871,
+          "discrimination": 0.5435294331795527,
+          "verdict": "INSUFFICIENT"
+        }
+      },
+      "pooled": {
+        "frames_fired": 8,
+        "frames_silent": 21797,
+        "frames_evaluable": 21805,
+        "frames_unevaluable": 0,
+        "coverage": 0.0003668883283650539,
+        "contingencies_fired": 677,
+        "p_violation_given_fires": 0.6779911373707533,
+        "p_violation_given_silent": 0.08907784363057243,
+        "p_violation_base": 0.08942104737605062,
+        "lift_vs_base": null,
+        "discrimination": null,
+        "verdict": "INSUFFICIENT",
+        "discrimination_unstratified": 0.5889132937401809,
+        "lift_vs_base_unstratified": 0.5885700899947027,
+        "stratified_by_grid": true,
+        "n_grids_contributing": 0,
+        "grids_contributing": [],
+        "p_fires_scoring_grids": null,
+        "p_silent_scoring_grids": null
+      },
+      "grid_conditional": {
+        "verdict": "ELEVATED",
+        "discrimination": 0.7262871249331941,
+        "p_violation_given_fires": 0.8428074245939675,
+        "p_violation_given_silent": 0.2257489109194887,
+        "grids_contributing": [
+          "case14"
+        ]
+      },
+      "verdict_changed": true
+    },
+    {
+      "condition": "power_factor_at_max_load < -0.95 or power_factor_at_max_load > 0.95",
+      "rule_ids": [
+        "R_128",
+        "R_1291",
+        "R_157"
+      ],
+      "n_records": 3,
+      "role": "CONSTRAINT",
+      "shipped_in_corpus": false,
+      "per_grid": {
+        "neurips2020": {
+          "frames_fired": 59,
+          "frames_silent": 11926,
+          "frames_evaluable": 11985,
+          "frames_unevaluable": 0,
+          "coverage": 0.00492282019190655,
+          "contingencies_fired": 1647,
+          "p_violation_given_fires": 0.21554341226472373,
+          "p_violation_given_silent": 0.029635154936747343,
+          "p_violation_base": 0.030174799169536512,
+          "lift_vs_base": 0.1853686130951872,
+          "discrimination": 0.1859082573279764,
+          "verdict": "ELEVATED"
+        },
+        "case14": {
+          "frames_fired": 752,
+          "frames_silent": 5068,
+          "frames_evaluable": 5820,
+          "frames_unevaluable": 0,
+          "coverage": 0.12920962199312716,
+          "contingencies_fired": 9654,
+          "p_violation_given_fires": 0.24746219183758028,
+          "p_violation_given_silent": 0.22159160842986284,
+          "p_violation_base": 0.22460887949260042,
+          "lift_vs_base": 0.022853312344979865,
+          "discrimination": 0.025870583407717446,
+          "verdict": "NEUTRAL"
+        },
+        "wcci2022": {
+          "frames_fired": 3899,
+          "frames_silent": 101,
+          "frames_evaluable": 4000,
+          "frames_unevaluable": 0,
+          "coverage": 0.97475,
+          "contingencies_fired": 499997,
+          "p_violation_given_fires": 0.12896877381264288,
+          "p_violation_given_silent": 0.3196735544365341,
+          "p_violation_base": 0.133262954165567,
+          "lift_vs_base": -0.004294180352924115,
+          "discrimination": -0.19070478062389123,
+          "verdict": "INVERTED"
+        }
+      },
+      "pooled": {
+        "frames_fired": 4710,
+        "frames_silent": 17095,
+        "frames_evaluable": 21805,
+        "frames_unevaluable": 0,
+        "coverage": 0.21600550332492546,
+        "contingencies_fired": 511298,
+        "p_violation_given_fires": 0.1314849657147104,
+        "p_violation_given_silent": 0.05635268901852131,
+        "p_violation_base": 0.08942104737605062,
+        "lift_vs_base": 0.002416014832269592,
+        "discrimination": -0.1514086356152012,
+        "verdict": "INVERTED",
+        "discrimination_unstratified": 0.0751322766961891,
+        "lift_vs_base_unstratified": 0.042063918338659786,
+        "stratified_by_grid": true,
+        "n_grids_contributing": 3,
+        "grids_contributing": [
+          "neurips2020",
+          "case14",
+          "wcci2022"
+        ],
+        "p_fires_scoring_grids": 0.14897194876453793,
+        "p_silent_scoring_grids": 0.3003805843797392
+      },
+      "grid_conditional": {
+        "verdict": "INVERTED",
+        "discrimination": -0.1633213732329708,
+        "p_violation_given_fires": 0.24652097368353806,
+        "p_violation_given_silent": 0.2082127636223958,
+        "grids_contributing": [
+          "neurips2020",
+          "case14",
+          "wcci2022"
+        ]
+      },
+      "verdict_changed": false
+    },
+    {
+      "condition": "voltage_pu_max > 1.10",
+      "rule_ids": [
+        "R_1833"
+      ],
+      "n_records": 1,
+      "role": "CONSTRAINT",
+      "shipped_in_corpus": true,
+      "per_grid": {
+        "neurips2020": {
+          "frames_fired": 71,
+          "frames_silent": 11914,
+          "frames_evaluable": 11985,
+          "frames_unevaluable": 0,
+          "coverage": 0.005924071756362119,
+          "contingencies_fired": 2236,
+          "p_violation_given_fires": 0.18202146690518783,
+          "p_violation_given_silent": 0.02957403062506414,
+          "p_violation_base": 0.030174799169536512,
+          "lift_vs_base": 0.1518466677356513,
+          "discrimination": 0.1524474362801237,
+          "verdict": "ELEVATED"
+        },
+        "case14": {
+          "frames_fired": 0,
+          "frames_silent": 5820,
+          "frames_evaluable": 5820,
+          "frames_unevaluable": 0,
+          "coverage": 0.0,
+          "contingencies_fired": 0,
+          "p_violation_given_fires": null,
+          "p_violation_given_silent": 0.22460887949260042,
+          "p_violation_base": 0.22460887949260042,
+          "lift_vs_base": null,
+          "discrimination": null,
+          "verdict": "INSUFFICIENT"
+        },
+        "wcci2022": {
+          "frames_fired": 0,
+          "frames_silent": 4000,
+          "frames_evaluable": 4000,
+          "frames_unevaluable": 0,
+          "coverage": 0.0,
+          "contingencies_fired": 0,
+          "p_violation_given_fires": null,
+          "p_violation_given_silent": 0.133262954165567,
+          "p_violation_base": 0.133262954165567,
+          "lift_vs_base": null,
+          "discrimination": null,
+          "verdict": "INSUFFICIENT"
+        }
+      },
+      "pooled": {
+        "frames_fired": 71,
+        "frames_silent": 21734,
+        "frames_evaluable": 21805,
+        "frames_unevaluable": 0,
+        "coverage": 0.003256133914239853,
+        "contingencies_fired": 2236,
+        "p_violation_given_fires": 0.18202146690518783,
+        "p_violation_given_silent": 0.0892424671050362,
+        "p_violation_base": 0.08942104737605062,
+        "lift_vs_base": 0.1518466677356513,
+        "discrimination": 0.1524474362801237,
+        "verdict": "ELEVATED",
+        "discrimination_unstratified": 0.09277899980015164,
+        "lift_vs_base_unstratified": 0.09260041952913721,
+        "stratified_by_grid": true,
+        "n_grids_contributing": 1,
+        "grids_contributing": [
+          "neurips2020"
+        ],
+        "p_fires_scoring_grids": 0.18202146690518783,
+        "p_silent_scoring_grids": 0.02957403062506414
+      },
+      "grid_conditional": {
+        "verdict": "ELEVATED",
+        "discrimination": 0.2972427778141195,
+        "p_violation_given_fires": 0.49098647971957937,
+        "p_violation_given_silent": 0.2257517642366815,
+        "grids_contributing": [
+          "neurips2020"
+        ]
+      },
+      "verdict_changed": false
+    },
+    {
+      "condition": "voltage_pu_min < 0.90",
+      "rule_ids": [
+        "R_1835"
+      ],
+      "n_records": 1,
+      "role": "CONSTRAINT",
+      "shipped_in_corpus": false,
+      "per_grid": {
+        "neurips2020": {
+          "frames_fired": 0,
+          "frames_silent": 11985,
+          "frames_evaluable": 11985,
+          "frames_unevaluable": 0,
+          "coverage": 0.0,
+          "contingencies_fired": 0,
+          "p_violation_given_fires": null,
+          "p_violation_given_silent": 0.030174799169536512,
+          "p_violation_base": 0.030174799169536512,
+          "lift_vs_base": null,
+          "discrimination": null,
+          "verdict": "INSUFFICIENT"
+        },
+        "case14": {
+          "frames_fired": 0,
+          "frames_silent": 5820,
+          "frames_evaluable": 5820,
+          "frames_unevaluable": 0,
+          "coverage": 0.0,
+          "contingencies_fired": 0,
+          "p_violation_given_fires": null,
+          "p_violation_given_silent": 0.22460887949260042,
+          "p_violation_base": 0.22460887949260042,
+          "lift_vs_base": null,
+          "discrimination": null,
+          "verdict": "INSUFFICIENT"
+        },
+        "wcci2022": {
+          "frames_fired": 3,
+          "frames_silent": 3997,
+          "frames_evaluable": 4000,
+          "frames_unevaluable": 0,
+          "coverage": 0.00075,
+          "contingencies_fired": 330,
+          "p_violation_given_fires": 0.6636363636363637,
+          "p_violation_given_silent": 0.13292056691804338,
+          "p_violation_base": 0.133262954165567,
+          "lift_vs_base": 0.5303734094707967,
+          "discrimination": 0.5307157967183203,
+          "verdict": "INSUFFICIENT"
+        }
+      },
+      "pooled": {
+        "frames_fired": 3,
+        "frames_silent": 21802,
+        "frames_evaluable": 21805,
+        "frames_unevaluable": 0,
+        "coverage": 0.0001375831231368952,
+        "contingencies_fired": 330,
+        "p_violation_given_fires": 0.6636363636363637,
+        "p_violation_given_silent": 0.08925788347050082,
+        "p_violation_base": 0.08942104737605062,
+        "lift_vs_base": null,
+        "discrimination": null,
+        "verdict": "INSUFFICIENT",
+        "discrimination_unstratified": 0.5743784801658629,
+        "lift_vs_base_unstratified": 0.5742153162603131,
+        "stratified_by_grid": true,
+        "n_grids_contributing": 0,
+        "grids_contributing": [],
+        "p_fires_scoring_grids": null,
+        "p_silent_scoring_grids": null
+      },
+      "grid_conditional": {
+        "verdict": "INSUFFICIENT",
+        "discrimination": null,
+        "p_violation_given_fires": 0.8553590010405827,
+        "p_violation_given_silent": 0.22604248859775597,
+        "grids_contributing": []
+      },
+      "verdict_changed": false
+    },
+    {
+      "condition": "voltage_pu_min < 0.95",
+      "rule_ids": [
+        "R_069",
+        "R_1926",
+        "R_1927"
+      ],
+      "n_records": 3,
+      "role": "CONSTRAINT",
+      "shipped_in_corpus": true,
+      "per_grid": {
+        "neurips2020": {
+          "frames_fired": 0,
+          "frames_silent": 11985,
+          "frames_evaluable": 11985,
+          "frames_unevaluable": 0,
+          "coverage": 0.0,
+          "contingencies_fired": 0,
+          "p_violation_given_fires": null,
+          "p_violation_given_silent": 0.030174799169536512,
+          "p_violation_base": 0.030174799169536512,
+          "lift_vs_base": null,
+          "discrimination": null,
+          "verdict": "INSUFFICIENT"
+        },
+        "case14": {
+          "frames_fired": 2,
+          "frames_silent": 5818,
+          "frames_evaluable": 5820,
+          "frames_unevaluable": 0,
+          "coverage": 0.0003436426116838488,
+          "contingencies_fired": 4,
+          "p_violation_given_fires": 1.0,
+          "p_violation_given_silent": 0.2245714078602409,
+          "p_violation_base": 0.22460887949260042,
+          "lift_vs_base": 0.7753911205073996,
+          "discrimination": 0.7754285921397591,
+          "verdict": "INSUFFICIENT"
+        },
+        "wcci2022": {
+          "frames_fired": 30,
+          "frames_silent": 3970,
+          "frames_evaluable": 4000,
+          "frames_unevaluable": 0,
+          "coverage": 0.0075,
+          "contingencies_fired": 3419,
+          "p_violation_given_fires": 0.42176074875694647,
+          "p_violation_given_silent": 0.13132164000503843,
+          "p_violation_base": 0.133262954165567,
+          "lift_vs_base": 0.2884977945913795,
+          "discrimination": 0.29043910875190804,
+          "verdict": "ELEVATED"
+        }
+      },
+      "pooled": {
+        "frames_fired": 32,
+        "frames_silent": 21773,
+        "frames_evaluable": 21805,
+        "frames_unevaluable": 0,
+        "coverage": 0.0014675533134602156,
+        "contingencies_fired": 3423,
+        "p_violation_given_fires": 0.4224364592462752,
+        "p_violation_given_silent": 0.08843688944029023,
+        "p_violation_base": 0.08942104737605062,
+        "lift_vs_base": 0.2884977945913795,
+        "discrimination": 0.29043910875190804,
+        "verdict": "ELEVATED",
+        "discrimination_unstratified": 0.333999569805985,
+        "lift_vs_base_unstratified": 0.3330154118702246,
+        "stratified_by_grid": true,
+        "n_grids_contributing": 1,
+        "grids_contributing": [
+          "wcci2022"
+        ],
+        "p_fires_scoring_grids": 0.42176074875694647,
+        "p_silent_scoring_grids": 0.13132164000503843
+      },
+      "grid_conditional": {
+        "verdict": "ELEVATED",
+        "discrimination": 0.5370593059601287,
+        "p_violation_given_fires": 0.5921922890788837,
+        "p_violation_given_silent": 0.2249734010619028,
+        "grids_contributing": [
+          "case14",
+          "wcci2022"
+        ]
+      },
+      "verdict_changed": false
+    }
+  ]
+}

@@ -21,7 +21,7 @@ who knew the old design is not misled, and each is corrected in its own section 
 | 7 | **KCL residual** as a physics-tier metric | **Not implemented.** No physics-invariant check exists | The shield's constraint checks are thermal and voltage limits from the corpus. KCL was never needed and never written; it should not appear in the report as a delivered metric. §11 |
 | 8 | Normalization persisted to `normalization_stats.pt` | Stats are **recomputed inline** from the 36-bus training split at every eval | The *principle* here survives untouched — foreign topologies are still normalized with 36-bus stats, never their own. Only the persistence mechanism changed; the file was deleted because nothing read it. §2 |
 | 9 | §8 end-to-end **toy scenario testing** on `rte_case5_example` | **Never built.** Replaced by 222 automated tests plus three full-topology evaluation runs | The toy harness was a pre-integration confidence check; the real harness overtook it. §8 |
-| 10 | LangChain for document loading; W&B for tracking | **Neither is used.** `pdfplumber` for PDFs; metrics printed and written to JSON | Both appear only in a stack-verification script. §9 |
+| 10 | LangChain for document loading; W&B for tracking | **Neither is used.** `pdfplumber` for PDFs; metrics are **printed to stdout only** — nothing is written | Both appear only in a stack-verification script. The checkpoint stores weights alone, so **no per-epoch history for the N-1 model exists**. §7, §9 |
 
 **The core claim (§0) survives, with one correction.** An earlier reading — that the shield's
 override precision *rises* off-distribution — was measured to be **false**; it was an artifact of
@@ -948,10 +948,31 @@ localised to initialisation, not to the split.
 
 ### What Gets Logged
 
-⚠️ **CHANGED (revision item 10) — no Weights & Biases.** W&B appears only in a stack-verification
-script and was never wired into training. Metrics are printed per epoch and written to JSON
-alongside the checkpoint: loss, F1, precision, recall, average precision, and the train/validation
-gap — the last being what separates memorisation from an optimiser that never fitted the signal.
+⚠️ **CHANGED (revision item 10) — no Weights & Biases, and no metrics file either.** W&B appears
+only in a stack-verification script and was never wired into training. **This section previously
+claimed that metrics are "written to JSON alongside the checkpoint"; that is false, and was
+verified false against the code on 2026-09-18.** What `training/train_gnn.py` actually does:
+
+| | |
+|---|---|
+| **Written to disk** | **The weights, and nothing else.** `torch.save(model.state_dict(), checkpoint_file)` on each new best validation F1. The saved object is a bare `OrderedDict` of 33 tensors — no epoch number, no metrics, no config, no optimizer state. |
+| **Printed to stdout** | Per epoch: mean training loss and `val_contingency_f1`. The validation pass additionally prints contingency count, violation rate, model F1 at the best threshold and at 0.5, average precision, and the two baselines. |
+| **Never produced** | Any metrics JSON, CSV or run directory. `json` is imported in the trainer only to read the dataset meta file and to parse chronic ids. There is no `wandb/` directory in the repository. |
+| **Never computed at training time** | The train/validation gap. `--report-train` scores a train slice each epoch and prints it, leaving the reader to compare the two printed numbers — it does not compute a gap, and it was not used for the N-1 run. |
+
+🚨 **There is therefore no per-epoch training history for the N-1 model anywhere in the repository.**
+The four `.log` files under `training/` are **classify-era**: they are dated 2026-06-24/25, report a
+4-class `val_macro_f1`, print `NODE_FEATURES: 5 EDGE_FEATURES: 4`, and contain zero occurrences of
+the word "contingency". They predate both the 2026-08-16 N-1 training run and the normalization
+fix, and they are not a record of the deployed model.
+
+⚠️ **The epoch count of the deployed `gnn_checkpoint_n1.pt` is not recoverable from disk.** The
+checkpoint carries no epoch field and no history file exists to read one from. `CLAUDE.md`
+documents the intended command as `--epochs 30 --batch_size 128 --lr 3e-4`, overriding the
+`TRAIN_CONFIG` defaults of 10 / 512 / 1e-4 — but that is **documentary evidence of intent, not
+proof of what executed**, and with early stopping at patience 15 the epoch that produced the saved
+weights is unknown regardless. Do not state a training duration, an epoch count, or a loss curve
+for this model in the report; none of them can be substantiated.
 
 ---
 
@@ -1004,7 +1025,7 @@ change that reintroduces the bug fails with an explanation rather than an assert
 | Knowledge graph | **NetworkX**, persisted as **JSON** | Zero-setup at 36 nodes. JSON rather than pickle — the v1 `.pkl` vanished from disk unnoticed (§4). Neo4j was never needed. |
 | Shield logic | **Python (custom)** | Fully auditable, no external dependencies, easy to unit test |
 | Data validation | **Pydantic** | Schema enforcement on LLM JSON outputs |
-| ~~Experiment tracking~~ | ⚠️ **W&B NOT USED** (revision item 10) | Specified but never wired in. Metrics print per epoch and are written to JSON. |
+| ~~Experiment tracking~~ | ⚠️ **W&B NOT USED, and nothing replaced it** (revision item 10) | Specified but never wired in. Metrics print to stdout per epoch and are **not** written anywhere; the checkpoint holds weights only. No per-epoch history for the N-1 model survives — see §7. |
 | Version control | **Git + GitHub** | Standard |
 
 ---
