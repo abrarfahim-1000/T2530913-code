@@ -1,0 +1,109 @@
+{
+  "tag": "case14",
+  "env": "l2rpn_case14_sandbox",
+  "frames": 500,
+  "contingencies": 10000,
+  "ac": {
+    "backend": "lightsim",
+    "backend_class": "LightSimBackend_l2rpn_case14_sandboxLightSimBackend",
+    "method": "grid2op obs.simulate per energized line (scripts.generate_dataset.label_n1)",
+    "seconds": 13.9868,
+    "contingencies": 10000,
+    "per_contingency_ms": 1.398679,
+    "contingencies_per_sec": 714.96,
+    "per_frame_ms": {
+      "median": 24.4126,
+      "p95": 57.0317,
+      "mean": 27.9728
+    }
+  },
+  "gnn": {
+    "xpu": {
+      "device": "xpu",
+      "batch_size": 64,
+      "repeats": 3,
+      "feature_build_seconds": 0.4916,
+      "forward_seconds": 0.1194,
+      "end_to_end_seconds": 0.611,
+      "contingencies": 10000,
+      "per_contingency_ms": 0.061102,
+      "contingencies_per_sec": 16366.16,
+      "forward_only_contingencies_per_sec": 83761.07,
+      "batch1_per_frame_ms": {
+        "median": 11.7866,
+        "p95": 13.5955,
+        "mean": 12.1982
+      }
+    },
+    "cpu": {
+      "device": "cpu",
+      "batch_size": 64,
+      "repeats": 3,
+      "feature_build_seconds": 0.4916,
+      "forward_seconds": 0.0511,
+      "end_to_end_seconds": 0.5427,
+      "contingencies": 10000,
+      "per_contingency_ms": 0.054268,
+      "contingencies_per_sec": 18427.05,
+      "forward_only_contingencies_per_sec": 195883.7,
+      "batch1_per_frame_ms": {
+        "median": 2.2066,
+        "p95": 2.7285,
+        "mean": 2.1716
+      }
+    }
+  },
+  "speedup": {
+    "xpu": {
+      "end_to_end": 22.89,
+      "forward_only": 117.14
+    },
+    "cpu": {
+      "end_to_end": 25.77,
+      "forward_only": 273.71
+    }
+  },
+  "accuracy_on_these_frames": {
+    "threshold": 0.884852,
+    "threshold_source": "selected on the neurips2020 val split, held fixed",
+    "f1": 0.312,
+    "precision": 0.3257,
+    "recall": 0.2994,
+    "tp": 1028,
+    "fp": 2128,
+    "fn": 2405,
+    "positives": 3433,
+    "all_positive_f1": 0.5111,
+    "ac_f1": 1.0
+  },
+  "snapshot_health": {
+    "game_overs_during_collection": 0,
+    "shortest_episode": null,
+    "mean_episode_length": null,
+    "frames_are_independent": true
+  },
+  "environment": {
+    "platform": "Windows-11-10.0.26100-SP0",
+    "cpu_model": "AMD Ryzen 5 7500F 6-Core Processor",
+    "logical_cores": 12,
+    "torch_version": "2.9.0+xpu",
+    "torch_threads": 6,
+    "devices_timed": [
+      "xpu",
+      "cpu"
+    ],
+    "grid2op": "1.12.3",
+    "lightsim2grid": "0.12.2",
+    "pandapower": "3.4.0"
+  },
+  "caveats": [
+    "Two AC backends give two different ratios. LightSim generated every dataset in data/ and is the honest headline; PandaPower is the reference implementation and yields a ~10x larger ratio. Never quote one without naming which.",
+    "Snapshot sets differ between backend runs: same seed and same do-nothing policy, but not bit-identical trajectories. Comparisons are exact WITHIN an artifact and indicative across two.",
+    "obs.simulate is a pipeline, not a raw solver \u2014 it includes grid2op action construction and observation building, and it solves the t+1 forecast injections rather than the current instant.",
+    "The GNN was timed on every available device; AC is CPU-bound and single-threaded. Quote the CPU row whenever an accelerator row is quoted, or the comparison confounds 'GNN vs AC' with 'GPU vs CPU'.",
+    "Timing is hardware-dependent. The ratio is the result; the absolute seconds describe the one machine recorded in `environment`.",
+    "The GNN batches; AC is serial by construction. That is a real architectural advantage, which is why batch-1 latency is reported beside it.",
+    "Batch size 64 is load-bearing: BatchNorm(track_running_stats=False) uses live batch statistics, so the accuracy figures here hold at 64 only. Never mix them with figures taken at another batch size.",
+    "The speed buys a measured accuracy loss. AC is ground truth (F1 1.0); the GNN scores 0.8956 / 0.4167 / 0.5577 at the held threshold, and on case14 it loses to answering 'violation' every time."
+  ]
+}

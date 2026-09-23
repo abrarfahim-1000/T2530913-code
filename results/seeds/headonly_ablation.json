@@ -1,0 +1,84 @@
+{
+  "protocol": {
+    "epochs": 30,
+    "batch_size": 128,
+    "lr": 0.0003,
+    "eval_batch_size": 64,
+    "seeds": [
+      42,
+      0,
+      1,
+      2
+    ],
+    "device": "xpu",
+    "grid": "neurips2020",
+    "split": "chronic-level, fixed across seeds"
+  },
+  "per_seed": {
+    "42": {
+      "full": {
+        "checkpoint": "gnn_checkpoint_n1_ablation_full_seed42.pt",
+        "val_f1": 0.8921201699372849
+      },
+      "headonly": {
+        "checkpoint": "gnn_checkpoint_n1_ablation_headonly_seed42.pt",
+        "val_f1": 0.8420781495505243
+      },
+      "delta": 0.050042020386760644
+    },
+    "0": {
+      "full": {
+        "checkpoint": "gnn_checkpoint_n1_ablation_full_seed0.pt",
+        "val_f1": 0.8856558424955255
+      },
+      "headonly": {
+        "checkpoint": "gnn_checkpoint_n1_ablation_headonly_seed0.pt",
+        "val_f1": 0.8455842513996749
+      },
+      "delta": 0.04007159109585068
+    },
+    "1": {
+      "full": {
+        "checkpoint": "gnn_checkpoint_n1_ablation_full_seed1.pt",
+        "val_f1": 0.8870554187504759
+      },
+      "headonly": {
+        "checkpoint": "gnn_checkpoint_n1_ablation_headonly_seed1.pt",
+        "val_f1": 0.8427329952343331
+      },
+      "delta": 0.044322423516142795
+    },
+    "2": {
+      "full": {
+        "checkpoint": "gnn_checkpoint_n1_ablation_full_seed2.pt",
+        "val_f1": 0.8837873686358535
+      },
+      "headonly": {
+        "checkpoint": "gnn_checkpoint_n1_ablation_headonly_seed2.pt",
+        "val_f1": 0.8436350448163308
+      },
+      "delta": 0.04015232381952272
+    }
+  },
+  "summary": {
+    "full_mean": 0.887154699954785,
+    "full_std": 0.0030923794559882065,
+    "full_range": [
+      0.8837873686358535,
+      0.8921201699372849
+    ],
+    "headonly_mean": 0.8435076102502157,
+    "headonly_std": 0.0013202333455739042,
+    "headonly_range": [
+      0.8420781495505243,
+      0.8455842513996749
+    ],
+    "delta_mean": 0.04364708970456921,
+    "delta_std": 0.004072738423939133,
+    "delta_range": [
+      0.04007159109585068,
+      0.050042020386760644
+    ]
+  },
+  "seconds": 1326.7
+}

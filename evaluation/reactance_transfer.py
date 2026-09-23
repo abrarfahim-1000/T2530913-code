@@ -58,7 +58,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch_geometric.loader import DataLoader
 
 from evaluation.eval_n1_cross_topology import EVAL_BATCH_SIZE, best_f1_and_thr
-from evaluation.lodf import load_branch_model
+from evaluation.branch_model import load_branch_model
 from scripts.pyg_data import GridEnvMetadata, build_data
 from training.config import DATA_DIR, DEVICE, TRAIN_CONFIG
 from training.train_gnn import GridGNN, compute_normalization_stats

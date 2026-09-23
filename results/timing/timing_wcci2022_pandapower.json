@@ -1,0 +1,109 @@
+{
+  "tag": "wcci2022",
+  "env": "l2rpn_wcci_2022",
+  "frames": 200,
+  "contingencies": 37199,
+  "ac": {
+    "backend": "pandapower",
+    "backend_class": "PandaPowerBackend_l2rpn_wcci_2022PandaPowerBackend",
+    "method": "grid2op obs.simulate per energized line (scripts.generate_dataset.label_n1)",
+    "seconds": 3181.7151,
+    "contingencies": 37199,
+    "per_contingency_ms": 85.532275,
+    "contingencies_per_sec": 11.69,
+    "per_frame_ms": {
+      "median": 14613.9769,
+      "p95": 21474.7764,
+      "mean": 15908.5745
+    }
+  },
+  "gnn": {
+    "xpu": {
+      "device": "xpu",
+      "batch_size": 64,
+      "repeats": 3,
+      "feature_build_seconds": 8.6722,
+      "forward_seconds": 0.132,
+      "end_to_end_seconds": 8.8042,
+      "contingencies": 37199,
+      "per_contingency_ms": 0.236679,
+      "contingencies_per_sec": 4225.14,
+      "forward_only_contingencies_per_sec": 281767.91,
+      "batch1_per_frame_ms": {
+        "median": 13.716,
+        "p95": 88.4366,
+        "mean": 21.6915
+      }
+    },
+    "cpu": {
+      "device": "cpu",
+      "batch_size": 64,
+      "repeats": 3,
+      "feature_build_seconds": 8.6722,
+      "forward_seconds": 0.1242,
+      "end_to_end_seconds": 8.7964,
+      "contingencies": 37199,
+      "per_contingency_ms": 0.236469,
+      "contingencies_per_sec": 4228.88,
+      "forward_only_contingencies_per_sec": 299430.26,
+      "batch1_per_frame_ms": {
+        "median": 2.8758,
+        "p95": 3.5242,
+        "mean": 3.7383
+      }
+    }
+  },
+  "speedup": {
+    "xpu": {
+      "end_to_end": 361.39,
+      "forward_only": 24103.9
+    },
+    "cpu": {
+      "end_to_end": 361.71,
+      "forward_only": 25617.67
+    }
+  },
+  "accuracy_on_these_frames": {
+    "threshold": 0.884852,
+    "threshold_source": "selected on the neurips2020 val split, held fixed",
+    "f1": 0.5358,
+    "precision": 0.9887,
+    "recall": 0.3675,
+    "tp": 13614,
+    "fp": 155,
+    "fn": 23430,
+    "positives": 37044,
+    "all_positive_f1": 0.9979,
+    "ac_f1": 1.0
+  },
+  "snapshot_health": {
+    "game_overs_during_collection": 99,
+    "shortest_episode": 3,
+    "mean_episode_length": 3.0,
+    "frames_are_independent": false
+  },
+  "environment": {
+    "platform": "Windows-11-10.0.26100-SP0",
+    "cpu_model": "AMD Ryzen 5 7500F 6-Core Processor",
+    "logical_cores": 12,
+    "torch_version": "2.9.0+xpu",
+    "torch_threads": 6,
+    "devices_timed": [
+      "xpu",
+      "cpu"
+    ],
+    "grid2op": "1.12.3",
+    "lightsim2grid": "0.12.2",
+    "pandapower": "3.4.0"
+  },
+  "caveats": [
+    "Two AC backends give two different ratios. LightSim generated every dataset in data/ and is the honest headline; PandaPower is the reference implementation and yields a ~10x larger ratio. Never quote one without naming which.",
+    "Snapshot sets differ between backend runs: same seed and same do-nothing policy, but not bit-identical trajectories. Comparisons are exact WITHIN an artifact and indicative across two.",
+    "obs.simulate is a pipeline, not a raw solver \u2014 it includes grid2op action construction and observation building, and it solves the t+1 forecast injections rather than the current instant.",
+    "The GNN was timed on every available device; AC is CPU-bound and single-threaded. Quote the CPU row whenever an accelerator row is quoted, or the comparison confounds 'GNN vs AC' with 'GPU vs CPU'.",
+    "Timing is hardware-dependent. The ratio is the result; the absolute seconds describe the one machine recorded in `environment`.",
+    "The GNN batches; AC is serial by construction. That is a real architectural advantage, which is why batch-1 latency is reported beside it.",
+    "Batch size 64 is load-bearing: BatchNorm(track_running_stats=False) uses live batch statistics, so the accuracy figures here hold at 64 only. Never mix them with figures taken at another batch size.",
+    "The speed buys a measured accuracy loss. AC is ground truth (F1 1.0); the GNN scores 0.8956 / 0.4167 / 0.5577 at the held threshold, and on case14 it loses to answering 'violation' every time."
+  ]
+}

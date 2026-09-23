@@ -1,8 +1,11 @@
 # Comparison plan for the results section
 
-**Status: SPEC — two arms run, one dropped.** Written 2026-09-18 to be executed in a later
-session. **A1 was executed 2026-09-19 and its result is in `thesis_findings.md` §25; it changes how
-the rest of this file should be read — see §S7.** A2–A5 remain unrun. This document catalogues every comparison the results section could carry, ranks them by
+**Status: SPEC — two arms run, one dropped, one RETIRED.** Written 2026-09-18 to be executed in a
+later session. **A1 was executed 2026-09-19 and then RETIRED on 2026-09-20** — its code and
+artifacts were deleted and the results section now carries an inference-cost benchmark in its place
+(`thesis_findings.md` §25). §S7 and §A1 are kept as written, under retirement banners, because the
+reasoning is part of the record and because A1's finding was never shown to be wrong. A2–A5 remain
+unrun. This document catalogues every comparison the results section could carry, ranks them by
 what they buy against what they cost, and records the traps for each. It does not report results;
 when an arm is executed, its numbers go to `thesis_findings.md` and this file's entry is marked
 DONE with a pointer.
@@ -94,7 +97,7 @@ solve-failure share **26.5% / 21.7% / 25.4%** of positives.
 | # | task | § | state |
 |---|---|---|---|
 | 1 | Resolve A1's open questions | A1 | ✅ **DONE 2026-09-18** — all four, by measurement |
-| 2 | **A1 — DC-LODF screening** | A1 | ✅ **DONE 2026-09-19** — result in `thesis_findings.md` §25. **LODF beats the model on all three grids** |
+| 2 | **A1 — DC-LODF screening** | A1 | 🚫 **RETIRED 2026-09-20** — ran, then removed with its code and artifacts. Replaced by the inference-cost benchmark, `thesis_findings.md` §25. Its finding (LODF above the model on all three grids) is recorded in §A1, not withdrawn |
 | 3 | A3 — tabular baselines | A3 | ✅ **DONE 2026-09-19, re-scoped cross-topology** — `thesis_findings.md` §26. Non-graph models collapse too |
 | 4 | A2 — Pavão MLP replication | A2 | ❌ **DROPPED 2026-09-19** — A3 answers the transfer question at lower cost; §26.5 |
 | 5 | A5 — collect existing arms; re-measure train/val/test | A5 | ⬜ not started. No new code; one re-measurement |
@@ -104,9 +107,10 @@ solve-failure share **26.5% / 21.7% / 25.4%** of positives.
 | 9 | Verify the two abstract-only papers | B8 | ⬜ not started. **Blocks quoting either number** |
 | 10 | Novelty statement wording | F | ✅ **DONE 2026-09-18** — F1 is the ceiling until a systematic search exists |
 
-**#2 is done, and it was the one that mattered.** It tested a load-bearing claim and the claim did
-not survive. Read §S7 before picking the next task — the answer changed what the remaining arms are
-for.
+**#2 was done, and it was the one that mattered — then it was retired.** It tested a load-bearing
+claim and the claim did not survive; on 2026-09-20 the arm itself was removed from the thesis's
+scope rather than the finding being rebutted. Read §S7 and §A1 before picking the next task, and
+read them as history rather than as live status.
 
 ## S6. What changed on 2026-09-18, in one paragraph
 
@@ -118,6 +122,12 @@ produce even in principle.** A1 must therefore report two F1s — overload-only 
 the gap between them *is* the result. Read §A1 q4 before writing any A1 code.
 
 ## S7. What changed on 2026-09-19 — read this before choosing a task
+
+> 🚫 **SUPERSEDED 2026-09-20 — A1 WAS RETIRED.** Everything below is an accurate record of what
+> was measured on 2026-09-19, and none of it was rebutted. But the arm's code and artifacts are
+> gone (`git show 6546fc2:evaluation/lodf.py`), the results section carries an inference-cost
+> benchmark instead (`thesis_findings.md` §25), and point 1's instruction to "lead with it" no
+> longer describes the chapter. Read this as history. §A1 carries the full retirement note.
 
 **A1 ran. DC/LODF screening beats the GNN on every grid**, at the model's most favourable threshold
 and with no tuning of its own: **0.9550 / 0.9150 / 0.9207** against the model's **0.8972 / 0.4477 /
@@ -187,15 +197,28 @@ function. That is the whole design. Concretely, from `evaluation/eval_n1_cross_t
 
 These are the substance. Ranked by value per unit of effort.
 
-### A1. DC power-flow / LODF contingency screening — ✅ DONE 2026-09-19
+### A1. DC power-flow / LODF contingency screening — 🚫 RAN 2026-09-19, **RETIRED 2026-09-20**
 
-> **RESULT: `thesis_findings.md` §25.** LODF + topology screening scores **0.9550 / 0.9150 / 0.9207**
-> (oracle) against the model's **0.8972 / 0.4477 / 0.5721**, and **0.9509 / 0.9095 / 0.9137** with no
-> threshold tuning at all. Code: `evaluation/lodf.py`, `evaluation/eval_lodf_n1.py`,
-> `tests/test_lodf.py`. Artifacts: `results/lodf/lodf_<tag>.json`.
+> 🚫 **THIS ARM NO LONGER EXISTS.** `evaluation/lodf.py`, `evaluation/eval_lodf_n1.py`,
+> `tests/test_lodf.py` and `results/lodf/` were deleted on 2026-09-20 and replaced by the
+> inference-cost benchmark — `evaluation/bench_inference_speed.py`, `thesis_findings.md` §25.
+> The results section now asks what the incumbent AC method *costs* rather than how accurate a
+> linear approximation of it is. **Recover any of it with `git show 6546fc2:<path>`.**
+>
+> ⚠️ **What it measured, so that nobody re-derives it by accident.** LODF + topology screening
+> scored **0.9550 / 0.9150 / 0.9207** (oracle) against the model's **0.8972 / 0.4477 / 0.5721** —
+> above the model on all three grids, at the model's most favourable threshold, with no tuning of
+> its own. That result is not withdrawn and was never shown to be wrong; it was removed from the
+> thesis's scope. **Anyone reinstating this arm should expect that finding to reappear.**
+>
+> ⚠️ **One piece survived the deletion.** `load_branch_model` now lives in
+> `evaluation/branch_model.py`, because `evaluation/reactance_transfer.py` (§27) feeds the model
+> each grid's branch susceptances and has nothing else to read them from. Only the factor machinery
+> (`lodf_for_pattern`, `isolates_supply`, `LodfCache`) went. Guarded by `tests/test_branch_model.py`.
 >
 > The spec below is kept as written, with its two errors corrected in place, because the reasoning
-> that led here is part of the record.
+> that led here is part of the record — and because it is the specification anyone reinstating the
+> arm would need.
 
 
 **What.** The discipline's incumbent method. Line Outage Distribution Factors give post-contingency
@@ -663,7 +686,7 @@ grid. Arms, in ascending order of information used:
 ```
 all-positive
 best single rule (rho of removed line)
-DC-LODF screening                      [A1]  <- DONE; 0.9550 / 0.9150 / 0.9207 oracle
+DC-LODF screening                      [A1]  <- RETIRED 2026-09-20; see §A1
 logistic / GBT on endpoint features    [A3]  <- DONE; 0.9190 / 0.5845 / 0.5177 held
 MLP, Pavao feature set                 [A2]  <- DROPPED, see thesis_findings.md §26.5
 GNN head-only (no message passing)
@@ -692,11 +715,13 @@ results section better than it is now.
    islanding). All four settled by measurement; see §A1 and re-derive with §S4. **Do not redo this.**
    ⚠️ The fourth resolution changed the arm: ~22–26% of positives are solve-failure cases a linear
    method cannot produce, so step 2 must report **two** F1s (overload-only and full-label).
-2. ✅ **DONE 2026-09-19 — A1, DC-LODF screening**, all three grids, doctrinal / held / oracle
-   columns plus a no-redistribution control. **LODF wins on all three.** `thesis_findings.md` §25.
+2. 🚫 **RETIRED 2026-09-20 — A1, DC-LODF screening.** It ran on all three grids and won on all
+   three; the arm was then removed from the thesis's scope and its code and artifacts deleted.
+   Replaced by the inference-cost benchmark, `thesis_findings.md` §25. See §A1.
 3. ✅ **DONE 2026-09-19 — A3, tabular baselines**, re-scoped to all three grids.
-   **Logistic, GBT and the GNN all lose 31–50% off-distribution; LODF loses 4%.**
-   `thesis_findings.md` §26.
+   **Logistic, GBT and the GNN all lose 31–50% off-distribution.** `thesis_findings.md` §26.
+   ⚠️ The "…and LODF loses 4%" half of this line went with the retired arm (§A1); the
+   three-learned-architectures finding does not depend on it.
 4. ❌ **DROPPED — A2, Pavão architecture replication.** It measures model capacity, not
    transfer, and needs features our records do not carry. §26.5. The spec stays in §A2 in case
    the architecture ladder is wanted for a different reason.

@@ -287,6 +287,16 @@ base case is close to a physical tautology (P(violation | base overloaded) = 91�
 Full account and both caveats: `thesis_findings.md` §13. The guarded-32 numbers in
 §11 are superseded but retained — the diff between the two corpora is itself the evidence.
 
+> **2026-09-23 — THE SHIELD AWAY FROM ITS OPERATING POINT (`thesis_findings.md` §31).**
+> `evaluation/shield_threshold_analysis.py`: gated F1 ≥ raw F1 at **all 200 thresholds on all
+> three grids**. Recalibration 2×2 (30% of chronics, 20 partitions): on wcci2022 shield and
+> recalibration **stack** (0.5714 → 0.6829); on case14 recalibration makes the shield
+> **redundant** (+0.0000). 🚨 Never write "the shield captures what recalibration buys" — false
+> on case14. Wrong blocks come from **marginal overloads** (precision 0.64–0.82 within 2% of
+> the limit, 0.96–0.99 above 5%), not from removing the overloaded line. ⚠️ `l2rpn_idf_2023`
+> is the wcci2022 network; the neurips2020 grid is a subset of IEEE 118 — §14's asymmetry may
+> partly be shared origin (unmeasured). Figure: `figures/shield_threshold_sweep.{svg,png}`.
+
 > **2026-09-17 — SHIELD v2: the explanation channels are BUILT (`SHIELD_VERSION = "2.0"`).**
 > v1 had one channel: a rule vetoed a prediction or it was discarded, which is why 54 of 58
 > expressible rules never spoke, and every PASS rendered the same empty string. v2 adds
@@ -572,7 +582,7 @@ DELETED on 2026-08-20 along with the artifacts it needed (recoverable from git h
 `evaluation/summarize_shield_results.py` was DELETED on 2026-08-20 — it read a retired schema
 from a `results/` directory that did not then exist. Now that `results/` *does* exist it would
 have half-worked, which is worse than being orphaned; recoverable from git history.
-**245 tests green.**
+**481 tests green** (measured 2026-09-20). ⚠️ Dated banners above quote 302 and 245; those were accurate when written and are left as the record.
 Rule retrieval sits behind a `RuleProvider` protocol (`JsonlRuleProvider` by default,
 `kg.provider.KgRuleProvider` opt-in),
 so the KG redesign cannot invalidate it. Pending: the binary/asymmetric update for the forecast
@@ -881,6 +891,13 @@ results/                           # every artifact the eval harness writes (was
   citations/  citations_<tag>.json                      # tracked — provenance chains
   audit/      audit_run3.json                           # tracked — evaluation/audit_rules.py
   threshold/  threshold_sweep.json                      # tracked — evaluation/sweep_threshold.py
+  timing/     timing_<tag>_{lightsim,pandapower}.json   # tracked — evaluation/bench_inference_speed.py
+              #   ⚠️ each carries an `environment` block naming the CPU, torch build and thread
+              #   count. That is a DELIBERATE, SCOPED exception to "no hardware specs are recorded
+              #   anywhere" (see Machine roles): a timing ratio cannot be read without them. The
+              #   exception is the artifact only — never prose.
+              #   `.bench.lock` lives here too; the benchmark refuses to run while another holds it,
+              #   because concurrent runs contend for the CPU and silently corrupt BOTH results.
   failures/   failures_<tag>.jsonl                      # GITIGNORED — ~14 MB, rebuilt by re-running
 
 docs/                              # the 16 source PDFs (gitignored)

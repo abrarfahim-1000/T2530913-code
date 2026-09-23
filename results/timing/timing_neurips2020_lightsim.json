@@ -1,0 +1,109 @@
+{
+  "tag": "neurips2020",
+  "env": "l2rpn_neurips_2020_track1_small",
+  "frames": 500,
+  "contingencies": 29213,
+  "ac": {
+    "backend": "lightsim",
+    "backend_class": "LightSimBackend_l2rpn_neurips_2020_track1_smallLightSimBackend",
+    "method": "grid2op obs.simulate per energized line (scripts.generate_dataset.label_n1)",
+    "seconds": 48.9055,
+    "contingencies": 29213,
+    "per_contingency_ms": 1.674099,
+    "contingencies_per_sec": 597.34,
+    "per_frame_ms": {
+      "median": 83.4976,
+      "p95": 150.7796,
+      "mean": 97.8098
+    }
+  },
+  "gnn": {
+    "xpu": {
+      "device": "xpu",
+      "batch_size": 64,
+      "repeats": 3,
+      "feature_build_seconds": 0.4761,
+      "forward_seconds": 0.3332,
+      "end_to_end_seconds": 0.8093,
+      "contingencies": 29213,
+      "per_contingency_ms": 0.027704,
+      "contingencies_per_sec": 36095.99,
+      "forward_only_contingencies_per_sec": 87661.1,
+      "batch1_per_frame_ms": {
+        "median": 13.5298,
+        "p95": 221.7681,
+        "mean": 49.7439
+      }
+    },
+    "cpu": {
+      "device": "cpu",
+      "batch_size": 64,
+      "repeats": 3,
+      "feature_build_seconds": 0.4761,
+      "forward_seconds": 0.3618,
+      "end_to_end_seconds": 0.8379,
+      "contingencies": 29213,
+      "per_contingency_ms": 0.028683,
+      "contingencies_per_sec": 34863.99,
+      "forward_only_contingencies_per_sec": 80732.73,
+      "batch1_per_frame_ms": {
+        "median": 2.3482,
+        "p95": 2.5856,
+        "mean": 2.2721
+      }
+    }
+  },
+  "speedup": {
+    "xpu": {
+      "end_to_end": 60.43,
+      "forward_only": 146.78
+    },
+    "cpu": {
+      "end_to_end": 58.37,
+      "forward_only": 135.17
+    }
+  },
+  "accuracy_on_these_frames": {
+    "threshold": 0.884853,
+    "threshold_source": "selected on the neurips2020 val split, held fixed",
+    "f1": 0.8858,
+    "precision": 0.8396,
+    "recall": 0.9374,
+    "tp": 3967,
+    "fp": 758,
+    "fn": 265,
+    "positives": 4232,
+    "all_positive_f1": 0.2531,
+    "ac_f1": 1.0
+  },
+  "snapshot_health": {
+    "game_overs_during_collection": 0,
+    "shortest_episode": null,
+    "mean_episode_length": null,
+    "frames_are_independent": true
+  },
+  "environment": {
+    "platform": "Windows-11-10.0.26100-SP0",
+    "cpu_model": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",
+    "logical_cores": 12,
+    "torch_version": "2.9.0+xpu",
+    "torch_threads": 6,
+    "devices_timed": [
+      "xpu",
+      "cpu"
+    ],
+    "grid2op": "1.12.3",
+    "lightsim2grid": "0.12.2",
+    "pandapower": "3.4.0"
+  },
+  "caveats": [
+    "Two AC backends give two different ratios. LightSim generated every dataset in data/ and is the honest headline; PandaPower is the reference implementation and yields a ~10x larger ratio. Never quote one without naming which.",
+    "Snapshot sets differ between backend runs: same seed and same do-nothing policy, but not bit-identical trajectories. Comparisons are exact WITHIN an artifact and indicative across two.",
+    "obs.simulate is a pipeline, not a raw solver \u2014 it includes grid2op action construction and observation building, and it solves the t+1 forecast injections rather than the current instant.",
+    "The GNN was timed on every available device; AC is CPU-bound and single-threaded. Quote the CPU row whenever an accelerator row is quoted, or the comparison confounds 'GNN vs AC' with 'GPU vs CPU'.",
+    "Timing is hardware-dependent. The ratio is the result; the absolute seconds describe the one machine recorded in `environment`.",
+    "The GNN batches; AC is serial by construction. That is a real architectural advantage, which is why batch-1 latency is reported beside it.",
+    "Batch size 64 is load-bearing: BatchNorm(track_running_stats=False) uses live batch statistics, so the accuracy figures here hold at 64 only. Never mix them with figures taken at another batch size.",
+    "The speed buys a measured accuracy loss. AC is ground truth (F1 1.0); the GNN scores 0.8956 / 0.4167 / 0.5577 at the held threshold, and on case14 it loses to answering 'violation' every time."
+  ]
+}

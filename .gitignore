@@ -235,3 +235,8 @@ done_pdfs/
 # result. The per-contingency failure logs are not: ~14 MB across three grids,
 # fully rebuilt by re-running the harness.
 results/failures/
+
+# The inference-cost benchmark's mutual-exclusion lock. Transient, PID-scoped,
+# and meaningless outside the machine that created it. The timing artifacts
+# beside it ARE tracked — they are the recorded result.
+results/timing/.bench.lock

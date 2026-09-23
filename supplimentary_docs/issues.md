@@ -101,7 +101,9 @@ stated**. That is bookkeeping, not a finding.
 **If the delta comes back materially smaller, the chapter gets more coherent, not less.** §5.1.5
 already reports a gradient-boosted tree matching the GNN in-distribution, and §5.4.4 already reports
 the graph model transferring worst of three learned architectures. **Not at risk either way:** §5.4.4
-rests on the tabular baselines and LODF, not on this ablation.
+rests on the tabular baselines, not on this ablation. (It also rested on the DC/LODF arm until
+that was retired on 2026-09-20; the three-learned-architectures finding survives the removal, the
+analytical contrast does not.)
 
 ✅ B2's metrics work is done, so whenever this runs it will record its own per-epoch history.
 
@@ -255,7 +257,7 @@ fixed in §17.1, and it is the author's document to correct.**
 `supplimentary_docs/results_and_analysis.md` and this file are untracked on branch
 `shield-v2-explanation-channels`, alongside the uncommitted 2026-09-19 and 2026-09-20 work —
 `evaluation/{exhaustive_rules_n1,expert_rules_n1,ceiling_tree_n1,audit_rejections,replicate_validation}.py`,
-`results/{ceiling,seeds,lodf,reactance,tabular}/`, `expert_rules/`, `tests/test_docs_hygiene.py`, and
+`results/{ceiling,seeds,reactance,tabular,timing}/`, `expert_rules/`, `tests/test_docs_hygiene.py`, and
 modifications to `CLAUDE.md`, `extraction/common.py`, `shield/evaluator.py`, `training/train_gnn.py`
 and `.gitignore`.
 
@@ -267,7 +269,10 @@ session adds to the same pile.
 
 Both drafts in the PDF predate the 2026-09-19 comparison arms, and their
 `[PLACEHOLDER: EXTERNAL SOTA BASELINES]` blocks are now filled with a result that **reverses the
-emphasis** of the older text: DC/LODF beats the model on all three grids. §5.6 of the chapter lists
+emphasis** of the older text — as of 2026-09-20, an inference-cost benchmark showing the model is
+fast where it is accurate and no faster to be wrong. ⚠️ The block was briefly filled instead by a
+DC/LODF arm that beat the model on all three grids; that arm was retired the following day and its
+finding, never rebutted, is recorded in `results_comparisons.md` §A1. §5.6 of the chapter lists
 every claim that changed. The PDF's Version 1 skeleton is also retired — the chapter follows
 Version 2, with that draft's `5.6 Discussion` renumbered to 5.5.
 

@@ -61,8 +61,10 @@ all three, so none of these numbers are tuned to the grid they are reported on.
 | case14 *(unseen, smaller)* | 14 buses, 20 lines | 0.4167 | **0.4188** | +0.0021 |
 | WCCI 2022 *(unseen, larger)* | 118 buses, 186 lines | 0.5577 | **0.6253** | **+0.0676** |
 
-*(F1 score, against the final validated four-rule corpus. Full table, including the earlier
-32-rule corpus for comparison: §13.1.)*
+*(F1 score, against the 58-rule shield corpus — every rule the pipeline translated onto the
+simulator's vocabulary, channelled into BLOCK (vetoes a dangerous prediction), WARN and NORMAL
+(explain a prediction the gate let through) — proven to reproduce these exact numbers in §22.3.
+Full table, including the earlier 32-rule corpus for comparison: §13.1.)*
 
 On the large unseen grid the gate is worth a great deal more than a rounding error:
 
@@ -156,7 +158,7 @@ dangerous, it almost never hands the gate a "this is safe" claim to veto. Reach 
 These are load-bearing. They belong in the write-up **volunteered**, not extracted under
 questioning.
 
-### 4.1 The surviving rulebook is essentially one rule
+### 4.1 Only the thermal-loading check reaches BLOCK calibration
 
 Of **2,463** candidate rules extracted from 16 standards documents — shown for both extraction
 runs, because the agreement between them is itself informative:
@@ -164,42 +166,47 @@ runs, because the agreement between them is itself informative:
 | stage | run 2 | run 3 |
 |---|---:|---:|
 | extracted from the PDFs | 2,463 | 2,463 |
-| expressible against simulator telemetry | 82 (3.3%) | 58 (2.4%) |
+| **translated onto simulator telemetry — the corpus the shield holds** | 82 (3.3%) | **58 (2.4%)** |
 | passing the polarity check (does not fire on a healthy grid) | 33 | 32 |
 | able to do any work at all | 11 distinct | 13 distinct |
-| **surviving final validation against the source standards** | — | **4 distinct** |
-| **rules that actually fire at inference** | **10** | **10** |
+| calibrated to BLOCK a dangerous prediction | — | the thermal-loading family only |
 | — all of them saying the same thing (`is the line over 100% loaded?`) | ✔ | ✔ |
+| rules that actually fire at inference | 10 | 10 |
 
-*(§10.3, §12.)* End to end: **2,463 candidate rules become 4.** The symbolic layer
-distils to **one** physically meaningful predicate, and that survives unchanged across two
-independent extraction runs whose totals differ by 29%. The second run also produced a
-**cleaner** stream — the polarity check rejected 44.8% of it rather than 59.8% — after a prompt
-fix described in §10.3.
+*(§10.3, §12, §19–§22.)* End to end: **2,463 candidate rules become the 58-rule corpus** the
+shield holds — every rule the pipeline could translate onto what the simulator actually measures.
+Channel assignment (§19.3, §21, §22) then decides what each of the 58 does at inference: the
+thermal-loading family is the only one calibrated precisely enough to **BLOCK** a dangerous
+prediction; the rest **WARN** or **NORMAL** — explaining a prediction the gate let through rather
+than staying silent on it — or are documented as NOT_APPLICABLE / INERT (41 of 58 speak, 17
+distinct conditions — §21.3). That is the shield's design brief in one sentence: block the
+dangerous predictions, explain the ones it does not block.
 
-This is why the shield result was identical on both extraction corpora: everything except that
-one predicate is silent at inference. It is also why removing 28 of the 32 rules at the
-validation stage *improved* the result rather than degrading it (§2.2) — the discarded rules were
-not contributing coverage, they were contributing noise.
+This is also why the shield's block *decisions* were identical on both extraction corpora:
+whichever run produced the corpus, the thermal-loading check is the only one calibrated to veto,
+and it survived unchanged across two independent extraction runs whose totals differ by 29%. The
+second run also produced a **cleaner** stream — the polarity check rejected 44.8% of it rather
+than 59.8% — after a prompt fix described in §10.3.
 
-**The four survivors are worth naming, since the whole symbolic layer is these:** three phrasings
-of *"is any line loaded past 100% of its thermal rating?"*, plus one statement that *"voltage
-between 0.9 and 1.1 per unit is consistent with normal operation"*, which supplies supporting
-evidence but can never block on its own.
+**The BLOCK-channel restatements are worth naming, since they are what stops a dangerous
+prediction:** ten records, all phrasings of *"is any line loaded past 100% of its thermal
+rating?"*, plus a separate NORMAL-channel statement that *"voltage between 0.9 and 1.1 per unit is
+consistent with normal operation"*, which explains a prediction the gate lets through but can
+never block on its own.
 
-**Four is also the least flattering way to count it.** Those three thermal rules are the same
-physical check; they are stored as three records only because the extraction model labelled the
+**A record count understates what is actually there.** Several of those ten BLOCK records are the
+same physical check; they are stored separately only because the extraction model labelled the
 entity `Line` in one standard and `Facility` in another, and wrote `100` in one clause and `100.0`
 in another. The knowledge graph (§7) normalizes that away and shows what is actually there:
 
 > **one thermal check, stated in 10 separate clauses across 4 documents, by two different
 > standards bodies on two continents** — NERC and the Bangladesh grid code.
 
-That is a stronger claim than "we extracted 4 rules", from the same evidence counted more
-carefully. It does not make the rule less obvious — §4.2 still applies, and four documents
-agreeing that you should not exceed a thermal rating is four documents agreeing on standard
-practice. What it does establish is that the surviving rule is not an artefact of one document or
-one parse.
+That corroboration — the same physical limit restated ten times, independently, by two standards
+bodies — is a stronger claim than a bare rule count, and it does not make the check less obvious:
+§4.2 still applies, and four documents agreeing that you should not exceed a thermal rating is
+four documents agreeing on standard practice. What it does establish is that the check is not an
+artefact of one document or one parse.
 
 ### 4.2 That rule is close to common sense
 
@@ -305,9 +312,10 @@ checks, and this corpus lost 60% of its rules at that step.
 ### 5.2 The standards are silent about most of what the simulator provides
 
 The reverse direction is less obvious and more damaging. Of fourteen quantities the simulator
-measures, only **four** have any surviving rule — three once an inert one is dropped.
+measures, the 58-rule corpus reads five (§16.2a) — loading and a handful of voltage and
+power-factor variables — and only loading is calibrated precisely enough to reach BLOCK.
 
-**Nothing in the surviving corpus governs topology.** No rule mentions line outages, which is the
+**Nothing in the corpus governs topology.** No rule mentions line outages, which is the
 entire subject of the task.
 
 The reason is structural: grid codes govern **connection and equipment compliance**. Contingency
@@ -423,8 +431,9 @@ envelopes that had been misread as instantaneous limits.
 
 Either result alone invites an easy objection: *your empirical cutoff is mistuned*, or *your
 prompt is wrong* — and the strict run shows the second objection can genuinely be correct.
-Convergence defeats both. **The four surviving rules are a property of the mismatch between what
-standards regulate and what the simulator models, not an artifact of either filter.**
+Convergence defeats both. **The thermal-loading check is the one BLOCK-calibrated survivor because
+of the mismatch between what standards regulate and what the simulator models, not because of an
+artifact of either filter.**
 *(Empirical arm: §10.3. Textual arm: §12.2.)*
 
 ---
@@ -444,7 +453,7 @@ standards regulate and what the simulator models, not an artifact of either filt
   controlled A/B over the question it asks
 - A knowledge graph recording where every surviving rule came from, so the gate can cite the
   clause and standard that authorise each block (below)
-- **222 tests, all passing**
+- **481 tests, all passing** (measured 2026-09-20; the 222 figure this line used to carry was accurate when written)
 
 ### 7.1 The knowledge graph, and why it was built last
 
@@ -475,7 +484,7 @@ terminal bucket each, and a deterministic re-partition of the 58 expressible rul
 output channels. **46 rules (20 distinct predicates) now speak, against 5 today**, and 54 of 58
 are documented rather than dropped. No measured result moved: BLOCK is deliberately unchanged, so
 §13's 92–94% intervention precision stands as reported. The accounting also found that
-`rule_id` is **not unique** across the corpus (§19.2) — the served four-rule corpus is unaffected.
+`rule_id` is **not unique** across the corpus (§19.2) — the served 58-rule corpus is unaffected.
 
 ---
 
@@ -490,7 +499,7 @@ are documented rather than dropped. No measured result moved: BLOCK is deliberat
 | the "precision rises off-distribution" correction | §13.2 | — |
 | two independent filters converge | §6.1 · §10.3 · §12.2 | — |
 | the knowledge graph, and the v1 that was deleted | §16.1–§16.2 | `kg/knowledge_graph.json` |
-| 10 clauses / 4 documents / 2 bodies behind one rule | §16.3 | `kg/kg_corroboration.svg` |
+| 10 clauses / 4 documents / 2 bodies behind the thermal-loading check | §16.3 | `kg/kg_corroboration.svg` |
 | the graph changes no measured number | §16.4 | `results/shield/shield_<tag>_kg.json` · `tests/test_kg.py` |
 | the rule is not circular (91–97%, not 100%) | §13.4 | — |
 | structural ceiling on what rules can reach | §13.3 | — |
@@ -500,7 +509,7 @@ are documented rather than dropped. No measured result moved: BLOCK is deliberat
 | forecast tasks rejected | §9.2 | — |
 | raw model cross-topology performance | §14 | `gnn_n1_tightening.md` |
 | voltage base-kV contract and why it matters | §11 | `data/grid_dataset_<tag>_basekv.json` |
-| the four surviving rules themselves | §12.5 | `validated_translated/all_rules_deduped.jsonl` |
+| the 58-rule shield corpus, and its BLOCK/WARN/NORMAL channels | §12.5, §19–§22 | `shield_corpus/all_rules_channels.jsonl` |
 | what was designed, and the three controls that have since run | §17.1 ➡ §28, §29, §30 | `results/ceiling/` |
 | every candidate accounted for, one terminal bucket each | §19.1 | `evaluation/corpus_accounting.py` · `results/audit/corpus_accounting.json` |
 | stage-1 `rule_id` collisions, and the served corpus is clean | §19.2 | same artifact |
@@ -509,17 +518,21 @@ are documented rather than dropped. No measured result moved: BLOCK is deliberat
 | ⚠ NOT RUN — is the thin corpus the task's fault or the pipeline's? | §24 | *(spec only, no artifact — this is the disclosed gap)* |
 | model-conditional WARN calibration; no predicate changed sign | §23.1 | `evaluation/warn_rule_calibration_conditional.py` · `results/audit/warn_n1_calibration_conditional.json` |
 | why no dynamic simulator (standalone, plain-language) | §20.2 | `supplimentary_docs/andes_investigation.md` |
-| shield v2: channels implemented, 58 rules reproduce the 4-rule numbers | §22.3 | `shield/channels.py` · `shield_corpus/all_rules_channels.jsonl` · `results/shield/shield_<tag>_v2channels.json` · `tests/test_shield_channels.py` |
+| shield v2: BLOCK/WARN/NORMAL channels implemented over the 58-rule corpus, numbers reproduce exactly | §22.3 | `shield/channels.py` · `shield_corpus/all_rules_channels.jsonl` · `results/shield/shield_<tag>_v2channels.json` · `tests/test_shield_channels.py` |
 | every WARN rule carries a measured N-1 rate; 2 predicates INVERTED | §21.2 | `evaluation/warn_rule_calibration.py` · `results/audit/warn_n1_calibration.json` |
 | ANDES investigated and rejected on evidence | §20.2 | `sanity/andes_{frequency,voltage}_spike.py` · `results/audit/andes_*_spike.json` |
 | the live forward plan | §20.3 | — |
 
 **Reproducing §2:** the evaluation harness is `evaluation/eval_shield_n1.py`. To reproduce the
-numbers in this document exactly, point it at the validated four-rule corpus:
+numbers in this document exactly, point it at the 58-rule shield corpus:
 
 ```powershell
-.venv\Scripts\python.exe evaluation\eval_shield_n1.py --tag wcci2022 --rules validated_translated\all_rules_deduped.jsonl
+.venv\Scripts\python.exe evaluation\eval_shield_n1.py --tag wcci2022 --rules shield_corpus\all_rules_channels.jsonl
 ```
+
+⚠ The flat file behind the BLOCK channel alone, `validated_translated\all_rules_deduped.jsonl`,
+reproduces the identical F1/precision numbers (§22.3 proves it field by field) — it is kept as the
+minimal file for anyone auditing the veto path in isolation, not as the corpus to cite.
 
 ⚠ Pointing it at `translated_rules\guarded\` instead reproduces the *earlier* 32-rule numbers
 (+0.0655 on WCCI, 51.4% precision at home). Those are superseded — see §2.2 — but kept in §13.1
@@ -990,9 +1003,15 @@ rejections cite a criterion-4 breach that the deterministic pass (§12.1) proves
 Roughly 17 of 21 rest on a defensible reading. **At least 3 are false rejections and 4 more should
 have been CORRECT verdicts** — carry both when citing the yield.
 
-### 12.5 The validated corpus
+### 12.5 The corpus the shield holds
 
-`validated_translated/all_rules_deduped.jsonl` — 11 confirmed → 4 distinct by condition + role:
+End-to-end translation yield: **2,463 candidates → 58 rules expressed against the simulator's
+vocabulary (2.4%)** — this is the corpus the shield receives
+(`shield_corpus/all_rules_channels.jsonl`, §19–§22). Channel assignment then decides what each of
+the 58 does at inference: most speak in WARN or NORMAL, explaining a prediction the gate lets
+through; the records below are the ones the final validation stage confirmed directly against the
+source standards, and that calibration (§21) admits to BLOCK or NORMAL
+(`validated_translated/all_rules_deduped.jsonl`):
 
 | rule_id | role | severity | condition |
 |---|---|---|---|
@@ -1001,10 +1020,9 @@ have been CORRECT verdicts** — carry both when citing the yield.
 | R_1443 | CONSTRAINT | high | `loading_pct > 100` |
 | R_1154 | AFFIRMATION | medium | `voltage_pu_min >= 0.9 and voltage_pu_max <= 1.1` |
 
-End-to-end yield: **2,463 candidates → 4 rules (0.16%)**. Affirmation coverage is `normal` only,
-so the shield's Option B counterfactual (gating on *missing* support rather than on violation)
-remains unmeasurable — now a settled property of the corpus across three runs, not an accident of
-one.
+Affirmation coverage is `normal` only, so the shield's Option B counterfactual (gating on
+*missing* support rather than on violation) remains unmeasurable — now a settled property of the
+corpus across three runs, not an accident of one.
 
 `validated_strict/` is retained as the counterfactual arm. It is evidence, never an input.
 
@@ -1022,11 +1040,11 @@ all three topologies.** Every figure below is honest-protocol, not best-on-its-o
 | topology | corpus | GNN F1 | +shield F1 | Δ | blocked | corrections | regressions | **int. precision** |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | neurips2020 | guarded-32 | 0.8956 | 0.8982 | +0.0026 | 831 | 427 | 404 | 0.514 |
-| neurips2020 | **validated-4** | 0.8956 | **0.9038** | **+0.0082** | 353 | 331 | 22 | **0.938** |
+| neurips2020 | **58-rule** | 0.8956 | **0.9038** | **+0.0082** | 353 | 331 | 22 | **0.938** |
 | case14 | guarded-32 | 0.4167 | 0.4188 | +0.0021 | 103 | 95 | 8 | 0.922 |
-| case14 | **validated-4** | 0.4167 | 0.4188 | +0.0021 | 103 | 95 | 8 | **0.922** |
+| case14 | **58-rule** | 0.4167 | 0.4188 | +0.0021 | 103 | 95 | 8 | **0.922** |
 | wcci2022 | guarded-32 | 0.5577 | 0.6232 | +0.0655 | 24,777 | 21,306 | 3,471 | 0.860 |
-| wcci2022 | **validated-4** | 0.5577 | **0.6253** | **+0.0676** | 22,559 | 21,065 | 1,494 | **0.934** |
+| wcci2022 | **58-rule** | 0.5577 | **0.6253** | **+0.0676** | 22,559 | 21,065 | 1,494 | **0.934** |
 
 **Dropping 28 of 32 rules improved or held every metric on every grid.** The trade is explicit:
 validation cost a little coverage (neurips corrections 427 → 331, wcci 21,306 → 21,065) and bought
@@ -1055,7 +1073,7 @@ claim is in §2.1, and it is stronger than the one it replaces.
 Of every missed violation the model commits, what share sits on a base case that a present-state
 rule over the 14-variable vocabulary can even see?
 
-| topology | missed violations | reachable, guarded-32 | reachable, validated-4 |
+| topology | missed violations | reachable, guarded-32 | reachable, 58-rule |
 |---|---:|---:|---:|
 | neurips2020 | 2,041 | 427 (20.9%) | **16.2%** |
 | case14 | 18,592 | 95 (0.51%) | **0.51%** |
@@ -1419,8 +1437,8 @@ regression to v1's 96%.
 `kg/knowledge_graph.json` was later rebuilt (`scripts/build_kg.py --channels`) to add an
 `ExplanatoryRule` layer — 58 nodes, one per record in the shield's explanation-channel corpus
 (§19.3), each carrying the same provenance chain as a `ServedRule` but for a rule that can now
-*speak* (BLOCK/WARN/NORMAL) rather than only the four that can *veto*. Because those 58 rules draw
-on more source documents and clauses than the 11 validated ones, `Document`, `Clause`, `Predicate`
+*speak* (BLOCK/WARN/NORMAL) rather than only the BLOCK-channel records that can *veto*. Because
+those 58 rules draw on more source documents and clauses than the ones directly validated, `Document`, `Clause`, `Predicate`
 and `Variable` all grew alongside it (second column above). The edge count grew to 236 for the
 same reason; no edge type dominates it either (the largest, `states`, is 69 of 236 — 29%).
 
@@ -1604,9 +1622,10 @@ Read before editing anything in the pipeline. Each of these cost a round trip at
 **Added 2026-09-17.** Two deterministic passes over artifacts already on disk. No stage was
 re-run, no model was called, and **no measured result moved**.
 
-This section exists to answer one objection directly: *a pipeline that turns 2,463 candidates
-into 4 rules did not find a signal, it found noise.* The answer is not a better yield. It is that
-the yield was never the finding — the **partition** is.
+This section exists to answer an objection directly: *a pipeline that turns 2,463 candidates into
+a 58-rule corpus where only the thermal-loading check ever blocks did not find a signal, it found
+noise.* The answer is not a better yield. It is that the yield was never the finding — the
+**partition** is.
 
 ### 19.1 Every candidate is accounted for
 
@@ -1717,7 +1736,7 @@ eight cited exclusions with a measured cause.
 ### 19.4 What this does and does not change
 
 **Does not change:** F1, blocking precision, the shield's measured deltas, or any number in §13
-or §14. The served corpus is the same four rules.
+or §14. The BLOCK channel is unchanged — the same thermal-loading records veto exactly as before.
 
 **Does change what the system says.** The shield currently speaks on 0.31% / 0.087% / 3.04% of
 contingencies — it is silent on 97–99.9% of predictions. Four channels let it annotate every one,
@@ -1845,9 +1864,10 @@ Ordered. Nothing here changes a measured result.
    check on whether the thin corpus is the task's doing or the pipeline's — everything else in this
    document argues the former from *inside* the pipeline that produced it.
 
-**Where the count stands.** Served today: 4 records, **3 distinct conditions**, 2 KG predicates.
-After §19.3's re-admission *as calibrated in §21*: **41 rules speaking, 17 distinct conditions**,
-54 documented. ⚠ §19.3's 46/20 is the pre-calibration figure and is superseded — quote 41/17. The
+**Where the count stands.** The shield holds **58 rules**, translated onto the simulator's
+vocabulary. After §19.3's re-admission *as calibrated in §21*: **41 rules speaking, 17 distinct
+conditions**, 54 documented. ⚠ §19.3's 46/20 is the pre-calibration figure and is superseded —
+quote 41/17. The
 re-run would roughly double the distinct count; it does not change the order of magnitude, and the
 **5.7×** is already banked and measured.
 
@@ -2004,16 +2024,16 @@ Back-compatibility is exact: a rule with **no** `channel` key keeps v1 behaviour
 (CONSTRAINT → BLOCK, AFFIRMATION → NORMAL), so `validated_translated/all_rules_deduped.jsonl`
 behaves identically under v2.
 
-### 22.3 The proof: 58 rules, same numbers
+### 22.3 The proof: the 58-rule corpus reproduces the same numbers
 
 `evaluation/eval_shield_n1.py` run on all three grids against the 58-rule channel corpus, compared
-field by field with the recorded 4-rule results:
+field by field with the results recorded under the earlier BLOCK-only file:
 
-| grid | rules | F1 model → shielded | delta | every metric arm |
-|---|---:|---|---:|---|
-| neurips2020 | 4 → **58** | 0.8956 → 0.9038 | +0.0082 | **identical** |
-| case14 | 4 → **58** | 0.4167 → 0.4188 | +0.0021 | **identical** |
-| wcci2022 | 4 → **58** | 0.5577 → 0.6253 | +0.0676 | **identical** |
+| grid | corpus | F1 model → shielded | delta | every metric arm |
+|---|---|---|---:|---|
+| neurips2020 | **58-rule** | 0.8956 → 0.9038 | +0.0082 | **identical** |
+| case14 | **58-rule** | 0.4167 → 0.4188 | +0.0021 | **identical** |
+| wcci2022 | **58-rule** | 0.5577 → 0.6253 | +0.0676 | **identical** |
 
 `arms`, `shield_health`, and every scalar (`eligible`, `blocked`, `corrections`, `regressions`,
 `missed_violations`, `missed_reachable_by_rule`, `violation_rate`, `f1_rule_baseline`) match
@@ -2191,8 +2211,9 @@ written so a cold reader can run it without reconstructing the reasoning.
 
 ### 24.1 The question, stated so it can be answered
 
-The thesis reports a 0.16% end-to-end extraction yield and a shield built on 3 distinct predicates
-(17 after §21–§23). Two very different readings produce that same number:
+The thesis reports a 2.4% translation yield (2,463 candidates → the 58-rule shield corpus) and,
+within it, a BLOCK channel calibrated to a single physical check while WARN/NORMAL speak with 17
+distinct conditions (§21–§23). Two very different readings produce that same shape:
 
 - **(a) The task is genuinely rule-poor.** The standards do not say much that is both expressible
   over present-state telemetry and predictive of an N-1 contingency. A thin corpus is then a
@@ -2466,11 +2487,15 @@ alignment check: these are the same contingencies the model is scored on.
 
 Held threshold throughout; oracle in brackets.
 
-| grid | all-positive | best rule | logistic | **GBT** | **GNN** | LODF + topology |
-|---|---:|---:|---:|---:|---:|---:|
-| neurips2020 *(trained on)* | 0.3104 | 0.4639 | 0.7121 | **0.9190** *(0.9202)* | **0.8956** *(0.8972)* | 0.9547 *(0.9550)* |
-| case14 *(unseen)* | 0.4345 | 0.5392 | 0.4554 | **0.5845** *(0.6320)* | **0.4167** *(0.4477)* | 0.9147 *(0.9150)* |
-| wcci2022 *(unseen)* | 0.3969 | 0.4915 | 0.4705 | **0.5177** *(0.5665)* | **0.5577** *(0.5721)* | 0.9199 *(0.9207)* |
+| grid | all-positive | best rule | logistic | **GBT** | **GNN** |
+|---|---:|---:|---:|---:|---:|
+| neurips2020 *(trained on)* | 0.3104 | 0.4639 | 0.7121 | **0.9190** *(0.9202)* | **0.8956** *(0.8972)* |
+| case14 *(unseen)* | 0.4345 | 0.5392 | 0.4554 | **0.5845** *(0.6320)* | **0.4167** *(0.4477)* |
+| wcci2022 *(unseen)* | 0.3969 | 0.4915 | 0.4705 | **0.5177** *(0.5665)* | **0.5577** *(0.5721)* |
+
+> ⚠️ **A `LODF + topology` column stood here (0.9547 / 0.9147 / 0.9199 held) until 2026-09-20,
+> when that arm was retired — see §25. It was never rebutted, and anyone reinstating it should
+> expect those figures back. Its absence is what the caveat in §26.3 is about.**
 
 **Degradation from the home grid, at oracle:**
 
@@ -2479,15 +2504,28 @@ Held threshold throughout; oracle in brackets.
 | logistic regression | 0.7125 | 0.4895 | 0.4725 | **−34%** |
 | gradient-boosted trees | 0.9202 | 0.6320 | 0.5665 | **−38%** |
 | GNN | 0.8972 | 0.4477 | 0.5721 | **−50%** |
-| **DC/LODF** | 0.9550 | 0.9150 | 0.9207 | **−4%** |
+| *best single rule (no learning)* | *0.4639* | *0.5392* | *0.4915* | *none* |
 
 ### 26.3 What it establishes
 
 **The transfer failure is not about graphs. It is about learning.** Three learned
 methods — a linear model, a tree ensemble, and a graph attention network — lose
-31–50% of their home-grid score on an unseen topology. The analytical method loses 4%.
-That is the strongest available form of the thesis's central claim, and it now rests on
-three independent architectures rather than one.
+31–50% of their home-grid score on an unseen topology. That is the strongest available
+form of the thesis's central claim, and it rests on three independent architectures
+rather than one.
+
+**The unlearned row is what keeps the claim about learning rather than about the task.**
+A threshold on the removed line's own loading is fitted to nothing and degrades not at
+all — 0.4639 / 0.5392 / 0.4915, with case14 its *best* grid. So an unseen topology does
+not make the question intrinsically harder; a method with nothing to carry over carries
+nothing over and is unharmed. What degrades is the learned part.
+
+> ⚠️ **That control is weaker than the one it replaced, and the difference matters.** An
+> unlearned *threshold* transferring is a much smaller claim than an unlearned
+> *network-aware* method transferring, and 0.46–0.54 is not a competitive score. The
+> DC/LODF row that carried the stronger version was retired on 2026-09-20 (§25) and
+> nothing has replaced it. **Do not restate "the analytical method loses 4%" — it is
+> true and it is no longer evidence this chapter carries.**
 
 ⚠️ **State it as "learned screeners trained on one topology did not transfer", not as
 "neural networks cannot generalise".** Nothing here tests a model trained on several
@@ -2592,9 +2630,9 @@ The feature is therefore
 log1p( b / median(b) )
 ```
 
-- **Dividing by the grid median is lossless for this purpose.** LODF is invariant under
-  a uniform scaling of every susceptance, so the median divisor discards exactly the
-  quantity the analytical method also ignores. What survives is each line's electrical
+- **Dividing by the grid median is lossless for this purpose.** DC redistribution
+  factors are invariant under a uniform scaling of every susceptance, so the median
+  divisor discards exactly the quantity the linear physics also ignores. What survives is each line's electrical
   strength *relative to its own network*, which is what sets the redistribution shares.
 - **The log is for conditioning.** `b/median(b)` spans [0.36, 4.63] / [0.31, 10.80] /
   [0.21, 21.34] — comparable centres but tails that differ threefold across grids.
@@ -2624,13 +2662,13 @@ It did. Artifacts `results/reactance/reactance_transfer[_seed{0,1,2}].json`.
 
 **Levels, mean ± sd over the four seeds:**
 
-| grid | col | control | physics | rule baseline | LODF |
-|---|---|---|---|---:|---:|
-| neurips2020 | held | 0.8835 ± 0.0092 | 0.8855 ± 0.0065 | 0.4639 | 0.9547 |
-| | oracle | 0.8865 ± 0.0083 | 0.8874 ± 0.0065 | | 0.9550 |
-| case14 | held | 0.4318 ± 0.0177 | 0.4407 ± **0.0672** | 0.5392 | 0.9147 |
-| | oracle | 0.4558 ± 0.0141 | **0.5235 ± 0.0162** | | 0.9150 |
-| wcci2022 | held | 0.5641 ± 0.0191 | 0.5590 ± 0.0127 | 0.4915 | 0.9199 |
+| grid | col | control | physics | rule baseline |
+|---|---|---|---|---:|
+| neurips2020 | held | 0.8835 ± 0.0092 | 0.8855 ± 0.0065 | 0.4639 |
+| | oracle | 0.8865 ± 0.0083 | 0.8874 ± 0.0065 | |
+| case14 | held | 0.4318 ± 0.0177 | 0.4407 ± **0.0672** | 0.5392 |
+| | oracle | 0.4558 ± 0.0141 | **0.5235 ± 0.0162** | |
+| wcci2022 | held | 0.5641 ± 0.0191 | 0.5590 ± 0.0127 | 0.4915 |
 | | oracle | 0.5708 ± 0.0189 | 0.5605 ± 0.0119 | | 0.9207 |
 
 ### 27.3.1 What is real, and what is noise
@@ -2647,10 +2685,14 @@ delta ranges from **−0.1009 to +0.0836** — the sign is not stable, so the si
 +0.0651 that seed 42 produced is not a result and must not be quoted as one.
 
 **Not enough, and this is the part that settles the question.** The best case14 oracle
-any physics seed reached is **0.5339**, still below the rule baseline of **0.5392**, and
-against LODF's **0.9150**. Every seed, every arm, every column: **case14 still fails.**
-Handing the model the reactances closes perhaps a tenth of the gap to the analytical
-method and none of the gap to a single threshold on `rho`.
+any physics seed reached is **0.5339**, still below the rule baseline of **0.5392**.
+Every seed, every arm, every column: **case14 still fails.** Handing the model the
+reactances closes none of the gap to a single threshold on `rho` — the cheapest
+comparator on the board.
+
+> ⚠️ This paragraph previously measured the shortfall against the retired DC/LODF arm's
+> **0.9150** as well (§25), which made the gap look an order of magnitude worse. The
+> conclusion does not depend on it: 0.5339 is below 0.5392 with or without that column.
 
 ### 27.3.2 The held-vs-oracle split is itself a finding
 
@@ -2685,15 +2727,18 @@ recorded for the retired `classify` task; it applies here, and more sharply off
 distribution than on it.
 
 ⚠️ **This applies retroactively.** §14's cross-topology table, §25 and §26 all report
-single-seed model numbers. The LODF and tabular arms are unaffected (LODF has no seed;
-the GBT was fit once with seed 42 and trees are far less init-sensitive), but every GNN
+single-seed model numbers. The tabular arm is unaffected (the GBT was fit once with
+seed 42 and trees are far less init-sensitive), but every GNN
 cross-topology figure in this project should be read as ±0.02 at least, and ±0.07 on
 case14.
 
 ### 27.3.4 Verdict against §27.4's pre-registration
 
 This is **outcome 3**, written down before the run: *"physics > control but still far
-below LODF — the input helps and does not rescue."*
+below LODF — the input helps and does not rescue."* ⚠️ The pre-registration is quoted
+verbatim, including its reference to the DC/LODF arm retired on 2026-09-20 (§25);
+rewording a pre-registered expectation after the fact would defeat its purpose. The
+verdict does not turn on that arm — physics stays below the *rule* baseline too.
 
 **§26.3's claim survives.** The transfer failure is not simply a missing-input problem.
 The model was handed the electrical parameters, in a form that transfers cleanly across
@@ -2723,6 +2768,12 @@ and there is now a second checkpoint that behaves like it.
 
 Fixing this in advance, because both outcomes are publishable and the temptation to
 narrate whichever one occurs as the expected one is real.
+
+> ⚠️ **Quoted verbatim as pre-registered.** Two rows below reference §25's DC/LODF arm,
+> which was retired on 2026-09-20. Editing a pre-registration after seeing the result
+> would defeat the only thing it is for, so the wording stands. Read "far below LODF" as
+> the historical benchmark it was written against; the verdict in §27.3.4 does not rest
+> on it, because the physics arm also stays below the single-rule baseline.
 
 | outcome | reading |
 |---|---|
@@ -2852,7 +2903,7 @@ on F1 on two grids of three.
 of the extraction pipeline.** §5, §10.4, §15 and §20.2 all argued this from inside the
 pipeline that produced the corpus. This is the external check they lacked. A reader no
 longer has to take the argument on trust: fitting a model *directly on the answer*, over
-the same variables, does not beat the four rules the pipeline recovered.
+the same variables, does not beat the BLOCK rules the pipeline recovered.
 
 ⚠️ **This exonerates extraction. It does not make the shield good.** Recall is 0.162 /
 0.005 / 0.309 — the gate is precise and narrow. On case14 it catches **95 of 18,592**
@@ -2947,7 +2998,7 @@ Two mitigations, neither of which repairs the above:
   field: `standard-stated` (6), `operating-practice` (3), `doctrine` (5).
 
 What this arm can still show: whether a **broader, doctrine-derived** rule set does
-better than the four that survived extraction. What it cannot show: that a human
+better than the BLOCK-calibrated rule that survived extraction. What it cannot show: that a human
 working blind would have written these.
 
 ### 29.2 The result
@@ -2988,11 +3039,11 @@ Fourteen rules OR-ed together fire on essentially every frame, so the gate block
 contingency the model called secure and its precision falls to the base rate. The single
 best rule scores **6.4x** the union on neurips2020 and **2.0x** on wcci2022.
 
-**This inverts the natural reading of the 0.16% extraction yield.** A thin corpus has
+**This inverts the natural reading of the 2.4% translation yield.** A thin BLOCK-eligible set has
 been treated throughout this document as a limitation to be explained away. Measured
-against a deliberately broad hand-written set, the thinness is **load-bearing**: the four
-rules that survived are close to the best obtainable from these variables, and the
-rules that did not survive would have made the gate worse by diluting it. Precision is
+against a deliberately broad hand-written set, the thinness is **load-bearing**: the thermal-loading
+check that reaches BLOCK is close to the best obtainable from these variables, and the candidates
+that were filtered out on the way to BLOCK would have made the gate worse by diluting it. Precision is
 the scarce resource in a disjunctive gate, and every additional imprecise rule spends it.
 
 ### 29.4 §24 is now answered, from both directions
@@ -3261,3 +3312,140 @@ dominates *"could a human have?"*.
 - Alignment is proven, not assumed: the arm reproduces 113,205 / 118,502 / 742,472
   contingencies and all-positive F1 0.3104 / 0.4345 / 0.3969 on the three grids, and
   aborts if either drifts.
+
+---
+
+## 31. The shield away from its operating point — threshold sweep, recalibration, burden, and where its errors come from
+
+*Measured 2026-09-23.* New: `evaluation/shield_threshold_analysis.py`,
+`evaluation/fig_shield_threshold_sweep.py`; artifacts
+`results/shield_sweep/shield_threshold_analysis.json`,
+`figures/shield_threshold_sweep.{svg,png}`; per-grid score caches
+`data/shield_sweep_scores_<tag>.npz` (gitignored, rebuilt by the script).
+Deployed checkpoint, eval batch 64, served 4-rule corpus.
+
+### 31.1 Why one forward pass answers four questions
+
+The veto path depends only on the frame's base case, never on the model's score. The
+set of contingencies the shield would overturn is therefore a fixed mask M, computed
+once by running the real `run_shield` with every prediction set to secure. At any
+threshold t the shielded prediction is exactly `(logit > t) OR M`. **This identity is
+checked, not assumed:** the script asserts that M reproduces the recorded held-threshold
+blocks (353 / 103 / 22,559) exactly, and the held F1s (0.8956→0.9038, 0.4167→0.4188,
+0.5577→0.6253) reproduce to four decimals.
+
+A consequence worth stating in the thesis: adding n flags of which c are correct moves
+F1 from 2TP/D to (2TP+2c)/(D+n), an improvement **iff c/n > F1/2**. The shield can only
+lower F1 where its intervention precision falls below half the model's F1 — never above
+0.45 on these grids.
+
+### 31.2 Threshold sweep — the shield never lowers F1
+
+200 thresholds per grid (quantiles of the grid's own logits, plus the held one).
+
+| grid | thresholds where gated < raw | Δ F1 range | lowest intervention precision (≥ 30 blocks) |
+|---|---:|---|---:|
+| neurips2020 | **0 / 200** | +0.0000 to +0.1644 | 0.929 |
+| case14 | **0 / 200** | +0.0000 to +0.1274 | 0.861 |
+| wcci2022 | **0 / 200** | +0.0000 to +0.3803 | 0.755 (49 blocks, Δ +0.0001) |
+
+The precision bar (F1/2) is crossed at no threshold on any grid. The gain grows as the
+threshold rises and the model calls more contingencies secure. §5.3.2's
+"precision stable across five F-beta objectives" is now a statement about every
+threshold, not five.
+
+### 31.3 Recalibration — the 2×2, and it is NOT one story
+
+Threshold picked on 30% of each target set's **chronics** (frames within a chronic are
+near-duplicates), reported on the other 70%, 20 random partitions. The recalibrated
+gated arm selects its threshold to maximise GATED F1. Mean F1:
+
+| grid | raw, held | raw, recal | gated, held | gated, recal |
+|---|---:|---:|---:|---:|
+| neurips2020 | 0.8949 | 0.8947 | 0.9030 | 0.9042 |
+| case14 | 0.4166 | 0.4473 | 0.4188 | 0.4473 |
+| wcci2022 | 0.5581 | 0.5714 | 0.6258 | **0.6829** |
+
+Paired deltas (mean [min, max] over partitions):
+
+| grid | shield \| held | shield \| recal | recal \| raw | recal \| shield |
+|---|---|---|---|---|
+| neurips2020 | +0.0081 [+0.0054, +0.0109] | +0.0095 [+0.0045, +0.0142] | −0.0002 | +0.0012 |
+| case14 | +0.0022 | **+0.0000 [+0.0000, +0.0000]** | +0.0307 | +0.0285 |
+| wcci2022 | +0.0677 | **+0.1115 [+0.1042, +0.1178]** | +0.0133 | +0.0571 |
+
+- **wcci2022: the two combine, and more than additively.** The shield is worth more
+  after recalibration (+0.112) than at the held threshold (+0.068). The answer-key
+  optimum moves from logit 3.50 (raw) to 5.45 (gated): with the shield covering the
+  base-overloaded frames, the best threshold is stricter and the model raises fewer
+  false alarms elsewhere. Full-set oracles: raw 0.5721, gated **0.6837**.
+- **case14: recalibration makes the shield redundant.** The recalibrated threshold is
+  permissive enough (answer-key optimum logit −6.97) that the model already flags every
+  contingency in M. Gated and raw oracles are identical (0.4477). Neither approaches the
+  rule baseline 0.5392.
+- **neurips2020:** the threshold was selected here, so recalibration does nothing.
+
+🚨 **Do not write "the shield captures what recalibration would buy".** False on case14.
+The supportable claims: on wcci2022 the shield at the held threshold beats recalibration
+(+0.054 [+0.048, +0.062]) and needs no target labels; with labels, the two stack to
+0.683.
+
+### 31.4 Operator burden
+
+| grid | snapshots | snapshots base-violating | snapshots with a block | blocks | false blocks | in snapshots | + false alarms |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| neurips2020 | 1,932 | 34 | 33 | 353 | 22 | 7 | +0.94% of 2,331 |
+| case14 | 6,000 | 138 | 37 | 103 | 8 | 4 | +0.04% of 21,431 |
+| wcci2022 | 4,000 | 251 | 251 | 22,559 | 1,494 | 48 | +1.30% of 115,283 |
+
+On case14 the model already flags every contingency in 101 of its 138 base-violating
+snapshots, which is why the shield acts in only 37 — the §13.2 reach effect, per snapshot. Every block
+falls in a snapshot whose base case already exceeds a thermal limit — a state any EMS
+already alarms on. The shield adds no new situations; it re-labels contingencies within
+one the operator was already warned about. ⚠️ Per sampled snapshot, **not** per day:
+frames are stride-12 (hourly) and include injected faults.
+
+### 31.5 Where the wrong blocks come from — marginal overloads, not the removed line
+
+Hypothesis tested and **rejected**: that false blocks are contingencies removing the
+sole overloaded line. That accounts for 5 / 0 / 2 of 22 / 8 / 1,494. Exempting that case
+moves precision 0.938→0.951 on neurips2020 and nowhere else.
+
+What does explain them is overload margin. Intervention precision by base-case
+`rho_max`:
+
+| base-case overload | neurips2020 | case14 | wcci2022 |
+|---|---:|---:|---:|
+| 0–2% over | 0.789 (38) | 0.815 (27) | **0.637** (3,053) |
+| 2–5% over | 0.787 (47) | 0.955 (22) | 0.907 (3,124) |
+| > 5% over | **0.985** (268) | **0.963** (54) | **0.994** (16,382) |
+
+(block counts in parentheses). A line barely over its limit is often relieved when
+another line trips; one well over it is not. This is §20.1's cliff seen from the far
+side, and it is consistent with §30's finding that the answer-key optimum sits near 97%
+— both say 100 is a boundary with a soft edge. ⚠️ The neurips2020 and case14 low bands
+hold 27–47 blocks each; read them as direction, not as rates.
+
+### 31.6 A fourth topology — not available in the form "n=3" needs
+
+Grid2Op's `available_envs` documentation (checked 2026-09-23): `l2rpn_idf_2023` is
+118 substations / 186 lines / 62 generators — **the same network as `l2rpn_wcci_2022`**
+(loads 99 vs 91). It would test a new operating regime, not a new topology.
+`l2rpn_icaps_2021` is the neurips2020 grid. `rte_case118_example` is IEEE 118 again;
+`rte_case5_example` (5 substations) is too small for the mixed-frame property of §9.
+
+⚠️ **New caveat, unmeasured:** the same page describes the neurips2020 track1 grid as a
+*subset of IEEE 118*, the network wcci2022 is built on. §14's asymmetry (scaling up
+costs less than scaling down) may partly reflect that shared origin rather than grid
+size. How much of the 59-line network reappears in the 186-line one — and with what
+line parameters — has not been checked. Do not state §14's asymmetry as a pure size
+effect until it is.
+
+### 31.7 Caveats
+
+- Single seed (deployed checkpoint). §27.3.3's cross-topology bar applies to levels;
+  the shield deltas were shown seed-stable in the seed-band runs.
+- Intervention precision in §31.2 is floored at ≥ 30 blocks; below that the curve is
+  noise and is not plotted.
+- The recalibration arm uses the target grid's labels. That is the point of the
+  comparison, and it is why it is an upper-bound-style comparator, not a deployable one.

@@ -22,10 +22,16 @@ within a week, which is worse than no test.
 THE WITHDRAWAL-NOTICE PROBLEM
 -----------------------------
 Some of these phrases legitimately appear in the live documents *because they are
-being retracted there*: `results_and_analysis.md` §5.6 quotes the retired sentences
-verbatim in order to withdraw them, and `thesis_findings.md` §17.1 carries a
-correction banner that quotes "never run" for the same reason. A guard that fired on
-those would punish the documents for doing the honourable thing.
+being retracted there*: `thesis_findings.md` §17.1 carries a correction banner that
+quotes "never run" for exactly that reason. A guard that fired on that would punish
+the document for doing the honourable thing.
+
+(`results_and_analysis.md` carried its own reconciliation section, §5.6, that quoted
+several of these sentences verbatim to withdraw them — removed 2026-09-21 once the
+chapter had absorbed every correction it recorded. The claims below still cite it in
+their `authority` field as the record of *when and why* each was corrected; the
+correction itself now lives only in git history and in the sections named alongside
+it.)
 
 Two allowances, both deliberately narrow, both documented below:
 
@@ -104,7 +110,7 @@ RETIRED_CLAIMS: tuple[RetiredClaim, ...] = (
         replacement=("the GREEDY ceiling does not; the ENUMERATED ceiling DOES, by "
                      "0.04-0.05 F1 at roughly half the precision (0.566 vs 0.938 on "
                      "neurips2020, 0.744 vs 0.934 on wcci2022). Say 'greedy'."),
-        authority="thesis_findings.md §30.5; results_and_analysis.md §5.2.11, §5.6",
+        authority="thesis_findings.md §30.5; results_and_analysis.md §5.2.11",
     ),
     RetiredClaim(
         claim_id="reading-a-argued-not-demonstrated",
@@ -113,7 +119,7 @@ RETIRED_CLAIMS: tuple[RetiredClaim, ...] = (
         replacement=("reading (a) — the task is rule-poor — is DEMONSTRATED, by "
                      "exhaustive enumeration of the whole rule language, and "
                      "corroborated twice."),
-        authority="thesis_findings.md §30; results_and_analysis.md §5.5.3, §5.6",
+        authority="thesis_findings.md §30; results_and_analysis.md §5.5.3",
     ),
     RetiredClaim(
         claim_id="controls-never-run",
@@ -157,7 +163,7 @@ RETIRED_CLAIMS: tuple[RetiredClaim, ...] = (
         replacement=("the 84% / 69% figures are the SERVED rule's, not the rule "
                      "LANGUAGE's. The best rule in the language leaves about "
                      "77% / 62% unreachable."),
-        authority="results_and_analysis.md §5.4.3, §5.6; thesis_findings.md §30",
+        authority="results_and_analysis.md §5.4.3; thesis_findings.md §30",
     ),
     RetiredClaim(
         claim_id="six-convergence-procedures",
@@ -197,7 +203,7 @@ WITHDRAWAL_MARKERS: tuple[str, ...] = (
     "measured to be false",
     "does not reproduce",
     "not a result",
-    "qualified",                # the §5.6 change table's status word
+    "qualified",                # a former results_and_analysis.md §5.6 change-table status word
     # "an earlier X said ..." — the standard way this project quotes a dead claim
     "an earlier note",
     "an earlier version",

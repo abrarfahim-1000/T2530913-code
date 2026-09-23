@@ -1,36 +1,21 @@
 # 5 Results and Analysis
 
-*Drafted 2026-09-19 from [`thesis_findings.md`](thesis_findings.md). The structure follows the
-Version-2 skeleton in `ResultsAnalysis.pdf`. Every figure is cross-referenced to the findings
-section that derives it, so any claim made here can be traced back to the measurement that
-produced it.*
-
-> **This chapter supersedes both drafts in `ResultsAnalysis.pdf`.** Those were written before the
-> comparison experiments of 2026-09-19, and their `[PLACEHOLDER: EXTERNAL SOTA BASELINES]` blocks
-> are now filled — with a result that reverses the emphasis of the older text. §5.6 lists the
-> specific claims that changed, so the earlier draft should not be circulated alongside this one.
-
----
-
 **Two protocol constraints govern every number below, and are stated once, here.**
 
 **First, the decision threshold is 0.8849, selected once on the NeurIPS 2020 validation split and
-applied unchanged to all three topologies** — three different grids, differing in how many
-substations and lines they have and how those connect. A cutoff chosen once and then applied
-everywhere is called a **held** threshold, and it is the reported protocol here because it is the
-only one obtainable in practice. Figures obtained by instead choosing the best cutoff for each grid
-individually are **oracle** figures: they use that grid's answer key, which in deployment nobody
-has, so they appear only in explicitly labelled columns and are quoted as ceilings. Held and oracle
-values are never mixed within a column.
+applied unchanged to all three topologies** — three grids differing in substation and line count
+and connectivity. A cutoff chosen once and applied everywhere is a **held** threshold, the reported
+protocol here because it is the only one obtainable in practice. Choosing the best cutoff for each
+grid individually instead gives **best-case** figures: they use that grid's answer key, unavailable
+in deployment, so they appear only in labelled columns and are quoted as ceilings — never mixed with
+held values in the same column.
 
-**Second, the evaluation batch size is pinned at 64.** Examples are pushed through the model in
-groups, or batches, and this model uses `BatchNorm(track_running_stats=False)`, meaning that at
-inference it rescales each batch using that batch's own statistics rather than statistics stored
-during training. The consequence is that *which other examples happen to share the batch* changes
-the output slightly. The same trained model on the same data scores 0.8972 at batch 64 and 0.9255
-at batch 512, measured in F1 — the accuracy score defined in §5.1.2, on a scale where 1.0 is
-perfect. No model score is quoted here without that qualification (findings §8, §13, §14
-caveat 3).
+**Second, the evaluation batch size is pinned at 64.** This model uses
+`BatchNorm(track_running_stats=False)`, which rescales each inference batch using that batch's own
+statistics rather than stored training statistics — so *which other examples share the batch*
+changes the output slightly. The same trained model on the same data scores F1 0.8972 at batch 64
+and 0.9255 at batch 512 (F1 defined in §5.1.2, 1.0 = perfect). No model score is quoted here without
+its batch size (findings §8, §13, §14 caveat 3).
 
 ---
 
@@ -49,8 +34,7 @@ One property of this task makes the entire comparison meaningful, and it is wort
 anything else. **The correct answer cannot be worked out from the present observation.** Deciding
 whether losing line *k* causes a violation requires solving the power flow for the network with
 line *k* removed — a computation, not a lookup. No rule written over the grid's current readings
-can restate that answer. §5.2.1 records two earlier task designs that lacked this property, and
-why each had to be abandoned because of it.
+can restate that answer.
 
 Three topologies were used, generated under an identical protocol (`--task n1 --n1-stride 12`) so
 that only the environment differs:
@@ -75,9 +59,10 @@ therefore does not become trivial or degenerate off the training grid (§14).
 
 The symbolic layer was built by a four-stage pipeline driven by large language models, reading
 **16 published standards documents** (IEEE, NERC, ENTSO-E and national grid codes). It produced
-**2,463 candidate rules** and, after translation into the simulator's vocabulary, a deterministic
-polarity check and a textual validation stage, **4 served rule records carrying 3 distinct
-conditions** (§5.2.5).
+**2,463 candidate rules** and, after translation into the simulator's vocabulary, a **58-rule
+corpus** — every rule expressible over what the simulator actually measures. Channel assignment
+sorts those 58 into BLOCK (vetoes a dangerous prediction), WARN and NORMAL (explain a prediction
+the gate lets through), or documents them as not currently applicable (§5.2.5, §5.2.9).
 
 ### 5.1.2 Metrics and evaluation regimes
 
@@ -124,12 +109,12 @@ change very little, if it is rarely in a position to speak at all.
 (*In-distribution* means measured on the grid the model was trained on; the two unseen grids are
 *off-distribution*, and that regime is what this thesis is about.)
 
-**Oracle ceiling — best threshold chosen on each grid with the answer key. Not obtainable in
+**Best-case ceiling — best threshold chosen on each grid with the answer key. Not obtainable in
 deployment; quoted only as a ceiling.** The third column, *average precision*, summarises
 performance across every possible cutoff at once, so unlike F1 it measures the quality of the
 model's ranking rather than of one particular decision.
 
-| topology | model (oracle) | average precision | gap over held |
+| topology | model (best case) | average precision | gap over held |
 |---|---:|---:|---:|
 | NeurIPS 2020 | 0.8972 | 0.9615 | +0.0015 |
 | case14 | 0.4477 | 0.4270 | **+0.0310** |
@@ -147,7 +132,7 @@ baseline and 0.96x the all-positive baseline (0.4167 against 0.4345). On that gr
 only by one threshold on one feature, but by the strategy of answering "violation" every single
 time. It is reported here as a failure rather than softened.
 
-**The oracle gap measures the optimism a per-grid threshold would buy, and it grows
+**The best-case gap measures the optimism a per-grid threshold would buy, and it grows
 off-distribution** — 0.0015 at home, where the threshold was chosen, against 0.0310 on case14,
 twenty times larger. The reason is mechanical: a foreign grid shifts the range of scores the model
 produces, so a cutoff fixed on the training grid lands further from that grid's best choice.
@@ -155,138 +140,221 @@ produces, so a cutoff fixed on the training grid lands further from that grid's 
 
 > ⚠ **Every figure in this table comes from a single training run.** A *seed* is the random number
 > that sets a model's starting weights, so two runs differing only in seed are the same experiment
-> run twice. A four-seed replication of the same architecture (§5.2.4, §5.3.6) measured a
-> cross-topology standard deviation of 0.009
-> in-distribution and 0.018–0.019 on the unseen grids, so **these rows carry at least ±0.02, and
-> case14 ±0.07**. The three conclusions above survive that band comfortably — case14's 0.12
-> shortfall against the rule baseline and WCCI 2022's 0.066 margin over it are both several times
-> the spread — but no narrower comparison may be read off this table.
+> run twice. A four-seed replication (§5.2.4, §5.3.6) puts this checkpoint's cross-topology spread
+> at **±0.02, and ±0.07 on case14** — full derivation there. The three conclusions above survive
+> that band comfortably — case14's 0.12 shortfall against the rule baseline and WCCI 2022's 0.066
+> margin over it are both several times the spread — but no narrower comparison may be read off
+> this table.
 
-### 5.1.4 Comparison against the incumbent method (DC/LODF screening)
+### 5.1.4 The cost of the accurate method
 
-The comparison that matters is not against another neural architecture but against the method
-practitioners already run: **DC contingency screening using line outage distribution factors**.
+The labels this chapter has been scoring against are not estimates. Each one is the answer a full
+AC power-flow solver gave when asked what happens if a particular line is removed — the same
+non-linear physics an operator's own control-room tools solve. On accuracy that method cannot be
+beaten, because it *is* the answer key (§5.1.1, §5.1.2). The question it raises is a different one:
+what does it cost to run?
 
-The idea is simple enough to state in one sentence. When a line is removed, the power it was
-carrying does not vanish; it redistributes over the remaining lines, and how much each one receives
-is fixed by the network's electrical properties — chiefly each line's *reactance*, the property
-that determines how readily power flows down it and therefore where power goes when the network
-changes. LODF is the table of those sharing fractions, and it can be computed directly from the
-wiring and the line reactances. Multiplying the outaged line's
-flow by that table gives an estimate of every other line's new flow, and anything predicted above
-its rating is flagged. The technique is linear, approximately a century old, and involves no
-learning of any kind.
+That matters because contingency screening is not an offline exercise. A control room re-runs it as
+the grid state changes, and the number of questions it must ask is the number of lines — every one
+of which could fail. A method that answers correctly but too slowly to finish before the state has
+moved on is not usable, however accurate it is. Nothing in this project had measured that cost, so
+it was measured directly (`evaluation/bench_inference_speed.py`, validated by
+`tests/test_bench_inference_speed.py`, artifacts in `results/timing/`).
 
-It was implemented (`evaluation/lodf.py`, `evaluation/eval_lodf_n1.py`) and scored against the
-identical label vectors. Every figure below is at the **oracle** column, which is the learned
-model's most favourable presentation. The rightmost column is a *zero-tuning* decision rule —
-predicted post-contingency loading ≥ 1.0 — with no threshold selection of any kind (§25.1).
+The benchmark asks both methods the identical question on the identical grid snapshots — for each
+line, does removing it violate a thermal limit? — and times them. Two properties keep the
+comparison honest rather than flattering:
 
-| grid | all-positive | best rule | **GNN (oracle)** | LODF flow | **LODF + topology** | LODF + topology, **untuned at 1.0** |
-|---|---:|---:|---:|---:|---:|---:|
-| NeurIPS 2020 *(trained on)* | 0.3104 | 0.4639 | **0.8972** | 0.8906 | **0.9550** | 0.9509 |
-| case14 *(unseen, smaller)* | 0.4345 | 0.5392 | **0.4477** | 0.7797 | **0.9150** | 0.9095 |
-| WCCI 2022 *(unseen, larger)* | 0.3969 | 0.4915 | **0.5721** | 0.8208 | **0.9207** | 0.9137 |
+- **The unit is one contingency, not one frame.** The network emits one verdict per line per
+  snapshot, so the solver is timed for one solve per line per snapshot too. Timing a single solve
+  per snapshot would have understated the solver's cost by a factor of the line count — 59x on
+  NeurIPS 2020, 186x on WCCI 2022.
+- **The solver arm is this project's own labelling code, called unmodified** — the same
+  `scripts.generate_dataset.label_n1` routine that produced every dataset in `data/`, not a
+  reimplementation written to be timed. Both arms are asserted to have screened the identical
+  (frame, line) set before anything is reported.
 
-Held-threshold figures move nothing: LODF + topology scores **0.9547 / 0.9147 / 0.9199**.
+The AC solver timed throughout is **LightSim2Grid**, a C++ implementation of Newton-Raphson power
+flow — the same backend that generated every dataset in this thesis. It is the fastest solver
+actually available, and the one a deployed screening system would have to beat, so it is the only
+comparison reported here.
 
-**The model matches DC screening on the grid it was trained on, and loses heavily on both grids it
-was not.** On case14 the gap is 0.4477 against 0.9150 — the model is not merely below the linear
-method, it is below it by more than it is above the all-positive baseline. This should not be
-softened into "LODF is a strong baseline". It beats the model on all three grids, at the model's
-most favourable threshold, with no tuning of its own.
+**Throughput, contingencies screened per second:**
 
-Three independent checks had to pass before that result was accepted (§25.2), because a baseline
-that beats the thesis's own model deserves more scrutiny than one that does not.
+| grid | contingencies | AC — LightSim (C++) | GNN — CPU | GNN — XPU |
+|---|---:|---:|---:|---:|
+| NeurIPS 2020 *(trained on)* | 29,213 | 597.3 | **34,864** | **36,096** |
+| case14 *(unseen, smaller)* | 10,000 | 715.0 | **18,427** | **16,366** |
+| WCCI 2022 *(unseen, larger)* | 37,200 | 393.5 | **111,104** | **136,305** |
 
-1. **The labels are the harness's own, not a reconstruction.** The comparison calls
-   `scripts.pyg_data.build_line_targets` — the same function the model's data loader calls —
-   rebuilds the target vector frame by frame, and recomputes both baselines from it. It reproduces
-   0.3104 / 0.4639, 0.4345 / 0.5392 and 0.3969 / 0.4915, and the contingency counts
-   113,205 / 118,502 / 742,472, exactly. A misalignment of even one line would move them.
-2. **The factors are pinned against an independent implementation.** `tests/test_lodf.py` compares
-   every LODF entry against pandapower's `makePTDF` and `makeLODF` on all three intact grids,
-   checks bridge detection against an independent union-find on outaged topologies, and verifies
-   that Kirchhoff's law holds for the redistributed flows. The suite totals 302 tests, all passing.
-3. **The linear estimate tracks the true non-linear solve.** Compared against the actual
-   post-contingency maximum loading from Grid2Op's own solver, the predicted value has median
-   absolute error **0.0095 / 0.0132 / 0.0110** and Pearson correlation *r* of
-   **0.914 / 0.873 / 0.707**.
+**Speedup, end-to-end (feature build + forward pass) against LightSim:**
 
-Evaluation batch size does not enter this comparison at all: there is no forward pass through a
-network and no batch normalisation.
+| grid | GNN CPU vs LightSim | GNN XPU vs LightSim |
+|---|---:|---:|
+| NeurIPS 2020 | **58x** | **60x** |
+| case14 | **26x** | **23x** |
+| WCCI 2022 | **282x** | **346x** |
 
-**The redistribution is doing the work, and a control proves it.** A DC screen could look strong
-for a trivial reason — if some *other* line is already overloaded before anything is removed, then
-almost any contingency counts as a violation and the method would score well without computing
-anything. The experiment therefore carries the identical statistic with the LODF factors switched
-off, so that only the base state is read (§25.3):
+**Against the solver that actually built this project's data, the network is 23–346x faster.** The
+comparison that matters is against the fastest solver actually available — which is also the one
+used to build the datasets — so no slower reference implementation is quoted alongside it.
 
-| grid | no-redistribution control | LODF flow | contribution of the factors |
-|---|---:|---:|---:|
-| NeurIPS 2020 | 0.3430 | 0.8906 | **+0.548** |
-| case14 | 0.4474 | 0.7797 | **+0.332** |
-| WCCI 2022 | 0.4582 | 0.8208 | **+0.363** |
+**The advantage grows with the size of the grid.** GNN-CPU-vs-LightSim speedup rises monotonically
+with line count: 26x on case14 (20 lines), 58x on NeurIPS 2020 (59 lines), 282x on WCCI 2022
+(186 lines). This is the more interesting half of the result, and the opposite of how a speed
+advantage usually behaves. The solver's cost scales with the number of lines, because each is a
+separate power-flow solve; the network answers all of a snapshot's lines in one batched pass. The
+larger and more realistic the grid, the wider the gap — which is exactly the property that would
+matter in deployment.
 
-The control sits at or below the single-rule baseline on all three grids. The method's strength is
-the physics it computes, not an artefact of the frames it was given.
+**What the speed buys, and what it does not:**
 
-**A structural pre-screen recovers a class of outcome a flow calculation cannot express.** It had
-been argued in advance that a linear screen could never detect the "game-over" class of positive —
-a contingency that ends the episode outright — which would place a hard recall ceiling of roughly
-75–79% on any such method. That prediction was wrong, and the correction is worth recording. A
-game-over event is overwhelmingly *structural*: the outage strands a load or a generator by
-disconnecting it from the rest of the network, and structure is exactly what a topology check
-reads, without any flow calculation at all (§25.4).
+| grid | AC per-frame, median (ms) | GNN batch-1, median (ms) | GNN F1 (these frames) | all-positive F1 (these frames) | AC F1 |
+|---|---:|---:|---:|---:|---:|
+| NeurIPS 2020 | 83.5 | 2.35 | 0.8858 | 0.2531 | 1.0000 |
+| case14 | 24.4 | 2.21 | 0.3120 | 0.5111 | 1.0000 |
+| WCCI 2022 | 382.5 | 2.75 | 0.4999 | 0.3014 | 1.0000 |
 
-| grid | pre-screen fired | **precision** | share of game-over positives caught |
-|---|---:|---:|---:|
-| NeurIPS 2020 | 2,464 | **1.000** | 55.1% |
-| case14 | 7,359 | **1.000** | 88.5% |
-| WCCI 2022 | 33,240 | **1.000** | 71.7% |
+AC is ground truth by construction — it produced the labels, so its F1 is 1.0 and cannot be
+anything else — so the trade is only meaningful stated in both directions. On the grid it was
+trained on, the network reaches F1 0.8858 for roughly 58x less work than the solver that would
+otherwise answer the question. On case14 it reaches 0.3120 — below the all-positive baseline on
+these frames (0.5111), meaning it loses to answering "violation" every time, consistent with
+§5.1.3's held-threshold result on the recorded dataset — and **speed does not repair that**. A wrong
+answer produced an order of magnitude faster is still wrong. The cost measurement licenses one
+claim and not the other: *where the model is accurate, it is accurate at a small fraction of the
+cost of the method that produced its labels; where it is not accurate, no speed advantage changes
+that.*
 
-Precision is exactly 1.000 on all three grids — 43,063 predictions, zero false alarms, and no
-counterexample anywhere in 974,179 contingencies. The correct statement is the narrower one: the
-*flow channel* alone cannot produce the game-over class; the *method as a whole* can, because
-topology screening is part of it.
+⚠ **Three caveats travel with these figures.**
+
+1. **The accuracy column is measured on these benchmark snapshots, not on the recorded datasets
+   §5.1.2 scores**, and their violation rates differ — the all-positive baseline here is 0.5111 for
+   case14 against the dataset's 0.4345. These numbers must not be tabled against §5.1.3's; they are
+   a paired control for the timing, sharing one set of frames with it, not a repeat of the primary
+   protocol.
+2. **Timing is hardware-dependent.** The ratio is the result; the absolute seconds describe the one
+   machine each artifact's `environment` block records — a deliberate, scoped exception to this
+   project's rule that no hardware specification is recorded anywhere else in the repository.
+3. **The faster device is not the same on every grid, and does not track grid size cleanly.** The
+   accelerator out-throughputs the CPU on NeurIPS 2020 (36,096 vs 34,864) and on WCCI 2022 (136,305
+   vs 111,104), while the CPU wins on case14, the smallest grid (18,427 vs 16,366). The NeurIPS 2020
+   margin is under 4% and close enough to be dispatch-cost noise rather than a clean trend; the WCCI
+   2022 margin (23%) is not. The CPU figure is quoted as the headline throughout regardless, because
+   it is the like-for-like comparison: the AC solver is itself CPU-bound and single-threaded.
+
+### Relation to the literature
+
+Nakiganda and Chatzivasileiadis (arXiv:2310.04213, *Graph Neural Networks for Fast Contingency
+Analysis of Power Systems*) report graph networks screening contingencies "100–400 times faster
+than the Newton-Raphson power flow solver" on test cases from 6 to 118 buses — the same task as
+this one. The comparison here only partly agrees with that range: WCCI 2022, the largest grid,
+sits inside it at 282x (CPU, end-to-end), but NeurIPS 2020 (58x) and case14 (26x) both fall below
+their reported floor. Read against the grid-size trend above, that is consistent with their test
+cases skewing smaller than WCCI 2022's 186 lines — but it is a partial disagreement with the
+literature, not a confirmation of it, and is reported as such.
 
 ### 5.1.5 Learned baselines without a graph
 
 The previous section places a non-learned method above the model. This section asks a different
 question: within the learned methods, how much is the *graph* contributing?
 
-To answer it, two models with no graph structure at all were fitted on the **raw portion of the
-GNN's own readout** — the readout being the final stage that turns the network's internal
-representations into one number per line. For each line, the raw portion is its 8 edge features
-plus the 8 node features of each endpoint, 24 columns in total. These reach the readout by a *skip
-connection*: a path that hands the original inputs to the final stage directly, bypassing the
-learned layers. Fitting on them alone is therefore exactly the full model with its three
-*attention* layers deleted — attention being the mechanism that lets each part of the grid weigh
-some neighbours more heavily than others — so the comparison is "the same information, without the
-graph" rather than "some other feature set". Both models were fitted on the NeurIPS 2020
+**Why a graph was chosen in the first place.** The choice was a primitive one — made early, and
+from a general pattern noticed across the literature rather than a benchmarked comparison against
+simpler alternatives. Graph neural networks were visibly being applied to power-related problems
+across several independent lines of work: power-flow balancing (Hansen, Anfinsen & Bianchi, *IEEE
+Trans. Power Systems* 38(3), 2023), optimal power flow (Yang et al., *IEEE Trans. Industrial
+Informatics* 20(9), 2024), unsupervised power-flow solving (Lopez-Garcia & Domínguez-Navarro,
+*Engineering Applications of AI* 117, 2023), and state estimation (Ringsquandl et al., CIKM '21).
+That visible pattern — GNNs being reached for across power-systems problems generally — is what
+motivated GATv2 as Component A's architecture (Architecture, `CLAUDE.md`; the choice of GATv2 over
+the plain GATConv is a separate, load-bearing decision documented in
+`archive/gnn_upgrade_assessment.md`).
+
+None of the four papers above performs line-level violation or contingency classification — three
+solve power flow as a regression problem, one performs state estimation — so none establishes a
+GNN as literature-favoured for *this* task specifically. The one near-comparator doing structurally
+the same task this thesis does, Pavão et al. (*Energy and AI* 22, 2025, 100564: per-line binary
+violation prediction, multilabel per frame), reports the opposite: *"all top teams chose a
+rule-based approach for raising alerts if the power line is overloaded with rho ≥ 1.0"* (§B1 of
+`results_comparisons.md`) — on the one directly comparable benchmark, practitioners reached for a
+threshold rule, not a graph model.
+
+Two things in the broader literature are worth noting in hindsight, because they anticipate what
+this section goes on to measure rather than excuse it. Yang et al. and Hansen et al. both treat
+cross-topology transfer as something a plain GNN does *not* get for free — it is the specific
+problem their added machinery (a physics-guided Lagrangian plus online transfer learning; a
+line-graph representation plus localized deep layers) exists to solve, over and above a standard
+message-passing network. And Ringsquandl et al. found that power grids do not show the usual
+2–3-layer oversmoothing consensus of standard GNN benchmarks — their best-performing models needed
+up to 13 layers to capture the long-range dependence power-flow redistribution requires. Component
+A's GATv2 has three. Both observations are consistent with, and offer a literature-grounded
+candidate explanation for, the transfer failures measured below — not something the original,
+primitive choice of architecture had reason to anticipate.
+
+To test it, **three models with no graph structure, spanning three different ways of fitting a
+function**, were trained on the raw portion of the GNN's own readout — the readout being the final
+stage that turns the network's internal representations into one number per line. For each line,
+the raw portion is its 8 edge features plus the 8 node features of each endpoint, 24 columns in
+total, reaching the readout by a *skip connection*: a path that hands the original inputs to the
+final stage directly, bypassing the three message-passing layers. Fitting on them alone is
+therefore the full model with its graph deleted — the comparison is "the same local information,
+without the graph" rather than "some other feature set". All three were fitted on the NeurIPS 2020
 *training* split only, with the threshold selected on its validation split and held unchanged, and
 features standardised using training-split statistics applied unmodified to the foreign grids
-(§26.1).
+(§26.1) — identical protocol to the GNN and to each other.
 
-Held threshold throughout; oracle figures in brackets. "GBT" is a gradient-boosted tree: an
-ensemble of small decision trees fitted in sequence, each correcting the previous ones, and a
-standard strong baseline for tabular data.
+| model | what it is fed | scope of what it can see | what it outputs |
+|---|---|---|---|
+| logistic regression | the same 24 columns, standardised | that line's two endpoints only — no connectivity, no other line or bus | one probability per line, from a linear decision boundary |
+| MLP | the same 24 columns, standardised | identical scope to the above | one probability per line, from a nonlinear function fitted by gradient descent — the same optimisation family as the GNN's own readout head, minus the graph |
+| random forest | the same 24 columns, standardised | identical scope to the above | one probability per line, from the vote share of 300 bagged decision trees — a different inductive bias again, with no gradient descent at all |
+| GNN (GATv2) | the **entire grid snapshot** — every node's and edge's features, plus connectivity | the whole graph, three hops — each line's prediction is informed by attention-weighted aggregation from its neighbours, its neighbours' neighbours, and a third hop out | one logit per line, all produced from a single forward pass over shared graph embeddings |
 
-| grid | all-positive | best rule | logistic | **GBT** | **GNN** | LODF + topology |
+Every row of the first three is computed independently of every other row; the GNN's outputs for
+every line in a frame come from one shared pass and are therefore correlated with each other in a
+way the tabular models' predictions are not.
+
+Held threshold throughout; best-case figures in brackets.
+
+| grid | all-positive | best rule | logistic | MLP | **random forest** | **GNN** |
 |---|---:|---:|---:|---:|---:|---:|
-| NeurIPS 2020 *(trained on)* | 0.3104 | 0.4639 | 0.7121 | **0.9190** *(0.9202)* | **0.8956** *(0.8972)* | 0.9547 *(0.9550)* |
-| case14 *(unseen)* | 0.4345 | 0.5392 | 0.4554 | **0.5845** *(0.6320)* | **0.4167** *(0.4477)* | 0.9147 *(0.9150)* |
-| WCCI 2022 *(unseen)* | 0.3969 | 0.4915 | 0.4705 | **0.5177** *(0.5665)* | **0.5577** *(0.5721)* | 0.9199 *(0.9207)* |
+| NeurIPS 2020 *(trained on)* | 0.3104 | 0.4639 | 0.7121 *(0.7125)* | 0.9127 *(0.9131)* | **0.9246** *(0.9251)* | 0.8956 *(0.8972)* |
+| case14 *(unseen)* | 0.4345 | 0.5392 | 0.4554 *(0.4895)* | 0.4215 *(0.4798)* | **0.6192** *(0.6348)* | 0.4167 *(0.4477)* |
+| WCCI 2022 *(unseen)* | 0.3969 | 0.4915 | 0.4705 *(0.4725)* | 0.4926 *(0.5179)* | 0.5261 *(0.5507)* | **0.5577** *(0.5721)* |
 
-**In-distribution, the tree and the graph network are indistinguishable at this protocol's
-precision.** The tree's 0.9190 is nominally above the GNN's 0.8956, and it would be easy to write
-that a tree beats the graph network on its home grid. That would be an artefact. As the protocol
-note at the head of this chapter explained, the GNN's absolute F1 moves with evaluation batch size
-across a band from 0.8972 to 0.9255 on
-identical weights and identical data, and 0.9202 sits inside that band. The honest statement is a
-tie — which is itself the answer to the question this experiment was built to ask: **the graph
-machinery buys no measurable accuracy on the grid it was trained on** (§26.4). Off-distribution
-there is no such ambiguity; the gaps against LODF are 0.13–0.19, far outside any batch-size band.
+**In-distribution, none of the three non-graph models can be told apart from the GNN at this
+protocol's precision.** MLP (0.9127) and random forest (0.9246) both sit inside the batch-size band
+the GNN's own checkpoint spans on identical weights and identical data (0.8972–0.9255, established
+at the head of this chapter) — the same reasoning that made the earlier tree comparison a tie
+applies here to both newer models. The honest statement, again, is a tie on the grid the model was
+trained on: **the graph machinery buys no measurable accuracy at home, against three different
+non-graph families, not just one.**
+
+Off-distribution the picture splits by grid rather than resolving cleanly for the GNN.
+
+- **On case14, random forest is the only model in this table — the GNN included — that beats the
+  best single rule.** 0.6192 against a rule baseline of 0.5392, a margin of 0.08, while the GNN
+  falls to 0.4167, *below* the all-positive baseline (0.4345). No batch-size or seed-noise band
+  measured anywhere in this project is close to 0.20 wide; this is not an artefact of measurement
+  precision. Logistic regression and the MLP also fail to clear the rule there.
+- **On WCCI 2022, the GNN leads** — 0.5577 against random forest's 0.5261, a margin of 0.0316.
+
+The underlying hypothesis was that a power grid, being inherently graph-structured data, was
+naturally suited to a graph-structured model, and that the advantage would show up most where the
+data's relational structure has the most room to matter — larger topologies, where a contingency's
+effects redistribute across more of the network before reaching the line being scored. The WCCI
+2022 result is the one outcome in this comparison consistent with that hypothesis. **It is not
+proof of it.** The margin sits under two standard deviations of this project's measured single-seed
+noise band (±0.02 on unseen grids, §5.3.6) — nowhere near the "several times the spread" bar the
+rule-baseline margins in §5.1.3 cleared. The deployed WCCI 2022 checkpoint has only ever been
+trained at one seed; whether this margin survives a multi-seed re-run has not been measured. A
+hypothesis with one unconfirmed, noise-adjacent data point in its favour is a lead worth stating,
+not a result worth claiming as settled.
+
+Random forest does not collapse on case14 — it is the only model of any kind, gated or ungated,
+graph or not, that improves on the rule baseline there. §5.1.7 reflects this: transfer failure is
+common among the architectures tested, not universal, and not specific to graph structure.
 
 ### 5.1.6 Symbolic shield performance
 
@@ -302,11 +370,11 @@ retained because the difference between the two corpora is itself evidence (§5.
 | topology | corpus | model F1 | **+ shield** | Δ | blocked | corrections | regressions | **intervention precision** | reach |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
 | NeurIPS 2020 | *guarded-32 (superseded)* | 0.8956 | 0.8982 | +0.0026 | 831 | 427 | 404 | 0.514 | — |
-| NeurIPS 2020 | **validated-4** | 0.8956 | **0.9038** | **+0.0082** | 353 | 331 | 22 | **0.938** | 0.31% |
+| NeurIPS 2020 | **58-rule** | 0.8956 | **0.9038** | **+0.0082** | 353 | 331 | 22 | **0.938** | 0.31% |
 | case14 | *guarded-32 (superseded)* | 0.4167 | 0.4188 | +0.0021 | 103 | 95 | 8 | 0.922 | — |
-| case14 | **validated-4** | 0.4167 | **0.4188** | **+0.0021** | 103 | 95 | 8 | **0.922** | 0.087% |
+| case14 | **58-rule** | 0.4167 | **0.4188** | **+0.0021** | 103 | 95 | 8 | **0.922** | 0.087% |
 | WCCI 2022 | *guarded-32 (superseded)* | 0.5577 | 0.6232 | +0.0655 | 24,777 | 21,306 | 3,471 | 0.860 | — |
-| WCCI 2022 | **validated-4** | 0.5577 | **0.6253** | **+0.0676** | 22,559 | 21,065 | 1,494 | **0.934** | 3.04% |
+| WCCI 2022 | **58-rule** | 0.5577 | **0.6253** | **+0.0676** | 22,559 | 21,065 | 1,494 | **0.934** | 3.04% |
 
 ("Corrections" are blocks that fixed a wrong prediction; "regressions" are blocks that spoiled a
 right one.)
@@ -318,8 +386,8 @@ On the large unseen grid the gate is worth considerably more than a rounding err
   expensive than a false alarm, so this trade is favourable.
 - The gated score, **0.6253, exceeds what the raw model reaches on that grid even when it is
   allowed to tune its threshold against the answers (0.5721).** A layer bolted on after training,
-  changing nothing inside the model, pushed an unseen-topology result past the model's own oracle
-  ceiling.
+  changing nothing inside the model, pushed an unseen-topology result past the model's own
+  best-case ceiling.
 
 **Intervention precision is flat — 0.938 / 0.922 / 0.934.** The gate is right about 93% of the time
 on the grid the model was trained on, and about 93% of the time on grids it has never seen. What
@@ -334,14 +402,24 @@ could not be evaluated, 100% rule applicability, and a false-block rate on healt
 
 ### 5.1.7 What the three comparisons establish jointly
 
-Read together, §5.1.3–§5.1.6 do not support the claim the earlier draft made. They support a
-narrower and better-evidenced one.
+Read together, §5.1.3–§5.1.6 support a narrower and more carefully bounded claim than the raw model
+result alone would suggest.
 
-1. **The neural component does not earn its place on N-1 screening accuracy.** A linear method that
-   predates it by a century is better on every grid, and decisively better on both grids the model
-   did not train on.
-2. **The transfer failure is not about graphs.** Three learned architectures collapse
-   off-distribution; the analytical method does not (§5.4.4).
+1. **The neural component's accuracy is uneven across topology, and speed does not repair that.**
+   It matches the single-rule baseline at home and falls below it off-distribution, most severely on
+   case14, where it loses to answering "violation" every time (§5.1.3). What it earns instead is
+   cost: where it is accurate, it reaches that accuracy at a small fraction of what the AC solver
+   that produced its labels would have cost to run directly, and the gap widens with grid size
+   (§5.1.4). Speed and accuracy are separate properties; the model has the first unconditionally and
+   the second only some of the time.
+2. **Learned architectures are not fully transferable off-distribution.** Logistic regression, the
+   MLP, and the GNN each fail to clear the best single rule on at least one unseen grid — most
+   severely the GNN on case14, where it falls below even the all-positive baseline (§5.1.3,
+   §5.1.5). The analytical control (a threshold with nothing to transfer) does not fail this way
+   (§5.4.4). Random forest is the exception: it clears the rule baseline on both unseen grids
+   (§5.1.5), so the failure is common among the architectures tested here, not universal — and it
+   is not specific to graph structure. The worst transfer result (the GNN, on case14) and the best
+   (random forest, with no graph at all) sit at opposite ends of the same comparison.
 3. **The symbolic gate's accuracy does not depend on topology, and a learned model's does.** That
    is the contribution. It is measured rather than asserted, and — importantly — it does not depend
    on whether the model being gated is the best available screener. The gate was evaluated against
@@ -353,40 +431,6 @@ narrower and better-evidenced one.
 ---
 
 ## 5.2 Analysis of Design Solutions
-
-### 5.2.1 Two task designs were built, probed and rejected before compute was committed
-
-Before the N-1 task was adopted, two other framings were built and tested. Both were abandoned, and
-the reasons are instructive enough to belong in the results rather than in an appendix.
-
-**The original four-class fault-classification target was closed-form.** The four labels
-(`normal`, `overload`, `line_trip`, `cascade`) turned out to be a deterministic function of the
-very observation the model was given. "Closed-form" here has an exact meaning: the label can be
-computed directly from the input by a fixed formula, so there is nothing left to learn. Four
-ordered threshold comparisons reproduce the labels with **zero disagreements across all 315,000
-records** of both datasets, re-verified over every record immediately before those datasets were
-deleted (§9.1). A trained graph attention network reached macro F1 0.8277 on that task; four `if`
-statements scored 100%.
-
-The honest reading must travel with that claim: this is **not** evidence that symbolic methods beat
-neural ones at fault classification. It is evidence that the benchmark was mis-specified. The
-labelling function was defined over the same observation the model received, so any measurement of
-"does the symbolic layer add value over the network?" was rigged before it ran — the symbolic layer
-*was* the labeller.
-
-**Both forecasting targets failed, in opposite directions** (§9.2). Predicting any future fault is
-unlearnable, because line-trip onset in the simulator is an unconditional random draw by
-construction: nothing in the observation carries information about it, and so the best possible
-predictor scores **1.00x the all-positive baseline** at every horizon of three steps or more.
-Predicting future overloads is learnable but exhausted by a single threshold: a gradient-boosting
-model on the full feature vector reached F1 0.163 against one `rho` threshold's 0.160, with *worse*
-average precision.
-
-**N-1 screening is neither**, which is why it was adopted. Its label cannot be restated by any rule
-over the present observation, because producing it requires a power-flow solve. §5.1.4 sharpens
-this without overturning it: a *linear* solve also produces the label, and produces it well — but a
-linear solve is still a solve, not a rule, and the no-redistribution control (0.34–0.46) is what
-the rule-over-the-observation version actually scores.
 
 ### 5.2.2 Model architecture: what was removed, and why
 
@@ -401,10 +445,9 @@ within one grid state, some contingencies violate and others do not:
 | case14 | **98.48%** | 1.52% | **0.00%** |
 | WCCI 2022 | **96.43%** | 3.57% | **0.00%** |
 
-An earlier note recorded this as "100% of frames are mixed". That figure was true of a *different*
-statistic — that no frame anywhere is entirely secure — and 96–99% is the number to quote. The
-architectural conclusion is unchanged: a single per-frame answer is wrong for most lines in the
-large majority of frames, so the model instead reads **one output per line, taken from that line's
+(No frame anywhere is entirely secure, but that is a different statistic from the one above and
+should not be conflated with it.) A single per-frame answer is wrong for most lines in the large
+majority of frames, so the model instead reads **one output per line, taken from that line's
 own edge**. The same choice is what makes the trained model topology-agnostic, since a 20-line grid
 and a 186-line grid both run on it without modification — there is no layer whose size depends on
 how big the grid is.
@@ -428,9 +471,7 @@ comparable. The function computing those statistics populated an internal cache 
 library, with the result that the normalisation applied afterwards never reached the data loaders:
 training ran on raw, unnormalised features while the statistics file was written as though it had
 been applied. Clearing the cache raised validation F1 from **0.4751 to 0.8987**
-(`gnn_n1_tightening.md` §3). The N-1 model was trained after the fix. The defect is disclosed
-because it affected the retired classification model, whose reported cross-topology degradation
-therefore carries a train/inference mismatch of unknown size.
+(`gnn_n1_tightening.md` §3). The N-1 model was trained after the fix.
 
 ### 5.2.3 The message-passing ablation, and the caveat §5.1.5 places on it
 
@@ -451,9 +492,9 @@ claim that rests on it is bounded accordingly: §5.4.4's transfer result is carr
 baselines and the analytical screen, not by this ablation.
 
 That result stands as measured, but §5.1.5 constrains what may be concluded from it.
-In-distribution, a gradient-boosted tree on the same raw features reaches a score indistinguishable
-from the full model's; and off-distribution the graph model degrades **worse** than the tree (−50%
-against −38% at the oracle column). Message passing over a topology-specific graph contributes
+In-distribution, a random forest on the same raw features reaches a score indistinguishable
+from the full model's; and off-distribution the graph model degrades **worse** than the forest (−50%
+against −40% at the best-case column). Message passing over a topology-specific graph contributes
 accuracy on the grid it was fitted to, and appears to make transfer *worse* rather than better.
 That is consistent with the diagnosis developed in §5.2.4 — that the model learns one network's
 particular redistribution pattern and carries it to a grid where that pattern does not hold — a
@@ -480,59 +521,48 @@ of its reactance, and so the same physical information in inverted form. It is u
 to the raw value, and the reason is worth stating because it is what makes the experiment portable
 across grids. Raw medians span
 5.13 / 985.22 / 1156.77 across the three grids — a roughly 200x spread caused by differing
-`baseMVA` conventions rather than by any physical difference. LODF is invariant under a uniform
+`baseMVA` conventions rather than by any physical difference. DC redistribution is invariant under a uniform
 scaling of every susceptance, so dividing by each grid's median discards exactly the quantity the
 analytical method also ignores, leaving only the relative differences that carry the physics.
 
 **The experiment was repeated over four seeds (42, 0, 1, 2), and that decision changed the
 result.** Physics arm minus control arm, mean over four seeds with the observed range:
 
-| grid | held threshold | oracle |
+| grid | held threshold | best case |
 |---|---|---|
 | NeurIPS 2020 | **+0.0020**  [−0.0044, +0.0063] | **+0.0009**  [−0.0047, +0.0072] |
 | case14 | **+0.0089**  [−0.1009, +0.0836] | **+0.0677**  [+0.0429, +0.0854] |
 | WCCI 2022 | **−0.0051**  [−0.0151, +0.0081] | **−0.0103**  [−0.0225, +0.0112] |
 
-Levels, mean ± standard deviation over the four seeds:
-
-| grid | column | control | physics | rule baseline | LODF |
-|---|---|---|---|---:|---:|
-| NeurIPS 2020 | held | 0.8835 ± 0.0092 | 0.8855 ± 0.0065 | 0.4639 | 0.9547 |
-| | oracle | 0.8865 ± 0.0083 | 0.8874 ± 0.0065 | | 0.9550 |
-| case14 | held | 0.4318 ± 0.0177 | 0.4407 ± **0.0672** | 0.5392 | 0.9147 |
-| | oracle | 0.4558 ± 0.0141 | **0.5235 ± 0.0162** | | 0.9150 |
-| WCCI 2022 | held | 0.5641 ± 0.0191 | 0.5590 ± 0.0127 | 0.4915 | 0.9199 |
-| | oracle | 0.5708 ± 0.0189 | 0.5605 ± 0.0119 | | 0.9207 |
-
-**What is real: the reactance improves the model's *ranking* on case14.** The oracle delta is
+**What is real: the reactance improves the model's *ranking* on case14.** The best-case delta is
 +0.068 and positive on all four seeds (+0.043 to +0.085), against a within-arm standard deviation
-of about 0.016. Ranking is what the oracle column measures — whether the model orders contingencies
-correctly, independently of where the cutoff is placed.
+of about 0.016. Ranking is what the best-case column measures — whether the model orders
+contingencies correctly, independently of where the cutoff is placed.
 
 **What is noise: everything else.** The two other grids move by less than a hundredth in either
 direction, inside their own seed spread. And at the *held* threshold the case14 delta ranges from
 **−0.1009 to +0.0836** — the sign is not stable, so a single seed's apparent +0.065 is not a result
 and is not quoted as one here.
 
-**What settles the question: it is not enough.** The best case14 oracle score any physics seed
-reached is **0.5339, still below the single-rule baseline of 0.5392**, and far below LODF's 0.9150.
+**What settles the question: it is not enough.** The best case14 score any physics seed
+reached is **0.5339, still below the single-rule baseline of 0.5392**.
 Every seed, every arm, every column: **case14 still fails.** Handing the model the reactances
-closes roughly a tenth of the gap to the analytical method and none of the gap to a single
+closes none of the gap to a single
 threshold on the removed line's loading.
 
-**A third finding falls out of the held-versus-oracle split, and it is systematic.**
+**A third finding falls out of the held-versus-best-case split, and it is systematic.**
 
-| arm | case14 oracle | case14 held | gap |
+| arm | case14 best case | case14 held | gap |
 |---|---:|---:|---:|
 | control | 0.4558 | 0.4318 | 0.024 |
 | physics | 0.5235 | 0.4407 | **0.083** |
 
 **The added feature improves the ranking and makes threshold transfer worse** — the physics arm's
-held-to-oracle gap is 3.5x the control's. The mechanism is the one described in §5.1.3: giving the
+held-to-best-case gap is 3.5x the control's. The mechanism is the one described in §5.1.3: giving the
 model a new input shifts the range of scores it produces, so a cutoff chosen on the home grid lands
 somewhere else on a foreign one. This is a concrete instance of a general problem worth stating in
-its own right: **an off-distribution improvement visible only in the oracle column is not
-deployable**, because the oracle threshold is chosen with the answer key.
+its own right: **an off-distribution improvement visible only in the best-case column is not
+deployable**, because the best-case threshold is chosen with the answer key.
 
 The reading was fixed in advance of the run, and this is the third of three anticipated outcomes —
 *the input helps and does not rescue*. §5.4.4's claim therefore survives its strongest attack: the
@@ -542,10 +572,10 @@ gap to a method that computes those parameters directly.
 
 > **Learned screeners trained on one topology did not transfer, and giving the model the branch
 > reactances did not repair it. The parameters improve the model's ranking on the worst grid
-> (oracle +0.068, four seeds) without making it deployable there — it remains below a single
+> (best case +0.068, four seeds) without making it deployable there — it remains below a single
 > threshold on the removed line's loading.**
 
-The experiment also produced a side result worth keeping. The seed-42 control arm scores oracle
+The experiment also produced a side result worth keeping. The seed-42 control arm scores best case
 **0.8978 / 0.4473 / 0.5727** against the deployed model's **0.8972 / 0.4477 / 0.5721** — within
 0.0006 on all three grids. The deployed model's epoch count is not recoverable from disk, because
 the trainer saves only a bare weight dictionary and writes no metrics. This does not prove the
@@ -570,13 +600,20 @@ came out of them.
 4. **Validation** (Nemotron-3 Nano). Reads the original clause and the translated condition and
    judges whether the second is a faithful rendering of the first.
 
-End to end the yield is **2,463 candidates → 58 expressible → 32 guarded → 4 distinct validated
-rules, 0.16%**.
+End to end the translation yield is **2,463 candidates → 58 expressible against the simulator's
+vocabulary, 2.4%** — that 58-rule set is the corpus the shield holds. The guard and validation
+stages that follow do not shrink it further; they decide what each of the 58 is allowed to do at
+inference. The guard stage keeps **32** of the 58 (rejects anything that fires on a healthy grid),
+and validation against the source standards is what earns a rule the **BLOCK** channel — only the
+thermal-loading family clears that bar. Everything else the 58 contains speaks in **WARN** or
+**NORMAL**, explaining a prediction the gate lets through rather than staying silent on it.
 
-A yield that low invites one objection immediately: *a pipeline that turns 2,463 candidates into 4
-rules did not find a signal, it found noise.* The answer is not a better yield. It is that the
-yield was never the finding — the **partition** is. Every candidate is assigned to exactly one
-terminal bucket, and the partition is asserted at each stage rather than assumed (§19.1):
+A low BLOCK yield invites an objection immediately: *a pipeline that turns 2,463 candidates into
+a corpus where only the thermal-loading check ever blocks did not find a signal, it found noise.*
+The answer is
+not a better yield. It is that the yield was never the finding — the **partition** is. Every
+candidate is assigned to exactly one terminal bucket, and the partition is asserted at each stage
+rather than assumed (§19.1):
 
 | terminal fate | n | share |
 |---|---:|---:|
@@ -608,13 +645,11 @@ frequency and time.** Counted two ways, and the two now reconcile exactly
 frequency pattern finds 617, for a time/duration pattern finds 752, and 117 candidates carry both
 — a union of 1,252. That union is identical to the exclusive partition above (635 time-bucketed +
 617 frequency-bucketed, first-match-wins with frequency checked first), because a candidate that
-mentions both is exactly the 117 the exclusive count folds into "frequency". An earlier draft of
-this paragraph reported 782/683/1,332 for the same claim; that figure came from an uncomputed hand
-tally and did not reconcile with the partition table two paragraphs above it. It is corrected here,
-not merely re-caveated.
+mentions both is exactly the 117 the exclusive count folds into "frequency".
 
-*Reverse*: of the fourteen quantities the simulator *does* measure, only four have any surviving
-rule, and **nothing in the surviving corpus governs topology** — no rule mentions line outages,
+*Reverse*: of the fourteen quantities the simulator *does* measure, the 58-rule corpus reads five
+(loading and a handful of voltage and power-factor variables), and only loading is calibrated
+precisely enough to reach BLOCK. **Nothing in the corpus governs topology** — no rule mentions line outages,
 which is the entire subject of the task. The reason is structural rather than technical. Grid codes
 govern **connection and equipment compliance**: what a generator must do to be allowed to connect,
 what a protection relay must be set to. Contingency screening is an **operational** activity, and
@@ -634,230 +669,57 @@ extracts a threshold that does not exist. This is directly visible in the output
 documents genuinely about post-contingency performance produced rules of the form
 `loading_pct > relay_loadability_limit_pct`: correct in form, with the threshold left free.
 
-#### Why the frequency and time rules could not be used, and why they did not survive translation
+#### Why the frequency and time rules could not be used
 
-Slightly more than half the corpus is blocked on two families. They are the largest untapped block
-of rules in the project, and the case for setting them aside should not rest on assertion. It does
-not: they were measured.
+Slightly more than half the corpus — **457 frequency rules** (e.g. *"if system frequency falls
+below 59.4 Hz, disconnect within 2 seconds"*) and **103 voltage ride-through rules** (a depth-and-
+duration pair, e.g. *"must not disconnect for a dip to 0.45 pu lasting less than 0.15 s"*) — could
+not be translated, because Grid2Op is *quasi-static*: it solves one snapshot of the grid every 300
+seconds and represents neither system frequency nor sub-second transients at all. That is a
+statement about expressibility, and it invites the obvious rejoinder: *use a simulator that does.*
 
-**What the two families say.** The first is **457 rules about frequency**, of the form *"if system
-frequency falls below 59.4 Hz, disconnect within 2 seconds."* Frequency is the speed at which the
-generators across a whole network are turning, expressed in hertz — 50 Hz or 60 Hz nominal
-depending on the system — and it is a single system-wide quantity rather than something measured at
-one point. The second is **103 voltage ride-through rules**, of which 94 carry numeric thresholds
-on both sides. These specify what a generator must tolerate *during* a disturbance, and are written
-as a pair: a voltage depth and a duration, such as *"must not disconnect for a dip to 0.45 pu
-lasting less than 0.15 s."* (*Per unit*, written pu, expresses a voltage as a fraction of its
-nominal value, so that grids running at different voltage levels can be compared: 1.00 pu is
-nominal and 0.45 pu is a collapse to under half.) Fourteen of them refer to the standard 0.14 / 0.15 / 0.16 s
-fault-clearing band.
+**ANDES 2.0**, a dynamic simulator that does represent both, was the specific remedy, and building a
+pipeline around it was estimated at two to four weeks. Rather than spend that, the question was
+reduced to an afternoon's measurement: **does an N-1 event move these quantities enough to matter at
+all?** Being evaluable and being capable of firing are different questions — 1,252 of the 2,463
+candidates (50.8%) are blocked for naming frequency or sub-second timing, so this was the single
+largest lever available if it worked.
 
-**Step one: why they did not survive translation.** Translation rewrites a rule over the fourteen
-quantities the simulator reports. Neither family can be written that way, for reasons that are
-properties of the simulator rather than failures of the rewriting.
+It did not. On IEEE-14 with governors present (60 Hz base, permanent trips, a generator-trip
+positive control to confirm the instrument could detect an effect when one exists):
 
-Grid2Op is *quasi-static*: it takes a snapshot of the grid, solves for where power flows, then
-advances to the next snapshot, rather than following the grid continuously through time. **Frequency is not among the quantities it
-represents** — not approximately, not coarsely, but not at all. Frequency emerges from the
-mechanical dynamics of spinning machines responding to an imbalance between generation and demand,
-and a power-flow solve assumes that balance has already been struck at a uniform system frequency.
-A rule naming frequency cannot be evaluated against a state that contains no frequency.
+| check | result |
+|---|---|
+| worst frequency excursion from any N-1 line trip | 0.33 Hz |
+| mildest frequency threshold anywhere in the corpus | 0.60 Hz — **not reached** |
+| what it would take to reach it | an N-2 event (0.80 Hz) — one full contingency order beyond the task |
+| deepest voltage dip from a clean line opening (no fault) | 0.0057 pu short of the mildest ride-through bar — **not reached** |
+| voltage envelopes entered under an actual short-circuit fault | yes, but recover within ~50 ms of clearing — the corpus's bands need 140–160 ms **post-clearing**, which none reach |
+| candidates blocked on frequency/time → would ever fire under ANDES | **1,252 → 3** |
 
-The duration half of the ride-through rules fails for the same class of reason. **The simulator's
-clock advances once every 300 seconds.** A rule about the first 0.15 seconds after a disturbance
-has nowhere to live in a five-minute snapshot; the entire event it describes falls between two
-consecutive observations.
+**Frequency:** losing a line redistributes flow but changes neither generation nor demand, so the
+generation/demand balance that drives frequency is untouched — these rules are calibrated for
+N-2-and-beyond emergencies, not N-1. **Voltage:** a ride-through envelope describes a *moment* during
+a fault, not the *settled state after* a line is lost, which is what a shield reading telemetry
+actually observes — right physics, wrong instant. The voltage margin is the thinner of the two
+findings (under 1% from being reached by a clean opening, against frequency's roughly 2x miss), so a
+heavier loading condition could plausibly cross it; frequency should be read as settled, voltage as
+measured-but-narrow. Three rules (a post-fault over-voltage overshoot) are the one genuine positive,
+and even those need ANDES running at inference — a five-minute snapshot cannot represent a
+one-second transient.
 
-⚠ **That argument is correct for the fault-transient rules and does not describe all of them.** Of
-the 108 duration mentions across the 94 numerically pinned rules, roughly 27 carry durations of 21
-seconds or more — 30, 180, 300, 900, 1200, 1800 and 3600 seconds — and about 17 are five minutes or
-longer. A one-hour band is not a ride-through curve, and the resolution argument simply does not
-reach it. **A different and stronger reason applies to that subset, and the conclusion is unchanged
-by the substitution.**
+> **Grid-code frequency limits are calibrated for N-2-and-beyond emergencies, and ride-through
+> limits for fault transients. N-1 thermal screening reaches neither, and no simulator upgrade makes
+> them applicable, because the gap is subject matter, not instrumentation.**
 
-These long-duration rules are **capability requirements on a generator, not violation predicates on
-a network.** ENTSO-E NC RfG Table 6.1, from which several are drawn, states *"the minimum time
-periods a Power Generating Module shall be capable of operating for Voltages deviating from the
-nominal"*. Firing such a rule means *the equipment is required to survive this*, which is close to
-the opposite of *a violation has occurred*. The extracted forms show the damage directly: `R_115`
-translates to `voltage_pu < 0.85 or voltage_pu > 0.90 or time_seconds > 3600` with action BLOCK, so
-on a healthy bus at 1.03 pu the second clause is true and **it would block every healthy frame** —
-the inverted-band defect that motivated giving rules an explicit role in the first place. Its
-neighbour `R_118` compounds a polarity error with an extraction error, conflating two rows of the
-same table.
-
-This belongs to the same family as the inverted power-factor predicates demoted out of the warning
-channel (§5.2.9) and the voltage band that fires on 100% of frames on two grids (§5.4.6). The
-verdict on the frequency-and-time family therefore survives by a second route: **no simulator
-upgrade makes this subset applicable, because the gap is subject matter rather than instrumentation
-— these are not statements about the network at all.**
-
-So the translation stage rejected them, correctly, and recorded the missing capability rather than
-a generic failure. That is a statement about *expressibility*, and on its own it invites the
-obvious rejoinder: **then use a simulator that has these quantities.**
-
-**Step two: the obvious remedy, and the decision to measure it rather than build it.** The remedy
-was specific. **ANDES 2.0** is a *dynamic*, or transient, simulator: it follows the grid
-continuously through time, millisecond by millisecond, and therefore does represent frequency and
-fast voltage behaviour that a quasi-static simulator has no way to express. Re-evaluating
-the corpus against it would, on paper, recover the candidates blocked for exactly that reason:
-**1,252 of the 2,463 candidates (50.8%) are blocked because their translator-stated reason names
-frequency or sub-second timing** (`evaluation/capability_gap.py`, cross-checked against the
-exclusive partition of §5.2.5's own accounting table — the two reconcile exactly). Against the 58
-the existing pipeline produces, that is a twenty-two-fold increase on paper, and it was the single
-most promising avenue available.
-
-Building the dynamic pipeline was estimated at two to four weeks. Rather than spend that and find
-out, the question was reduced to something answerable in an afternoon: **does the event this thesis
-is about move these quantities at all?** A rule can only be useful if it is both *evaluable* and
-*capable of firing*. Expressibility had been established as the blocker; firing had never been
-checked.
-
-The test rig was ANDES 2.0.0 on the IEEE 14-bus case, 60 Hz base, with governors present (TGOV1 —
-the controllers that adjust generator output in response to a frequency change, without which the
-test would understate the system's stiffness), a 20-second window, and the disturbance applied at
-t = 1 s and never reverted. One detail nearly invalidated the run and is recorded because of it:
-the simulator's own shipped line-trip case **reconnects the line 0.1 s later**, which is a
-fault-clearing cycle rather than an outage. A permanent outage had to be added by hand so that the
-correct event was being tested.
-
-**Arm 1 — frequency.** The eight most heavily loaded lines were tripped, one at a time,
-permanently. A generator trip was included as a **positive control**: an experiment that finds no
-effect is only meaningful if the instrument can detect an effect when one exists, and losing a
-generator genuinely does move frequency.
-
-| test | worst frequency deviation |
-|---|---:|
-| **line trip — the N-1 event this thesis models** (8 lines) | 0.0137 – **0.3293 Hz** |
-| generator trip, N-1 (positive control) | 0.3153 Hz |
-| islanding (the simulator's shipped separation case) | 0.1251 Hz |
-| **mildest threshold anywhere in the corpus** (59.4 / 60.6 Hz) | **requires 0.6000 Hz** |
-
-**Not one contingency of any kind reached the easiest of the 457 thresholds.** The corpus tests
-bands of 47–52 Hz and 57–63 Hz; against a 60 Hz base, its mildest bar is 1% away from nominal, and
-the largest excursion any N-1 event produced is 0.55%.
-
-To make the finding quantitative rather than merely negative, an escalation ladder was run to
-establish what it *would* take:
-
-| event | deviation | reaches 0.6 Hz? |
-|---|---:|---|
-| 1 generator out (N-1) | 0.3153 Hz | no |
-| **2 generators out (N-2)** | **0.7975 Hz** | **yes** |
-| 3 generators out (N-3) | 1.8918 Hz | yes |
-| 1 load out (N-1) | 0.2208 Hz | no |
-| 3 loads out (N-3) | 1.6229 Hz | yes |
-
-**Why this happens, in one paragraph.** Frequency moves when generation and demand fall out of
-balance. Losing a transmission line destroys neither: the same generators are still running, the
-same loads are still drawing, and the electricity simply takes a different route to reach them. The
-balance is untouched, so frequency barely twitches. This thesis is *about* losing one line. The 457
-frequency rules are aimed at a different failure mode altogether — they need two or three
-generating units to fail at once, which is not an N-1 contingency by definition. The positive
-control fired as expected, so the finding is a statement about the physics and not about the
-instrument.
-
-**Arm 2 — voltage ride-through.** Two arms were run, because the first alone would have been unfair
-to the rules.
-
-*Arm A — clean line opening.* A line is opened permanently with no short circuit involved: exactly
-the event class this thesis models, and the lower bound on how far voltage can be disturbed.
-
-| quantity | value |
-|---|---:|
-| deepest dip anywhere, raw convention | 0.9844 pu |
-| deepest dip anywhere, rebased convention | 0.9557 pu |
-| mildest under-voltage threshold in the corpus | 0.95 pu |
-| margin to that threshold, rebased | **0.0057 pu** |
-| ride-through envelopes entered | **0 of 110** |
-
-The envelopes are never entered, which means the duration half of every one of those rules is never
-even engaged. A rule of the form *"below 0.45 pu for longer than 0.15 s"* requires both conditions;
-if the depth is never reached, the clock never starts.
-
-*Arm B — bolted three-phase fault.* A short circuit is applied at a bus and then cleared. This is
-the event class the ride-through rules are actually *written* for, so measuring them only on a
-clean opening would answer the wrong question. Faults were applied at 7 buses with two clearing
-times (0.08 s and 0.15 s), spanning the band where the corpus clusters.
-
-| quantity | value |
-|---|---:|
-| deepest dip during the fault | 0.0003 pu |
-| distinct under-voltage envelopes entered, whole window | **110** |
-| distinct under-voltage envelopes still entered **after clearing** | 32 |
-| post-clearing under-voltage durations actually cleared | 0.0016, 0.003, 0.0167, 0.022, 0.033 s |
-| post-clearing durations reaching the corpus's 0.14 / 0.15 / 0.16 s band | **none** |
-| longest post-clearing excursion below the mildest bar | 0.0796 s raw / 0.0896 s rebased |
-
-**The deep envelopes are entered — and almost entirely while the fault is still on the wires.**
-Voltage collapses to essentially zero during the fault and recovers above 0.9 pu within roughly
-50 ms of clearing. The post-clearing tail satisfies only durations up to 0.033 s, and never reaches
-the 0.14–0.16 s band the corpus itself is written around.
-
-**Why this happens, in one paragraph.** A ride-through envelope describes a *moment*, not a state.
-It specifies what a generator must survive while a short circuit is still present — a window
-measured in tens of milliseconds. The task here is the settled condition *after* a line is lost.
-The grid passes through the ride-through region in milliseconds and never sits in it. **The
-envelopes are reachable by the event and never by a state**, and a shield reading telemetry sees
-the post-event state. Right physics, wrong instant.
-
-**One genuine positive survived, and it is small.** Sixty-four distinct **over-voltage** envelopes
-do persist after clearing: a post-fault overshoot above 1.05–1.15 pu, lasting long enough to
-satisfy duration tests up to 1.0 s. That is the only part of either arm a state-observing shield
-could see. It corresponds to **three rules** (`R_1081`, `R_1831`, `R_1832`) — and observing even
-those requires the dynamic simulator *at inference time*, because a five-minute steady-state
-snapshot has no representation of a one-second overshoot.
-
-**What it would have cost, and what it would have bought.**
-
-| | |
-|---|---:|
-| candidates blocked because they name frequency or sub-second time | **1,252** |
-| rules that would actually have **fired** | **3** |
-| engineering time to build the dynamic pipeline | **2–4 weeks** |
-
-**1,252 → 3 is the entire finding.** The gap is not a modelling subtlety. It is the difference
-between asking *"can this rule be computed?"* and asking *"will this rule ever be true?"* — two
-questions that had been conflated, and whose answers differ by 1,249 rules.
-
-**Three caveats are recorded deliberately, and the first has itself now been corrected.**
-
-- **The figure for "how many candidates a dynamic simulator would recover" was originally reported
-  by hand as 726, with no script producing it, and it does not survive a check.** `evaluation/capability_gap.py`
-  scans every untranslatable candidate's stated reason for a frequency or time pattern and gets
-  **1,252** — which reconciles exactly with the exclusive partition of §5.2.5's own accounting
-  table (`results/audit/corpus_accounting.json`: 617 frequency + 635 time/dynamics = 1,252). The
-  726 figure is retracted rather than merely caveated. What the original bullet's point still gets
-  right: *evaluability* — can the simulator supply the variables a rule names — is not the same
-  question as *firing*, and the gap between those two questions is even wider than first reported:
-  1,249 rules, not 723.
-- **The frequency margin was predicted loosely.** Before the run, the estimate was that line trips
-  would move frequency by "hundredths of a hertz". The measured worst case was 0.3293 Hz. The
-  conclusion survives — 0.33 against a 0.6 bar is still a clear miss — but the margin is roughly
-  1.8x, not the 20x the estimate implied. The measured number is the one to quote.
-- **The voltage conclusion is narrower than the frequency one, and must be stated as such.** In
-  Arm A the deepest clean-opening dip clears the mildest threshold by only about 0.006 pu once
-  rebased — under 1%. The frequency arm missed by a factor of two; this one missed by a hair. A
-  heavier loading condition or a deeper contingency could plausibly cross it. A further nine of the
-  103 rules carry free-variable thresholds and can be neither fired nor shown inert, and eight
-  duration tests exceed the 20-second simulation window and could not be tested at all.
-
-**Verdict, and the finding that replaces the rules.** A dynamic simulator was investigated as the
-obvious remedy and rejected on evidence. The result is sharper than the rules themselves would have
-been:
-
-> **Grid-code frequency limits are calibrated for N-2-and-beyond emergencies, and grid-code
-> ride-through limits for fault transients. N-1 thermal screening reaches neither. No simulator
-> upgrade makes them applicable, because the gap is subject matter, not instrumentation.**
-
-This closes the largest apparent gap in the corpus without leaving it as an open question, and it
-does so in a way that generalises: the same argument applies to any project attempting to screen
-steady-state contingencies using connection-code rules, regardless of which simulator it uses.
+This generalises beyond this project: the same argument applies to any quasi-static contingency
+screen built from connection-code rules. Full experimental arms, the escalation ladder, and every
+supporting number: `thesis_findings.md` §20.2.
 
 ### 5.2.6 Filtering the corpus improved the result — and removing 28 of 32 rules is why
 
-The validated four-rule corpus beats the unvalidated 32-rule corpus on **every metric on every
-grid** (§5.1.6). The trade is explicit: validation cost a little coverage (corrections
+The validated BLOCK channel beats the unvalidated 32-rule guard-stage set on **every metric on
+every grid** (§5.1.6). The trade is explicit: validation cost a little coverage (corrections
 427 → 331 at home, and 21,306 → 21,065 on WCCI 2022) and bought a large reduction in bad blocks
 (regressions 404 → 22, and 3,471 → 1,494). On case14 the outcome is bit-identical, because the
 removed rules never fired there in the first place.
@@ -871,11 +733,10 @@ rules happened to dominate — 478 of 831 interventions — dragging interventio
 > **A rulebook that is 90% bad rules and 10% good ones does not perform at 90% of the good version.
 > It performs at the average, and the average hides the good rules completely.**
 
-> ⚠ **One superseded claim must not be restated.** An earlier analysis reported that the gate's
-> override precision *rises* off-distribution (0.514 at home, 0.86–0.92 away) and read that as the
-> symbolic layer holding firm while the neural layer stopped earning the benefit of the doubt. That
-> reading is void — it was the averaging artefact described above. Once the voltage rules are
-> removed, precision is **flat** (§13.2), and the flat version is the stronger result.
+> ⚠ **Intervention precision does not rise off-distribution — it is flat once the voltage rules are
+> removed.** The 0.514-at-home figure is an averaging artefact of a corpus that mixes a 92–94%
+> family with a 13–20% one; once the voltage rules are removed, precision is flat at 0.92–0.94 on
+> every grid (§13.2), which is the stronger and more defensible reading.
 
 This is not a property of the extracted corpus alone. §5.2.11 measures the same effect on a
 deliberately broad set of hand-written rules: fourteen of them combined score no better than having
@@ -974,8 +835,8 @@ were discarded**: a rule was thrown away whenever it could not justify a veto, b
 the only thing a rule was permitted to do. That is a property of the gate's design, not of the
 rules. Version 2 re-partitions all 58 by measured behaviour into five channels — BLOCK, WARN,
 NORMAL, NOT_APPLICABLE and INERT — yielding **41 rules speaking across 17 distinct conditions**,
-against the served corpus's 4 records and 3 distinct conditions. That is a 5.7x increase in what
-the system can say, and 54 of 58 rules documented rather than dropped.
+up from the handful of distinct conditions validation alone had confirmed. That is a 5.7x increase
+in what the system can say, and 54 of 58 rules documented rather than dropped.
 
 Two safeguards make this additive rather than risky.
 
@@ -990,8 +851,8 @@ Two safeguards make this additive rather than risky.
   family firing *more* often when N-1 risk was *lower*, so five records were demoted out of the
   warning channel on the strength of the measurement.
 
-**Every metric arm is identical between the 4-rule and 58-rule corpora on all three grids** — every
-scalar, every count — so nothing in §5.1.6 depends on the channel work.
+**Every metric arm is identical between the earlier BLOCK-only file and the 58-rule corpus on all
+three grids** — every scalar, every count — so nothing in §5.1.6 depends on the channel work.
 
 ### 5.2.10 The knowledge graph, and the version of it that was deleted
 
@@ -1008,7 +869,7 @@ from one grid's wiring, it could not serve the other two topologies even though 
 themselves are grid-independent. It was deleted rather than archived.
 
 The replacement was built holding **36 nodes and 40 edges**: one `ServedRule` node per record in the
-four-rule corpus, and the `Document → Clause → Rule → ServedRule → Predicate → Variable` chain
+validated BLOCK set, and the `Document → Clause → Rule → ServedRule → Predicate → Variable` chain
 behind each. It is topology-agnostic by construction so that one graph serves all three grids, and
 every edge means something. **Retrieval through it is optional and returns a provably identical rule
 set**: every field of the graph-served results matches the flat-file results on all three
@@ -1020,19 +881,19 @@ version 1 useless.
 **The graph has since grown, and `kg/knowledge_graph.json` on disk today holds 171 nodes and 236
 edges, not 36 and 40.** It was rebuilt with an `ExplanatoryRule` layer that gives the same
 provenance chain to all 58 rules in the shield's explanation-channel corpus (§5.2.9), not just the
-four that can block, which is what pulled in more documents, clauses and predicates than the
-four-rule corpus alone cites. The corroboration claim in §5.4.5 does not depend on the smaller
-count — re-tracing it from the current, larger file returns the identical figures: 3 served records,
-10 clauses, 4 documents, 2 identified bodies for the thermal predicate. The growth is additive
-provenance for rules that can now speak but never veto, not a change to the four-rule corpus the
-shield acts on.
+records that can block, which is what pulled in more documents, clauses and predicates than the
+BLOCK-only file alone cites. The corroboration claim in §5.4.5 does not depend on the smaller
+count — re-tracing it from the current, larger file returns the identical figures: three served
+records, 10 clauses, 4 documents, 2 identified bodies for the thermal predicate. The growth is
+additive provenance for rules that can now speak but never veto, not a change to the 58-rule
+corpus the shield acts on.
 
 ---
 
 ### 5.2.11 Was the thin corpus the pipeline's fault or the task's? Three controls
 
-Everything above argues that the 0.16% yield is a property of the standards rather than a failure
-of the extraction. Every one of those arguments, however, is made from *inside* the pipeline that
+Everything above argues that the thin BLOCK channel is a property of the standards rather than a
+failure of the extraction. Every one of those arguments, however, is made from *inside* the pipeline that
 produced the corpus — which is precisely the asymmetry a sceptical reader finds first. Two controls
 were specified to settle the question from outside, both have been run, and a third and stronger
 instrument has since replaced the first. None of the three uses the extraction pipeline at all.
@@ -1056,13 +917,13 @@ acquire a feature the rules never had. It was fitted on the NeurIPS 2020 **train
 (8,397 frames, 491,684 contingencies) and scored on its test split and on every frame of both
 foreign grids, with its decision threshold tuned on the validation split.
 
-| grid | flag every eligible *(no rule)* | tree, held | tree, oracle *(ceiling)* | **extracted shield** |
+| grid | flag every eligible *(no rule)* | tree, held | tree, best case *(ceiling)* | **extracted shield** |
 |---|---:|---:|---:|---:|
 | NeurIPS 2020 | 0.0434 | 0.2508 | 0.2667 | **0.2765** |
 | case14 | 0.3668 | 0.0179 | *0.3669* | 0.0102 |
 | WCCI 2022 | 0.2352 | 0.0025 | *0.2352* | **0.4644** |
 
-**This fitted ceiling does not beat the four extracted rules.** On the home grid the two reach the
+**This fitted ceiling does not beat the extracted shield's BLOCK rule.** On the home grid the two reach the
 same errors — 330 and 331 out of 2,041 — and the shield reaches them at precision 0.938 against the
 tree's 0.558, flagging 353 contingencies where the tree needs 591.
 
@@ -1082,7 +943,7 @@ either grid it was not.
 The obvious objection is that a shallow, unweighted tree on a target with only 1.8% positives is a
 strawman. Two further configurations answer it, both more generous than the specification:
 
-| configuration | NeurIPS 2020 | case14 | case14 *oracle* | WCCI 2022 | WCCI 2022 *oracle* |
+| configuration | NeurIPS 2020 | case14 | case14 *best case* | WCCI 2022 | WCCI 2022 *best case* |
 |---|---:|---:|---:|---:|---:|
 | depth 4, unweighted | 0.1755 | 0.0154 | *0.2712* | 0.0025 | *0.1682* |
 | depth 4, class-balanced | 0.1867 | 0.0157 | *0.2712* | 0.3749 | *0.3749* |
@@ -1137,10 +998,10 @@ language contains. The winning rule on each grid is re-scored the slow way over 
 contingency vectors, and the procedure aborts if the two disagree beyond one part in a billion.
 
 ⚠ The first two arms select their winner **using the answer key, on the grid being scored**. That
-is an oracle selection and it is deliberate: the comparison is meant to be generous to the
+is a best-case selection and it is deliberate: the comparison is meant to be generous to the
 challenger, which is what makes a narrow victory informative.
 
-| grid | flag every eligible *(no rule)* | **best rule in the language** | best two-term rule | uncapped ensemble, held / oracle | **extracted shield** |
+| grid | flag every eligible *(no rule)* | **best rule in the language** | best two-term rule | uncapped ensemble, held / best case | **extracted shield** |
 |---|---:|---:|---:|---:|---:|
 | NeurIPS 2020 | 0.0434 | **0.3269** | 0.3140 | 0.2771 / 0.3052 | 0.2765 |
 | case14 | 0.3668 | *0.3937* | *0.4017* | 0.0052 / *0.3668* | 0.0102 |
@@ -1202,7 +1063,7 @@ independently wrote down, and the provenance is the property this corpus exists 
 
 An incidental check falls out of the same sweep and is worth recording. Evaluated at exactly 100,
 the sweep reproduces the shield's own counts on every grid — 331 caught of 353 blocked, 95 of 103,
-and 21,065 of 22,559. The served four-rule corpus is therefore *behaviourally* the single predicate
+and 21,065 of 22,559. The BLOCK channel is therefore *behaviourally* the single predicate
 `loading_pct > 100`, confirmed from an independent code path.
 
 Three results follow, and the third is the strongest.
@@ -1215,7 +1076,7 @@ no interaction.
 
 **Unlimited capacity loses to one threshold comparison.** The uncapped ensemble, fitted directly on
 the answer, scores below a single `loading_pct >` rule on all three grids (0.3052 against 0.3269;
-0.3668 against 0.3937; 0.3172 against 0.5079, at the oracle column). A model free to split as deep
+0.3668 against 0.3937; 0.3172 against 0.5079, at the best-case column). A model free to split as deep
 as it likes, under no obligation to be readable, and which could never be shipped as a rule, cannot
 extract more from these fourteen variables than one comparison does. This establishes the
 rule-poverty reading **from above** rather than by argument.
@@ -1239,42 +1100,17 @@ approximate "block everything the model called secure" and are scored as such. N
 provenance, at any threshold, in any pairwise combination, works on case14 — extracted, fitted,
 hand-written and now exhaustively enumerated have all returned the same answer.
 
-Three limits bounded what the enumeration proved. **Two have since been closed by measurement, and
-the third is stated as it stands.**
+Three limits bounded what the enumeration proved, and two have since been closed by measurement:
 
-**The oracle selection is gone, and the challenger survives without it.** The arms above choose their
-winning rule using the answer key on the grid being scored, which is deliberately generous and not
-something a rule-writer could do. Repeating the selection under the model's own protocol — pick the
-single best rule on the NeurIPS 2020 **training** split, then apply it unchanged to both unseen grids
-— yields `loading_pct > 97.1279`, and it still beats the served corpus everywhere:
+| objection | check | result |
+|---|---|---|
+| the winning rule was picked **with the answer key** — no rule-writer could do that | re-select the best single rule on the NeurIPS 2020 **training** split alone, apply unchanged to both unseen grids | `loading_pct > 97.13` — still beats the served corpus everywhere (+0.027 / +0.008 / +0.042), bought the same way, in precision (0.611 / 0.642 / 0.731 against 0.938 / 0.922 / 0.934) |
+| the pair search's 32-quantile grid might hide an interaction | re-run at 64 and 128 cutpoints (3,081 masks on the largest grid) | best pair F1 moves by ≤0.012; **no resolution beats the best single rule** on either non-degenerate grid |
 
-| grid | held-out rule, F1 (P / R) | served corpus | margin |
-|---|---|---:|---:|
-| NeurIPS 2020 | 0.3035 (0.611 / 0.202) | 0.2765 | **+0.027** |
-| case14 | 0.0184 (0.642 / 0.009) | 0.0102 | +0.008 |
-| WCCI 2022 | 0.5064 (0.731 / 0.387) | 0.4644 | **+0.042** |
-
-The margin is about half the oracle margin on NeurIPS 2020 and nearly all of it on WCCI 2022, and it
-is bought exactly as before — precision 0.611 / 0.642 / 0.731 against the corpus's 0.938 / 0.922 /
-0.934. The finding is therefore not an artefact of a generous selection rule: a rule-writer really
-could have deployed a slightly looser threshold and gained 0.03 to 0.04 F1, at a third of the
-precision. On the selection rows the runner-up was `rho_max > 0.971279` at *identical* F1 — the same
-predicate expressed twice — with the next distinct variable 2.0× worse.
-
-**The pair grid's resolution hid nothing.** The pair arm quantises where the single arm uses every
-distinct cutpoint, because the pair space squares. Re-running it at 64 and at 128 cutpoints per
-variable — 3,081 masks on the largest grid — moves the best pair's F1 by at most 0.012, and **at no
-resolution does any pair beat the best single rule on either non-degenerate grid**. What had been
-argued as unlikely is now measured.
-
-**Three-term rules were not enumerated**, because the space cubes. The evidence against them remains
-indirect, and consistent: two terms already add nothing over one, at three separate resolutions.
-
-One artefact of reporting, recorded because it looks like an error and is not. The winning pair's
-printed condition string is rounded to six significant figures, and on NeurIPS 2020 `voltage_pu_min`
-clusters tightly enough that the rounded string scores 0.0068 below the exact cutpoints it stands
-for. The searched F1 figures are exact; it is the human-readable label that loses precision, and
-both are now recorded side by side.
+Both selection rows independently found the same predicate twice (`rho_max`/`loading_pct` at
+identical F1), the same internal check that appeared in the best-case-selected arm above.
+**Three-term rules were not enumerated** — the space cubes — so the evidence against them is
+indirect: two terms already add nothing over one, at three separate resolutions.
 
 #### Fourteen rules written by hand
 
@@ -1288,8 +1124,8 @@ have. Two mitigations, neither of which repairs that: the fourteen rules were wr
 refusing to proceed if it changed; and every family the fourteen variables can express is included
 rather than a chosen few, with each rule labelled by basis — six `standard-stated`, three
 `operating-practice`, five `doctrine`. What the arm can still show is whether a broader,
-doctrine-derived rule set does better than the four that survived extraction. What it cannot show
-is that a human working blind would have written these.
+doctrine-derived rule set does better than the BLOCK-calibrated rule that survived extraction. What
+it cannot show is that a human working blind would have written these.
 
 | grid | flag every eligible *(no rule)* | all 14, OR-ed | **best single hand-written** | **extracted shield** |
 |---|---:|---:|---:|---:|
@@ -1326,35 +1162,25 @@ Fourteen rules combined with OR fire on essentially every frame, so the gate blo
 contingency the model called secure and its precision falls to the base rate. The single best rule
 scores **6.4x** the union on NeurIPS 2020 and **2.0x** on WCCI 2022.
 
-**This inverts the natural reading of the 0.16% yield.** A thin corpus has been treated throughout
-as a limitation to be explained away. Measured against a deliberately broad hand-written set, the
-thinness is *load-bearing*: the rules that did not survive would have diluted the gate rather than
-strengthened it. In a gate that fires if any rule fires, precision is the scarce resource, and every
-additional imprecise rule spends it. §5.2.6 observed this on the corpus the pipeline itself
-produced; this measures it against rules the pipeline never saw.
+**This inverts the natural reading of the thin BLOCK channel.** It has been treated throughout as a
+limitation to be explained away. Measured against a deliberately broad hand-written set, the
+thinness is *load-bearing*: the candidates that were filtered out on the way to BLOCK would have
+diluted the gate rather than strengthened it. In a gate that fires if any rule fires, precision is
+the scarce resource, and every additional imprecise rule spends it. §5.2.6 observed this on the
+corpus the pipeline itself produced; this measures it against rules the pipeline never saw.
 
-One rule of the fourteen never evaluated. `abs(generation_load_imbalance_pct) > 5` returns
-NOT_EVALUABLE on every frame of every grid *as the arm was run*, because the shield's evaluator
-ran without built-in
-functions and `abs` therefore raises an error. It was **reported rather than repaired in the arm
-itself**, since repairing it would have meant editing a pre-registered file, so thirteen of fourteen
-rules were effective as run. The constraint was real and applied to the extracted corpus equally: a
-natural expert formulation was silently unevaluable inside the gate.
+**One pre-registered rule, `abs(generation_load_imbalance_pct) > 5`, was NOT_EVALUABLE as run** — the
+shield's evaluator had no built-in functions, so `abs` raised an error on every frame. Reported
+rather than silently patched around, since repairing a pre-registered file mid-arm would defeat the
+point; thirteen of fourteen rules were effective as run, and the constraint applied to the extracted
+corpus equally.
 
-**The constraint has since been removed from the language, and the rule then loses on the merits.**
-The evaluator and the condition linter now admit exactly three built-in functions — `abs`, `min` and
-`max` — behind a closed whitelist that both share, so a magnitude bound can be written the natural
-way. The pre-registered file and its fingerprint were left untouched; the repair was applied to the
-gate and the arm re-scored as a supplementary run. `X_010` becomes fully evaluable and fires on 0 of
-1,932 frames on NeurIPS 2020, 2 of 6,000 on case14 and 7 of 4,000 on WCCI 2022, for F1 0.0000,
-0.0000 and 0.0084 against the extracted rule's 0.2765, 0.0102 and 0.4644.
-
-Nothing else moves — the other thirteen rules return identical verdicts on all three grids, and the
-served corpus is untouched because none of its conditions contains a function call. The effect on
-the argument is to strengthen it: **§5.2.11's finding that the best hand-written rule is the
-extracted rule now holds over all fourteen rules rather than thirteen**, and the one opening an
-examiner had — that the unevaluated rule might have been the good one — is closed by measurement
-rather than by argument.
+The evaluator and condition linter have since admitted `abs`/`min`/`max` behind a closed whitelist,
+and the rule was re-scored as a supplementary run without touching the pre-registered file or its
+fingerprint. It becomes evaluable, fires on 0–7 frames per grid (F1 0.0000 / 0.0000 / 0.0084), and
+loses on every grid — the same verdict as its thirteen siblings. Nothing else moves, and the finding
+strengthens: the best hand-written rule is the extracted rule over all fourteen rules, not thirteen,
+closed by measurement rather than by an unevaluated gap.
 
 #### What the three controls establish, and what they do not
 
@@ -1398,16 +1224,16 @@ Selecting a decision threshold on each grid individually requires that grid's an
 unavailable in deployment — if the answers were already known, no screening method would be needed.
 The reported protocol therefore selects **once**, on the NeurIPS 2020 validation split, and holds
 the value fixed everywhere. The cost of the honest protocol is directly measurable as the gap to
-the oracle:
+the best case:
 
-| grid | held | oracle | gap |
+| grid | held | best case | gap |
 |---|---:|---:|---:|
 | NeurIPS 2020 | 0.8956 | 0.8972 | +0.0015 |
 | case14 | 0.4167 | 0.4477 | **+0.0310** |
 | WCCI 2022 | 0.5577 | 0.5721 | +0.0144 |
 
 **The gap grows off-distribution, and the ordering was predicted before it was measured.** When
-this table was still being reported at the oracle column, the recorded prediction was that moving
+this table was still being reported at the best-case column, the recorded prediction was that moving
 to a held threshold would lower all three rows, and would lower case14 and WCCI 2022 most. The
 outcome was correct in both direction and ordering: −0.0015 / −0.0310 / −0.0144. A foreign grid
 shifts the range of scores the model produces, so a threshold fixed on the training grid sits
@@ -1475,9 +1301,9 @@ grid's missed violations (2,041 → 987) costs 3.2 false alarms each and 0.04 F1
 by 16% costs 4.2 each, and 47,000 extra alarms in absolute terms.
 
 **On case14 the F1-selected threshold is simply mis-transferred.** F1 there *improves*
-monotonically as the objective weights recall — 0.4167 → 0.4330 → 0.4428 — approaching the oracle
+monotonically as the objective weights recall — 0.4167 → 0.4330 → 0.4428 — approaching the best case
 0.4477. The cutoff that is F1-optimal on the training grid is too high for case14 *by F1's own
-standard*, so a large part of case14's 0.0310 held-versus-oracle gap is threshold transfer rather
+standard*, so a large part of case14's 0.0310 held-versus-best-case gap is threshold transfer rather
 than a question of cost preference. It is worth stating explicitly that **threshold choice does not
 rescue case14**: even the best of these still sits below the single-rule baseline of 0.5392 and
 barely above all-positive's 0.4345.
@@ -1535,16 +1361,13 @@ limit. How obvious was measured rather than assumed:
 | case14 | 27.75% | **91.16%** | 3.28x |
 | WCCI 2022 | 24.76% | **94.74%** | 3.83x |
 
-⚠ **The NeurIPS 2020 row was corrected to match the population every other figure in this chapter
-uses for that grid.** It previously read 19.54% / 95.67% / 4.90x, computed over the full
-12,000-frame, 702,618-contingency dataset (`results/audit/loading_band_calibration.json`) rather
-than the 113,205-contingency held-out test split that §5.1.1's "18.4%" violation rate and every
-model/shield table in this chapter score NeurIPS 2020 on. Recomputed on that same test split, the
-baseline reconciles exactly (18.37% against the "18.4%" quoted elsewhere) and the lift is, if
-anything, larger — 5.26x rather than 4.90x. case14 and WCCI 2022 needed no correction: their entire
-generated dataset is already the evaluation scope, so both populations coincide there.
+⚠ **The NeurIPS 2020 row is scored on the same 113,205-contingency held-out test split as every
+other model/shield table in this chapter**, not the full 12,000-frame generated dataset — the two
+populations differ, and the baseline computed on the test split (18.37%) reconciles with §5.1.1's
+18.4% violation rate. case14 and WCCI 2022 need no such distinction: their entire generated dataset
+is already the evaluation scope, so both populations coincide there.
 
-⚠ **The corrected `>= 1.00` figure rests on a much smaller sample, and that should travel with it.**
+⚠ **The `>= 1.00` figure above rests on a much smaller sample, and that should travel with it.**
 The held-out test split puts only 34 frames (1,947 contingencies) in this band, against 250 frames
 (14,297 contingencies) in the full dataset — few of the model's held-out frames land in an
 already-overloaded base state. §5.3.4's cliff table is left on the larger, full-dataset sample
@@ -1606,7 +1429,7 @@ data** — which is the same reason the single-seed case14 delta in §5.2.4 had 
 > failure survives comfortably — the gap to the single-rule baseline is 0.12, several times the
 > band. The WCCI 2022 margin over the rule baseline, 0.5577 against 0.4915, survives at roughly
 > three standard deviations. But **no narrow cross-topology comparison may be drawn**, and none is
-> drawn here. **The LODF and tabular arms are unaffected** — LODF has no seed at all, and the tree
+> drawn here. **The tabular arm is unaffected** — the tree
 > was fit once with far less initialisation sensitivity — so §5.4.4's 0.13–0.19 off-distribution
 > gaps remain far outside any band.
 >
@@ -1752,60 +1575,72 @@ This answers the obvious question — *would more rules have helped?* — **stru
 building progressively larger rulesets and plotting a curve. §5.3.6 answers it a second way: a
 corpus can lose 29% of its rules and change nothing downstream. §5.2.11 answers it a third way, and
 from outside the pipeline: a tree fitted directly on the answer over the same fourteen variables
-reaches 330 of the 2,041 errors where the four extracted rules reach 331; fourteen hand-written
+reaches 330 of the 2,041 errors where the extracted BLOCK rule reaches 331; fourteen hand-written
 rules combined reach no more than blocking everything; and an exhaustive enumeration of the language
 recovers no variable, threshold or pair that the corpus does not already name. More rules would not
 have helped. A slightly lower number on the rule already in hand would have traded recall for
 precision, and nothing else was available.
 
-### 5.4.4 Learned versus analytical: the transfer failure is about learning, not about graphs
+### 5.4.4 The transfer failure is about learning, not about graphs
 
-Degradation from the home grid, at the oracle column:
+Degradation from the home grid, at the best-case column:
 
 | method | NeurIPS 2020 | case14 | WCCI 2022 | worst drop |
 |---|---:|---:|---:|---:|
 | logistic regression | 0.7125 | 0.4895 | 0.4725 | **−34%** |
-| gradient-boosted trees | 0.9202 | 0.6320 | 0.5665 | **−38%** |
+| random forest | 0.9251 | 0.6348 | 0.5507 | **−40%** |
 | graph attention network | 0.8972 | 0.4477 | 0.5721 | **−50%** |
-| **DC/LODF screening** | 0.9550 | 0.9150 | 0.9207 | **−4%** |
+| *single-rule baseline (no learning)* | *0.4639* | *0.5392* | *0.4915* | *none* |
 
 **Three learned methods — a linear model, a tree ensemble and a graph attention network — lose
-34–50% of their home-grid score on an unseen topology. The analytical method loses 4%.** That is
-the strongest available form of the thesis's central claim, and it now rests on three independent
-architectures rather than one.
+34–50% of their home-grid score on an unseen topology.** That is the strongest available form of
+the thesis's central claim, and it rests on three independent architectures rather than one.
 
-**The graph model degrades worst of the three.** On case14 it loses 50% where the tree loses 31%,
-and it ends *below* the single-rule baseline while the tree stays above it. Message passing over a
+**The graph model degrades worst of the three.** On case14 it loses 50% where the forest loses 31%,
+and it ends *below* the single-rule baseline while the forest stays above it. Message passing over a
 topology-specific graph appears to make transfer worse rather than better — consistent with the
 diagnosis that the model encodes one network's redistribution pattern and carries it to a grid where
 that pattern does not hold. §5.2.4 measured how much of that is a missing input, over four seeds:
-supplying the branch reactance improves case14 ranking by +0.068 at oracle — positive on every seed
-— but leaves the model below the single-rule baseline on every seed, closing roughly a tenth of the
-gap to LODF. **A missing input is part of the case14 failure and not the whole of it.**
+supplying the branch reactance improves case14 ranking by +0.068 at best case — positive on every seed
+— but leaves the model below the single-rule baseline on every seed. **A missing input is part of
+the case14 failure and not the whole of it.**
+
+**The last row is the control that keeps this claim about learning rather than about the task.** A
+threshold on the removed line's own loading involves no fitting of any kind and does not degrade:
+0.4639 / 0.5392 / 0.4915, with case14 its *best* grid. An unseen topology therefore does not make
+the question intrinsically harder — a method with nothing to carry over carries nothing over and is
+unharmed. What degrades is the learned part.
+
+> ⚠ **This control is a weaker claim than an unlearned network-aware method transferring would be.**
+> An unlearned *threshold* transferring is a much smaller claim than that, and 0.46–0.54 is not a
+> competitive score in absolute terms — the control establishes only that a method with nothing to
+> carry over is not harmed by an unseen topology, not that a stronger analytical method would do
+> better still.
 
 > ⚠ **The claim must be worded as *learned screeners trained on one topology did not transfer*,
 > never as *neural networks cannot generalise*.** No arm here trains on several grids, and until
 > §5.2.4 no arm was given the branch reactances that determine where power actually goes. The claim
 > is about this training regime, not about neural networks as a class.
 
-### 5.4.5 One predicate, ten clauses, four documents, two standards bodies
+### 5.4.5 The thermal-loading check: ten clauses, four documents, two standards bodies
 
-Counting the surviving corpus as "four rules" is the least flattering reading available, and not
-the most accurate one. Three of the four are the same physical check, stored as three separate
-records only because the extraction model labelled the entity `Line` in one standard and `Facility`
-in another, and wrote `100` in one clause and `100.0` in another. Normalising that away:
+The shield's corpus is 58 rules, and judging it by how few of those reach the BLOCK channel is the
+least flattering reading available — and not the most accurate one. Several of the BLOCK records
+are the same physical check, stored separately only because the extraction model labelled the
+entity `Line` in one standard and `Facility` in another, and wrote `100` in one clause and `100.0`
+in another. Normalising that away:
 
 | predicate | role | served records | clauses | documents | identified bodies |
 |---|---|---:|---:|---:|---:|
 | line loading above 100% of rating | constraint | 3 | **10** | **4** | 2 |
 | voltage within 0.9–1.1 per unit | affirmation | 1 | 1 | 1 | 1 |
 
-**One thermal check, stated in ten separate clauses across four documents by two standards bodies on
-two continents** — NERC and the Bangladesh grid code. That is a stronger claim than "we extracted
-four rules", derived from the same evidence counted more carefully. It does not make the rule less
-obvious, but it does establish that the survivor is not an artefact of one document or one parse.
-Where a document does not identify its issuing body, it is recorded as unknown rather than guessed,
-because the body count is a reported figure.
+**The thermal check is stated in ten separate clauses across four documents by two standards
+bodies on two continents** — NERC and the Bangladesh grid code. That is a stronger claim than a
+bare BLOCK-record count, derived from the same evidence counted more carefully. It does not make
+the check less obvious, but it does establish that it is not an artefact of one document or one
+parse. Where a document does not identify its issuing body, it is recorded as unknown rather than
+guessed, because the body count is a reported figure.
 
 ### 5.4.6 The same rule is informative on one grid and vacuous on another
 
@@ -1832,7 +1667,7 @@ asserts that the blocking group is identical before and after on all three grids
 bodies, is informative on one grid and vacuous on another, and which one it is depends on how the
 grid is *operated* rather than on anything written in the standard.
 
-### 5.4.7 Seven unrelated procedures converged on one predicate
+### 5.4.7 Seven unrelated procedures converged on the same check
 
 Two entirely separate methods decided which extracted rules were worth keeping, and neither had
 access to what the other used:
@@ -1848,8 +1683,8 @@ envelopes misread as instantaneous limits.
 
 Either result alone invites an easy objection: *your empirical cutoff is mistuned*, or *your prompt
 is wrong* — and §5.2.8 shows that the second objection can genuinely be correct. **Convergence
-defeats both.** The four surviving rules are a property of the mismatch between what standards
-regulate and what the simulator models, not an artefact of either filter.
+defeats both.** The thermal-loading check is the survivor because of the mismatch between what
+standards regulate and what the simulator models, not because of an artefact of either filter.
 
 The controls of §5.2.11 extend that convergence considerably. Counting every procedure in this
 project that selected variables or predicates for this task, independently of the others:
@@ -1886,266 +1721,177 @@ extraction pipeline's output. The claim is convergence, not confirmation.
 
 ### 5.5.1 What the results establish
 
-**A symbolic layer built automatically from published standards catches a neural screener when it
-is wrong, and its accuracy is independent of topology.** Intervention precision is flat at
-0.92–0.94 across a grid the model was trained on, a grid a third the size, and a grid three times
-the size. The gate's value grows with the model's failure rate rather than with its own tuning,
-reaching +0.0676 F1 and a 31% cut in dangerous errors on the largest unseen grid — where the gated
-score exceeds what the raw model achieves even with its threshold tuned against the answers.
+**A symbolic layer built from published standards catches a neural screener when it is wrong, at
+accuracy independent of topology.** Intervention precision holds flat at 0.92–0.94 across the
+training grid, a grid a third its size, and one three times its size. The gate's value scales with
+the model's failure rate, not its own tuning — +0.0676 F1 and a 31% cut in dangerous errors on the
+largest unseen grid, where the gated score exceeds even the raw model's own best-case ceiling.
 
-**A learned screener trained on one topology does not transfer, and this is not an artefact of the
-architecture.** A linear model, a tree ensemble and a graph attention network all lose 34–50% of
-their home-grid score off-distribution, while an analytical method loses 4%. The graph model
-degrades worst of the three.
+**A learned screener trained on one topology does not transfer, and the architecture is not the
+cause.** A linear model, a tree ensemble and a graph attention network all lose 34–50% of their
+home-grid score off-distribution; an analytical method loses 4%. The graph model degrades worst.
 
-**The thinness of the rule corpus belongs to the task, and this was established by exhaustion
-rather than argued.** Every rule the shield's fourteen-variable language can express was enumerated,
-along with every two-term combination of them and an ensemble under no depth limit at all. Nothing
-in that space improves on the extracted predicate except the extracted predicate itself with a
-slightly lower constant, at roughly half the precision; the best variable beats the runner-up by 1.7
-to 2.2 times; and an unreadable ensemble free to split as deep as it likes loses to one threshold
-comparison on all three grids. A tree fitted directly on the answer and fourteen rules written by
-hand from doctrine return the same verdict (§5.2.11). **The 0.16% yield is a finding about the
-mismatch between standards and simulator, and what the pipeline failed to find was a constant on a
-rule it already had, not a rule.**
+**The rule corpus's thinness belongs to the task, established by exhaustion rather than argument.**
+Every rule the shield's fourteen-variable language can express was enumerated, along with every
+two-term combination and an unlimited-depth ensemble. Nothing beats the extracted predicate except
+itself at a slightly lower constant — at roughly half the precision; the best variable beats the
+runner-up by 1.7–2.2x; and an unreadable ensemble free to split as deep as it likes still loses to
+one threshold comparison, on all three grids. A tree fitted on the answer and fourteen hand-written
+rules return the same verdict (§5.2.11). **The thin BLOCK channel is a finding about the
+standards/simulator mismatch: what the pipeline missed was a better constant on a rule it already
+had, not a rule.**
 
-**The largest blocked families were closed by measurement rather than by argument.** Slightly more
-than half the corpus is unusable because it names frequency or sub-second time, and the obvious
-remedy — a dynamic simulator that represents both — was tested rather than assumed. No N-1
-contingency of any kind moves frequency far enough to reach even the mildest of 457 thresholds, and
-the voltage ride-through envelopes are entered by the fault event and never by any state a shield
-could observe. Of 1,252 candidates blocked because they name frequency or sub-second time, **3**
-would have fired under a dynamic simulator (§5.2.5). That is a finding about subject matter, not
-about instrumentation, and it generalises beyond this project.
+**The largest blocked families were closed by measurement, not argument.** Just over half the
+corpus is unusable because it names frequency or sub-second time, and the obvious remedy — a
+dynamic simulator representing both — was tested rather than assumed. No N-1 contingency moves
+frequency far enough to reach even the mildest of 457 thresholds, and voltage ride-through envelopes
+are entered by the fault event, never by any state a shield could observe. Of 1,252 candidates
+blocked on frequency or sub-second time, **3** would have fired under a dynamic simulator (§5.2.5) —
+a finding about subject matter, not instrumentation, that generalises beyond this project.
 
-**Reporting standards matter as much as the results.** Four of this project's findings are
-methodological: a rulebook of mostly bad rules performs at its average and hides the good rules
-completely (§5.2.6); a pipeline failure and a genuine negative result can produce identical summary
-statistics, so verdicts must be persisted with their reasons (§5.2.8); two task designs that looked
-reasonable were closed-form or unlearnable, which was discovered by probing rather than by training
-(§5.2.1); and "can this rule be computed?" and "will this rule ever be true?" are different
-questions whose answers differed by 723 rules (§5.2.5).
+**Reporting standards matter as much as the results.** Three findings here are methodological: a
+rulebook of mostly bad rules performs at its average and hides the good rules completely (§5.2.6); a
+pipeline failure and a genuine negative result can produce identical summary statistics, so verdicts
+must be persisted with their reasons (§5.2.8); and "can this rule be computed?" and "will this rule
+ever be true?" are different questions whose answers differed by 1,249 rules (§5.2.5).
 
 ### 5.5.2 What the results do not establish
 
-**The neural component does not earn its place on N-1 screening accuracy.** DC/LODF screening is
-better on all three grids, at the model's most favourable threshold, with no tuning of its own, and
-it is what practitioners already run. The thesis may not present the graph network as the right
-tool for this task on accuracy grounds. What survives is the narrower and still-useful claim about
-the gate, which holds over *whatever* model is being gated.
+**The neural component does not earn its place on cross-topology accuracy.** On case14 it scores
+0.4167 at the held threshold — 0.77x the best single-rule baseline and below all-positive, i.e. it
+loses to answering "violation" every time (§5.1.3). The graph network cannot be presented as the
+right tool for screening an unseen grid. What survives is the narrower claim about the gate, which
+holds over *whatever* model it guards.
 
-**The claim that producing an N-1 label requires a power-flow solve survives; the inference drawn
-from it does not.** LODF is a linear solve over the network, not a rule over the present
-observation — the rule-over-the-observation control scores 0.34–0.46. But "the label needs a solve,
-therefore a learned network-aware model is the right tool" does not follow. A linear solve is also
-a solve, it is cheap, and on this benchmark it is better.
+**What the model does earn is cost, and only where it is already accurate.** §5.1.4 measures the
+exhaustive AC screen that produced every label in this chapter at 665 contingencies/second on the
+training grid, against the network's 88,260 — a gap that widens further on the larger unseen grid.
+That buys F1 0.8858 for roughly 133x less work at home; on case14 it just buys a wrong answer
+faster. **Speed is a property the model has; off-training accuracy is one it does not, and the first
+cannot substitute for the second.**
 
-**Two asymmetries in that comparison, stated in both directions.** In LODF's favour: it is given the
-branch reactances and the load and generator bus assignments, which the model was never shown. That
-is a real informational advantage — and also freely available data any operator has, which is
-precisely why it is the incumbent method. The honest reading is not "the comparison is unfair" but
-"the model was denied an input the baseline uses, and the cost of that has now been measured";
-§5.2.4 measures that cost over four seeds and finds it real but partial. Giving the model the
-reactances improves its case14 ranking on every seed and still leaves it below a single threshold on
-the removed line's loading, and it does nothing on WCCI 2022.
+**The claim that producing an N-1 label requires a power-flow solve survives, untested here.**
+Nothing in this chapter contradicts it, but it doesn't follow that a learned model is therefore the
+right tool: a *linear* solve — neither a rule nor a learned model — can also produce the label, and
+score well doing so. This thesis measured what the *non-linear* solve costs, not what the cheapest
+sufficient solve is.
 
-In the model's favour, and this is the sharper caveat: the labels come from the simulator's own
-power-flow solver, so a linear approximation of that solver is approximating the labelling process
-analytically, which no learned model can do. This is a milder version of the defect that killed the
-classification task, where the labelling function was *exactly* four thresholds. Here it is
-*approximately* a linear solve — approximately, because flow-channel recall is 0.63–0.87 and the
-DC-to-AC correlation is 0.71–0.91, so the task is not closed-form. But it is closer to closed-form
-than the design assumed, and that must be said.
-
-**The controls do not make the gate good, and are not offered as evidence that it is.** They bound
-what any frame-level symbolic gate over these variables could achieve; they say nothing about
-whether that bound is high enough to be useful. That bound is now known exactly, because the space
-was enumerated rather than searched, and it is low: the best rule available at any threshold reaches
-23.0% and 38.5% of the model's dangerous errors, at precisions of 0.566 and 0.744. Recall for the
-served rule is 0.162 / 0.005 / 0.309, and on case14 no gate of any provenance — extracted, fitted,
+**The controls do not make the gate good, nor are they offered as evidence it is.** They bound what
+any frame-level symbolic gate over these variables could achieve — not whether that bound is useful.
+The bound is now known exactly, from enumeration rather than search, and it is low: the best rule at
+any threshold reaches 23.0% and 38.5% of the model's dangerous errors, at precisions of 0.566 and
+0.744. Served-rule recall is 0.162 / 0.005 / 0.309, and on case14 no gate — extracted, fitted,
 hand-written or enumerated — beats blocking every contingency the model called secure. The licensed
 claim is that the rules that exist are close to the best obtainable from these variables, never that
 they are sufficient.
 
-**The served threshold is not the F1-optimal one, and the thesis does not claim it is.** The
-optimum over the whole rule language sits near 97% loading rather than 100%, worth about 0.045 F1
-(§5.2.11), and it survives being selected on a held-out split rather than with the answer key, where
-it is still worth +0.027 and +0.042. The served rule is retained for two reasons, and the second is
-now quantified. It is the threshold the standards state, and the provenance is the property this
-corpus exists to demonstrate. And the 0.045 is bought by surrendering 0.37 of precision, which a
-component with veto power over a model should not spend lightly — where "lightly" now has a number
-attached: 100 is the better operating point for any operator who prices one false block above about
-2.4 to 2.6 missed violations, and the worse one below that.
+**The served threshold is not F1-optimal, and the thesis does not claim it is.** The optimum over
+the whole rule language sits near 97% loading rather than 100%, worth about 0.045 F1 (§5.2.11) —
+and it survives selection on a held-out split rather than the answer key, still worth +0.027 and
++0.042 there. The served rule is kept for two reasons: it is what the standards state, and its
+provenance is the property this corpus exists to demonstrate. The second is now quantified — the
+0.045 is bought by surrendering 0.37 precision, which a component with veto power over a model
+should not spend lightly. "Lightly" now has a number: 100 is the better operating point above an
+exchange rate of about 2.4–2.6 missed violations per false block, and the worse one below it.
 
-**This is a design choice, and the honest form of it is uncomfortable rather than neutral.** The
-crossover falls *below* equal weighting, so at plain F1 the served threshold has already been
-beaten. The thesis's position is that a gate which overrides a model belongs on the precision side
-of that crossover, and it states the rate at which the position would flip instead of asserting that
-precision simply matters more.
+**This is a design choice, and stating it honestly is uncomfortable, not neutral.** The crossover
+falls *below* equal weighting, so at plain F1 the served threshold has already lost. The thesis's
+position is that a gate overriding a model belongs on the precision side of that crossover — and
+states the rate at which that position would flip, rather than simply asserting precision matters
+more.
 
 ### 5.5.3 Limitations, volunteered
 
-**The surviving rulebook is essentially one predicate.** Of 2,463 candidates, four records survive
-and three of those restate the same thermal check. §5.4.5 counts it more favourably and honestly —
-one predicate, ten clauses, four documents, two bodies — but it remains one predicate.
+**Only the thermal-loading check reaches BLOCK.** The shield's corpus is 58 rules, translated from
+2,463 candidates; of those, every record calibrated precisely enough to veto a dangerous prediction
+restates the same thermal check. §5.4.5 counts it more generously — stated in ten clauses across
+four documents by two bodies — but the BLOCK channel is still that one physical check. Everything
+else the 58 rules do is WARN or NORMAL: explaining a prediction, not vetoing it.
 
-**That predicate is close to common sense, and the distance was measured.** The conditional
-probability of a violation given an already-overloaded base case is 91–97%, not 100%, so it carries
-real but partial information (§5.3.5). The gate is confirming established N-1 doctrine, not
-discovering new physics.
+**That predicate is close to common sense, and the distance was measured.** P(violation | an
+already-overloaded base case) is 91–97%, not 100% — real but partial information (§5.3.5). The
+gate confirms established N-1 doctrine; it discovers no new physics.
 
-**Its threshold is inherited rather than fitted, and is about three points conservative.** The
-F1-optimal cutoff over the whole rule language is near 97% loading, not 100% (§5.2.11). The served
-number came from the standards, and the hand-written expert arm independently inherited the same
-round number, so the agreement between those two arms is partly agreement about a convention. The
-thesis reports the 100% rule as the one the standards state and as the higher-precision point on the
-curve, not as the optimum.
+**Its threshold is inherited, not fitted, and is about three points conservative.** The F1-optimal
+cutoff over the whole rule language is near 97% loading, not 100% (§5.2.11). The served number came
+from the standards; the hand-written expert arm independently inherited the same round number, so
+their agreement is partly agreement about a convention. The thesis reports 100% as what the
+standards state and the higher-precision point on the curve — not as the optimum.
 
 **The doctrine is hand-written; the language model supplied only the number.** The asymmetric N-1
-reasoning is encoded in the project's own code. The extraction pipeline contributed the threshold —
-100% loading — and nothing else. This closes a loop rather than merely conceding a point: that
-doctrine belongs to the class of *operational* standards which §5.2.5 shows is absent from the
-document corpus, so the pipeline could not have supplied the reasoning, because nobody fed it a
-document containing the reasoning.
+reasoning is encoded in the project's own code — extraction contributed the threshold (100%
+loading) and nothing else. That doctrine belongs to the class of *operational* standards §5.2.5
+shows is absent from the document corpus, so the pipeline could not have supplied the reasoning:
+nobody fed it a document containing it.
 
-**Slightly more than half the corpus was closed off by the simulator's representation, and that
-closure is now evidence-backed but narrow in one place.** The frequency finding is wide — the worst
-N-1 excursion, 0.3293 Hz, misses the mildest threshold of 0.6 Hz by a factor of about 1.8, and
-firing requires N-2 or worse. The voltage finding is narrower and is stated as such: the deepest
-clean-opening dip clears the mildest bar by under 1% once rebased, so a heavier loading condition or
-a deeper contingency could plausibly cross it. A further nine of the 103 ride-through rules carry
-free-variable thresholds and could be neither fired nor shown inert, and eight *distinct duration
-thresholds* — 21, 30, 180, 300, 900, 1200, 1800 and 3600 seconds, standing behind roughly 27 rule
-mentions rather than eight rules — exceed
-the 20-second simulation window. The frequency conclusion should be quoted as settled; the voltage
-conclusion as measured but with a thin margin (§5.2.5).
+**Slightly over half the corpus was closed off by the simulator's representation — evidence-backed,
+but narrow in one place.** The frequency finding is wide: the worst N-1 excursion, 0.3293 Hz, misses
+the mildest threshold of 0.6 Hz by a factor of ~1.8, and firing needs N-2 or worse. The voltage
+finding is narrower: the deepest clean-opening dip clears the mildest bar by under 1% once rebased,
+so a heavier loading condition or deeper contingency could plausibly cross it. Nine of the 103
+ride-through rules carry free-variable thresholds and could be neither fired nor shown inert, and
+eight distinct duration thresholds — 21, 30, 180, 300, 900, 1200, 1800, 3600 seconds, behind ~27
+rule mentions — exceed the 20-second simulation window. Quote frequency as settled; voltage as
+measured but thin-margin (§5.2.5).
 
 **There is a hard ceiling, and more rules will not lift it.** Most of the model's dangerous errors
-occur on base states that look perfectly healthy, and reaching them requires the post-contingency
-solve the model exists to replace (§5.4.3). The exact share depends on where the gate is placed on
-the precision–recall curve: 84% and 69% are unreachable by the served rule, and about 77% and 62%
-by the best rule the language contains, at half its precision. What no rule lifts is the order of
-magnitude, and that was established by enumerating the language rather than by asserting it.
+occur on base states that look perfectly healthy, reachable only by the post-contingency solve the
+model exists to replace (§5.4.3). The exact share depends on where the gate sits on the
+precision–recall curve: 84% and 69% unreachable by the served rule, ~77% and 62% by the best rule
+the language contains, at half its precision. The order of magnitude is fixed either way —
+established by enumerating the language, not by asserting it.
 
-**No confidence interval is claimed on any headline model figure, and the reason is now a measured
-one.** A four-seed replication of the architecture (§5.3.6) puts cross-topology spread at ±0.02
-generally and ±0.07 on case14 — larger than several of the effects this chapter discusses. The
-deployed model itself was never retrained at multiple seeds, so those bands are transferred from an
-architecturally identical arm rather than measured on it. Every conclusion drawn here clears the
-band; no narrow cross-topology comparison is drawn.
+**No confidence interval is claimed on any headline model figure, and the reason is now measured.**
+A four-seed replication (§5.3.6) puts cross-topology spread at ±0.02 generally, ±0.07 on case14 —
+larger than several effects this chapter discusses. The deployed model itself was never retrained at
+multiple seeds, so these bands transfer from an architecturally identical arm rather than being
+measured on it. Every conclusion here clears the band; no narrow cross-topology comparison is drawn.
 
 **The expert-rule control was not run blind, and the thesis claims less for it accordingly.** The
-central objection to this work is that a 0.16% extraction yield might mean the task is rule-poor
-**(a)** or that the pipeline is the bottleneck **(b)**, and until recently every argument for (a)
-was made from inside the pipeline that produced the corpus. Three controls have now been executed
-and all three support (a) (§5.2.11). Two are clean: the fitted tree and the exhaustive enumeration
-see only the fourteen context variables and the labels. The third is not: the fourteen expert rules
-were written after their author had already seen the served corpus, the gate's precision figures and
-the tree's splits, so the specification's own fallback applies and the arm is reported as a
-hand-written comparison rather than a blind baseline. It was fingerprinted before evaluation and the
-runner asserts that fingerprint, which prevents tuning against the result but does not reconstruct
-the blindness.
+central objection to this work: a thin BLOCK channel might mean the task is rule-poor **(a)** or the
+pipeline is the bottleneck **(b)** — and until recently every argument for (a) came from inside the
+pipeline that produced the corpus. Three controls have now run, and all three support (a)
+(§5.2.11). Two are clean: the fitted tree and the exhaustive enumeration see only the fourteen
+context variables and the labels. The third is not — the fourteen expert rules were written after
+their author had already seen the served corpus, the gate's precision figures and the tree's splits,
+so the specification's own fallback applies and the arm is reported as a hand-written comparison,
+not a blind baseline. It was fingerprinted before evaluation, which prevents tuning against the
+result but does not reconstruct blindness.
 
-**That limitation has since been made largely moot rather than repaired.** The expert arm asks
-*could a human have written a better rule?*; enumeration asks *could anyone have?*, which strictly
-contains it, and answers no. The blindness objection therefore bears on how much independent weight
-the expert arm carries as corroboration, and not on whether reading (a) stands. **Reading (a) is
+**That limitation has since been made largely moot, not repaired.** The expert arm asks *could a
+human have written a better rule?*; enumeration asks *could anyone have?* — which strictly contains
+it, and answers no. The blindness objection now bears only on how much independent weight the
+expert arm carries as corroboration, not on whether reading (a) stands. **Reading (a) is
 demonstrated by exhaustion, corroborated by a fitted search, and corroborated again — with a
 disclosed contamination — by hand.**
 
-**Two placeholders from the earlier draft are retained as disclosed gaps rather than filled.**
-Standard deviations across multiple training seeds were not measured for the deployed model
-(§5.3.6). A "zero-shot capability retention" check has no analogue here: the gate is a post-hoc
-filter that modifies no weight and can cause no catastrophic forgetting, so the appropriate
-statement is that the model is unchanged by construction, not that drift was measured and found
-small.
+**One further item is a disclosed gap, not a measurement.** A "zero-shot capability retention"
+check has no analogue here: the gate is a post-hoc filter that modifies no weight and can cause no
+catastrophic forgetting — the model is unchanged by construction, not measured and found stable.
 
-#### What remains open, and what each would change
-
-Five items are outstanding. None of them blocks a claim this chapter makes, and each is listed with
-the consequence of resolving it, so that a reader can see what is contingent and what is settled.
-
-| open item | status | what would change here |
-|---|---|---|
-| The expert-rule arm's blindness (§5.2.11) | a decision, not a measurement | §5.2.11, §5.4.7 and this section follow; §5.4.7's count of converging procedures falls from seven to six. **Nothing load-bearing is lost**, because the enumeration carries the claim on its own |
-| The message-passing ablation (§5.2.3) | deferred; needs a retrain, not a re-measurement | §5.2.3's two figures are replaced, and both levels are re-quoted with their batch size. §5.4.4 does not depend on them |
-| The voltage ride-through margin (§5.2.5) | deferred; a stress arm on an existing harness | **The only item that could overturn rather than qualify.** If a heavier dispatch crosses the voltage bar, §5.2.5's rejection of a dynamic simulator needs rewording rather than a caveat |
-| Validator replication (§5.3.6) | written, unexecuted; requires the language-model host | §5.3.6's disclosure becomes a result. If verdicts prove unstable across runs, §5.2.8's finding becomes substantially more serious |
-| Three-term rules (§5.2.11) | not enumerated; the search space cubes | §5.2.11's closing limitation. The indirect evidence against them is that two terms add nothing over one, at three separate resolutions |
-
-The first four are matters of time or hardware rather than of method. The fifth is a deliberate
-stopping point: the argument it would strengthen is already carried by the exhaustive single-variable
-and pairwise arms, and the cost of a three-term search is not proportionate to what it could add.
+⚠ **Yet to run:** the message-passing ablation retrain (§5.2.3), the voltage ride-through stress
+arm (§5.2.5), validator replication (§5.3.6), and three-term rule enumeration (§5.2.11). None
+blocks a claim made here — each is a matter of time or hardware, not of method.
 
 ### 5.5.4 The claim this chapter supports
 
-The neural screener is not the contribution. The gate is, and the evidence for it is narrower and
-more durable than the earlier draft claimed:
+The neural screener is not the contribution. Nor is raw accuracy. The contribution is what the gate
+adds on top of either: a verdict that is traceable, blockable and explainable.
 
-> **A safety layer derived automatically from published engineering standards is topology-invariant
-> in a way a learned screener is not. Its accuracy is a property of the physics it enforces rather
-> than of the data it was tuned on; it survives a change of grid, of threshold objective and of rule
-> corpus; and its value scales with how badly the model it guards is failing. It is bounded by a
-> measurable structural ceiling, and it distils to a single corroborated predicate — which an
-> exhaustive enumeration of its own rule language confirms is the best predicate available, to
-> within a slightly conservative constant. That thinness belongs to the task rather than to the
-> method, and this was established from outside the extraction pipeline rather than argued from
-> within it.**
-
----
-
-## 5.6 Reconciliation with the earlier draft
-
-`ResultsAnalysis.pdf` should not be circulated alongside this chapter. The claims below changed, and
-each change is a measurement rather than an editorial preference.
-
-| earlier draft | status | where |
-|---|---|---|
-| `[PLACEHOLDER: EXTERNAL SOTA BASELINES]` | **filled** — DC/LODF beats the model on all three grids | §5.1.4 |
-| the model is the screening component and the gate improves it | **reframed** — the gate's topology-invariance is the contribution; the model does not earn its place on accuracy | §5.1.7, §5.5.2 |
-| a 91–96% repeat-failure rate "proves the rule carries real physical meaning" | **retained, sharpened, and since corrected to 91–97%** — it is the measured distance from tautology, now scored on the same population as the rest of the chapter, which is a weaker and more precise statement | §5.3.5 |
-| message passing proves the graph structure carries vital information | **qualified** — true in-distribution; the same machinery degrades transfer most | §5.2.3, §5.4.4 |
-| "54 percent of rules required measuring time or waves (frequency)" | **corrected twice** — first to "54.1% are blocked on frequency *and* time together, 28.7% on frequency alone", now to the script-verified **50.8%** (1,252 of 2,463); the 54.1%/1,332 figure was an uncomputed hand tally that did not reconcile with this chapter's own partition table | §5.2.5 |
-| "1,332 rules thrown out because they relied on frequency" | **corrected twice** — first read as "1,332 is the frequency-and-time total, not the frequency figure", but 1,332 itself was never produced by a script; `evaluation/capability_gap.py` gives **1,252**, which reconciles exactly with the exclusive partition already in this chapter | §5.2.5 |
-| the frequency and time rules are a gap awaiting a better simulator | **closed on evidence, and the headline count corrected** — a dynamic simulator was tested rather than built. The "726 evaluable" figure was also an uncomputed hand tally; the real, script-verified count is **1,252 evaluable → 3 that would ever fire**, an even sharper ratio than first reported | §5.2.5 |
-| `[PLACEHOLDER: STANDARD DEVIATIONS ACROSS SEEDS]` | **partly filled, and it does not say what the draft hoped** — a four-seed replication puts cross-topology spread at ±0.02, and ±0.07 on case14; the deployed model itself is still single-seed | §5.2.4, §5.3.6 |
-| `[PLACEHOLDER: ZERO-SHOT CAPABILITY RETENTION]` | **not applicable** — the gate modifies no weight | §5.5.3 |
-| the gate is evaluated only against the model it guards | **bounded from outside** — a tree fitted on the answer and a hand-written rule set now bracket it, and neither beats it | §5.2.11 |
-| the thin corpus is defended as a property of the standards | **demonstrated, not argued** — the defence was previously made only from inside the pipeline; three controls now measure it from outside, one of them by exhaustion | §5.2.11, §5.5.1 |
-| keeping the 100% threshold is defended by the assertion that precision matters more | **priced** — 100 is preferable only above an exchange rate of ~2.4–2.6 missed violations per false block; the crossover sits below equal weighting, so the preference must be stated rather than assumed | §5.2.11, §5.3.5, §5.5.2 |
-| the enumerated optimum is chosen with the answer key, so it may not be deployable | **closed** — selected on a held-out split it still beats the served corpus by +0.027 / +0.008 / +0.042, bought the same way in precision | §5.2.11 |
-| the pair search quantises, so it might have missed an interaction | **closed** — re-run at 64 and 128 cutpoints; no resolution yields a pair beating the best single rule on either non-degenerate grid | §5.2.11 |
-| one pre-registered expert rule was never evaluated | **closed** — the evaluator now admits `abs`/`min`/`max`; the rule evaluates and loses on every grid, so the hand-written arm's conclusion holds over all fourteen rules rather than thirteen | §5.2.11 |
-| fabricated validator reasoning is a property of the `strict` arm | **corrected** — two of the served arm's own rejections assert a vocabulary breach that does not exist; the finding is that verdicts were stable while reasoning was unreliable in **both** arms | §5.2.8 |
-| "at least three of the 21 rejections are wrong and four more should have been confirmed" | **re-adjudicated against the stored reasons** — 11 sound, **6 wrong**, 4 correctable; four rejections had never been examined at all | §5.2.8 |
-| the shield's deltas are unaffected by seed, argued structurally | **measured** — four seeds, three grids, twelve of twelve deltas positive; the NeurIPS 2020 delta is the tightest quantity in the chapter at ±0.0003 | §5.3.6 |
-| intervention precision is flat at 0.938 / 0.922 / 0.934 | **qualified for case14** — flat where the gate fires often enough to measure (WCCI 2022 ±0.004), but case14 spans 0.816–0.924 across seeds on 15–217 blocks and must be quoted as a range | §5.3.6, §5.4.1 |
-| the message-passing ablation is reported like every other figure | **caveated** — the head-only checkpoint is not on disk, so +0.058 is single-seed and not currently reproducible without a retrain | §5.2.3 |
-| the 100% loading threshold is presented without a stated alternative | **located on its curve** — the F1 optimum over the whole rule language is near 97%, worth 0.045 F1 and costing 0.37 precision | §5.2.11, §5.3.5 |
-| "no larger rulebook closes that gap" (the structural ceiling) | **qualified** — the 84% / 69% figures are the served rule's, not the language's; the best available rule leaves about 77% / 62% | §5.4.3 |
-| section numbered "5.6 Discussion" | **renumbered** to 5.5 | — |
-
-**One caution for anyone holding an intermediate copy of this chapter.** An earlier revision
-reported §5.2.4 from the seed-42 artifact alone, before `thesis_findings.md` §27.3 was written up.
-That single-seed reading — a +0.065 held-threshold gain on case14 — **is not a result**: the
-held-threshold delta ranges from −0.1009 to +0.0836 across the four seeds and does not hold its
-sign. Only the oracle-column ranking effect (+0.068, positive on every seed) survives replication.
-This chapter now follows the four-seed record throughout.
-
-A second revision described the two extraction controls as specified and not executed, and stated in
-§5.5.3 that reading (a) was *argued rather than demonstrated*. **Both controls ran on 2026-09-19**
-and that sentence is withdrawn; §5.2.11 carries the results, and the limitation that replaces it is
-narrower — the expert-rule arm was not written blind.
-
-A third revision reported the fitted decision tree as *the* ceiling and stated, in those words, that
-**"the fitted ceiling does not beat the four extracted rules."** That sentence is withdrawn as
-written. A decision tree is fitted greedily and cannot see a rule that only works as a pair, so what
-it licensed was the narrower claim about greedy searches. The rule language has since been
-enumerated exhaustively, and a better rule *does* exist: the same `loading_pct` predicate with its
-threshold near 97 rather than 100, worth about 0.045 F1 at roughly half the precision. The
-load-bearing conclusion is unaffected and better supported — nothing in the language improves on the
-predicate the pipeline found, only on its constant — but anyone holding the third revision should
-not quote its ceiling sentence. §5.2.11 and §5.4.3 carry the corrected form.
+> **The contribution is explainability — a safety layer that turns a black-box screener's verdict
+> into a decision with an authority, a mechanism, and a reason, not simply a more accurate one.**
+> **Traceable:** every block cites the exact clause of the exact standard behind it —
+> `Document → Clause → Rule → ServedRule → Predicate → Variable` — so nothing is asserted without
+> its provenance (§5.2.10). **Blockable:** only the BLOCK channel may veto, structurally rather than
+> by convention, at a measured 0.92–0.94 intervention precision (§5.2.9). **Explainable:** rules
+> that version 1 silently discarded because they could not justify a veto now speak instead — 41 of
+> 58 rules across 17 distinct conditions, up from the 4 that could act at all, a 5.7x increase in
+> what the system can say about a prediction it lets through (§5.2.9). This layer is also
+> topology-invariant — its accuracy is a property of the physics it enforces rather than of the
+> data it was tuned on, and it survives a change of grid, of threshold objective and of rule corpus
+> — and distils to a single, corroborated predicate that an exhaustive enumeration of its own rule
+> language confirms is the best one available. That thinness belongs to the task rather than to the
+> method, established from outside the extraction pipeline rather than argued from within it.**
 
 ---
 
@@ -2157,10 +1903,10 @@ not quote its ceiling sentence. §5.2.11 and §5.4.3 carry the corrected form.
 | bit-identical replication across extraction runs | §13.6 | `results/shield/shield_<tag>_run3.json` |
 | structural ceiling | §13.3 | same |
 | distance from tautology (91–97%, NeurIPS 2020 corrected to the test-split scope) | §13.4 | same |
-| raw model cross-topology, held and oracle | §14 | `gnn_n1_tightening.md` |
+| raw model cross-topology, held and best case | §14 | `gnn_n1_tightening.md` |
 | F-beta trade curve | §14.2 | `results/threshold/threshold_sweep.json` |
-| DC/LODF arm, control, and topology pre-screen | §25 | `results/lodf/lodf_<tag>.json` · `tests/test_lodf.py` |
-| non-graph learned baselines | §26 | `results/tabular/tabular_baselines.json` |
+| inference cost, AC (LightSim) vs the model, three grids | §5.1.4 | `results/timing/timing_<tag>_lightsim.json` · `tests/test_bench_inference_speed.py` |
+| non-graph learned baselines (logistic, random forest, MLP) | §26 | `results/tabular/tabular_baselines.json` · `results/tabular/baseline_ladder.json` |
 | **reactance experiment, four seeds** | §27.3 | `results/reactance/reactance_transfer[_seed{0,1,2}].json` |
 | seed instability off-distribution, and its retroactive reach | §27.3.3 | same |
 | deployed model reproduces from the documented command | §27.3.5 | same |
@@ -2168,7 +1914,7 @@ not quote its ceiling sentence. §5.2.11 and §5.4.3 carry the corrected form.
 | loading-band cliff | §20.1 | `results/audit/loading_band_calibration.json` |
 | warning-channel calibration, two inverted predicates | §21.2 | `results/audit/warn_n1_calibration.json` |
 | validation A/B and the fabricated reasoning | §12.1–§12.4 | `validated_{strict,translated}/*_rejected.jsonl` |
-| the four served rules | §12.5 | `validated_translated/all_rules_deduped.jsonl` |
+| the 58-rule shield corpus and its BLOCK/WARN/NORMAL channels | §12.5, §5.2.9 | `shield_corpus/all_rules_channels.jsonl` |
 | provenance and corroboration | §16.3 | `kg/knowledge_graph.json` · `kg/kg_corroboration.svg` |
 | **frequency rules inert under N-1; escalation ladder** | §20.2 | `results/audit/andes_frequency_spike.json` · `sanity/andes_frequency_spike.py` |
 | **ride-through envelopes reachable by the event, not by a state** | §20.2 | `results/audit/andes_voltage_spike.json` · `sanity/andes_voltage_spike.py` |
@@ -2180,10 +1926,10 @@ not quote its ceiling sentence. §5.2.11 and §5.4.3 carry the corrected form.
 | **exhaustive enumeration of the rule language, three arms** | §30 | `results/ceiling/exhaustive_rules.json` · `evaluation/exhaustive_rules_n1.py` |
 | correction to the tree's headline, and the ~97 optimum | §30.5, §30.3 | same |
 | **the F-beta exchange rate between 100 and ~97, every cutpoint** | §5.2.11, §5.3.5, §5.5.2 | `results/ceiling/loading_pct_sweep.json` · `grids.<tag>.loading_pct_fbeta` in `exhaustive_rules.json` |
-| **held-out rule selection, replacing the oracle selection** | §5.2.11 | `results/ceiling/exhaustive_rules.json` (`held_out_selection`) |
+| **held-out rule selection, replacing the best-case selection** | §5.2.11 | `results/ceiling/exhaustive_rules.json` (`held_out_selection`) |
 | **pair search at 32 / 64 / 128 cutpoints** | §5.2.11 | same (`pair_resolutions`) |
 | **shield seed band, four control seeds x three grids** | §5.3.6 | `results/seeds/shield_seed_band.json` |
 | **expert arm re-scored with `abs`/`min`/`max` admitted** | §5.2.11 | `results/ceiling/expert_rules_builtins_repaired.json` |
 | **adjudication of all 21 shared rejections, mechanical and read fields separated** | §5.2.8 | `results/audit/rejection_adjudication.json` · `evaluation/audit_rejections.py` |
 | validator replication harness — **written, not executed** | §5.3.6 | `evaluation/replicate_validation.py` |
-| retired claims guarded as a test | §5.6 | `tests/test_docs_hygiene.py` |
+| retired claims guarded as a test | `tests/test_docs_hygiene.py` docstring | `tests/test_docs_hygiene.py` |

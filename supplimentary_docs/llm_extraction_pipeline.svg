@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="100%" viewBox="0 0 720 690" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="a-s" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="#4C3FBF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+  <marker id="a-o" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="#B4451F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+  <style>
+    text { font-family: Arial, Helvetica, sans-serif; }
+    .t  { font-size: 13px; font-weight: 700; }
+    .s  { font-size: 10px; font-weight: 400; }
+    .m  { font-size: 9px;  font-weight: 400; }
+    .lbl { font-size: 9px; font-weight: 600; font-style: italic; }
+    .kicker { font-size: 10px; font-weight: 700; letter-spacing: 1.4px; }
+    .lg { font-size: 10px; font-weight: 600; fill: #3a3a3a; }
+    .fs { stroke: #4C3FBF; stroke-width: 1.5; fill: none; marker-end: url(#a-s); }
+    .fo { stroke: #B4451F; stroke-width: 1.5; fill: none; marker-end: url(#a-o); }
+  </style>
+</defs>
+
+<rect x="0" y="0" width="720" height="690" fill="#ffffff"/>
+
+<text class="kicker" x="360" y="26" text-anchor="middle" fill="#4C3FBF">COMPONENT B &#8212; SYMBOLIC KNOWLEDGE EXTRACTION</text>
+
+<!-- ── source documents ─────────────────────────────────────────────── -->
+<rect x="160" y="44" width="400" height="56" rx="7" fill="#EDEBFB" stroke="#4C3FBF" stroke-width="1.4"/>
+<text class="t" x="360" y="68" text-anchor="middle" fill="#2F2585">Source documents</text>
+<text class="s" x="360" y="85" text-anchor="middle" fill="#2F2585">tier-filtered and six-check verified &#183; chunked with overlap so no rule is split</text>
+
+<path class="fs" d="M360 100 V122"/>
+
+<!-- ── stage 1: extract (widest — fans out into many candidates) ──────── -->
+<rect x="120" y="122" width="480" height="60" rx="7" fill="#EDEBFB" stroke="#4C3FBF" stroke-width="1.4"/>
+<text class="t" x="360" y="146" text-anchor="middle" fill="#2F2585">Extract &#8212; Qwen3.6-35B-A3B</text>
+<text class="s" x="360" y="163" text-anchor="middle" fill="#2F2585">open vocabulary, per document chunk &#8594; candidate rules as structured JSON</text>
+
+<path class="fs" d="M360 182 V204"/>
+<text class="lbl" x="378" y="196" fill="#4C3FBF">candidate rules</text>
+
+<!-- ── stage 2: translate ───────────────────────────────────────────── -->
+<rect x="150" y="204" width="420" height="60" rx="7" fill="#EDEBFB" stroke="#4C3FBF" stroke-width="1.4"/>
+<text class="t" x="360" y="228" text-anchor="middle" fill="#2F2585">Translate &#8212; Qwen3.6-35B-A3B</text>
+<text class="s" x="360" y="245" text-anchor="middle" fill="#2F2585">rewrites each condition onto the shield's fixed vocabulary of measurable grid variables</text>
+
+<path class="fs" d="M360 264 V286"/>
+<text class="lbl" x="378" y="278" fill="#4C3FBF">translated rules</text>
+
+<!-- ── stage 3: polarity guard (non-LLM, deterministic) ────────────── -->
+<rect x="180" y="286" width="360" height="76" rx="7" fill="#F4F4F4" stroke="#8A8A8A" stroke-width="1.4"/>
+<text class="t" x="360" y="310" text-anchor="middle" fill="#3a3a3a">Polarity Guard &#8212; deterministic, no LLM</text>
+<text class="s" x="360" y="327" text-anchor="middle" fill="#4a4a4a">checked against real recorded grid snapshots;</text>
+<text class="s" x="360" y="344" text-anchor="middle" fill="#4a4a4a">discards any rule that would fire on a normal grid</text>
+
+<path class="fs" d="M360 362 V384"/>
+<text class="lbl" x="378" y="376" fill="#4C3FBF">guarded rules</text>
+
+<!-- ── stage 4: validate ────────────────────────────────────────────── -->
+<rect x="210" y="384" width="300" height="76" rx="7" fill="#EDEBFB" stroke="#4C3FBF" stroke-width="1.4"/>
+<text class="t" x="360" y="408" text-anchor="middle" fill="#2F2585">Validate &#8212; Nemotron 3 Nano 30B-A3B</text>
+<text class="s" x="360" y="425" text-anchor="middle" fill="#2F2585">checks each candidate against its original source chunk</text>
+<text class="m" x="360" y="442" text-anchor="middle" fill="#6A61C9">returns confirm &#183; correct &#183; reject, with a reason recorded either way</text>
+
+<path class="fs" d="M360 460 V482"/>
+<text class="lbl" x="378" y="474" fill="#4C3FBF">confirmed / corrected rules</text>
+
+<!-- ── dedup ────────────────────────────────────────────────────────── -->
+<rect x="190" y="482" width="340" height="76" rx="7" fill="#F4F4F4" stroke="#8A8A8A" stroke-width="1.4"/>
+<text class="t" x="360" y="506" text-anchor="middle" fill="#3a3a3a">Deduplicate</text>
+<text class="s" x="360" y="523" text-anchor="middle" fill="#4a4a4a">rules sharing an entity and condition</text>
+<text class="s" x="360" y="540" text-anchor="middle" fill="#4a4a4a">after translation are merged, keeping every citation</text>
+
+<path class="fo" d="M360 558 V580"/>
+
+<!-- ── served rules ─────────────────────────────────────────────────── -->
+<rect x="170" y="580" width="380" height="56" rx="7" fill="#FBEDE7" stroke="#B4451F" stroke-width="1.8"/>
+<text class="t" x="360" y="604" text-anchor="middle" fill="#8A3316">Served rules &#8594; Knowledge Graph</text>
+<text class="s" x="360" y="621" text-anchor="middle" fill="#8A3316">each still carries its role (constraint or affirmation) and its source citation</text>
+
+<!-- ── legend ───────────────────────────────────────────────────────── -->
+<rect x="189" y="658" width="10" height="10" rx="2.5" fill="#4C3FBF"/>
+<text class="lg" x="205" y="667">LLM stage</text>
+<rect x="278" y="658" width="10" height="10" rx="2.5" fill="#8A8A8A"/>
+<text class="lg" x="294" y="667">deterministic, no LLM</text>
+<rect x="422" y="658" width="10" height="10" rx="2.5" fill="#B4451F"/>
+<text class="lg" x="438" y="667">served to the shield</text>
+
+</svg>

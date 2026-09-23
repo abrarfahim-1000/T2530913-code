@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="100%" viewBox="0 0 720 590" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="a-s" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="#4C3FBF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+  <marker id="a-o" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="#B4451F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+  <marker id="a-g" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="#8A8A8A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+  <style>
+    text { font-family: Arial, Helvetica, sans-serif; }
+    .t  { font-size: 13px; font-weight: 700; }
+    .s  { font-size: 10px; font-weight: 400; }
+    .m  { font-size: 9px;  font-weight: 400; }
+    .lbl { font-size: 9px; font-weight: 600; font-style: italic; fill: #4C3FBF; }
+    .kicker { font-size: 10px; font-weight: 700; letter-spacing: 1.4px; }
+    .lg { font-size: 10px; font-weight: 600; fill: #3a3a3a; }
+    .footb { font-size: 11px; font-weight: 700; fill: #1a1a1a; }
+    .fs { stroke: #4C3FBF; stroke-width: 1.5; fill: none; marker-end: url(#a-s); }
+    .fo { stroke: #B4451F; stroke-width: 1.5; fill: none; marker-end: url(#a-o); }
+    .fg { stroke: #8A8A8A; stroke-width: 1.5; fill: none; marker-end: url(#a-g); }
+  </style>
+</defs>
+
+<rect x="0" y="0" width="720" height="590" fill="#ffffff"/>
+
+<text class="kicker" x="360" y="26" text-anchor="middle" fill="#4C3FBF">COMPONENT C &#8212; KNOWLEDGE GRAPH SCHEMA</text>
+
+<!-- ── Document ──────────────────────────────────────────────────────── -->
+<rect x="200" y="44" width="320" height="54" rx="7" fill="#EDEBFB" stroke="#4C3FBF" stroke-width="1.4"/>
+<text class="t" x="360" y="68" text-anchor="middle" fill="#2F2585">Document</text>
+<text class="s" x="360" y="85" text-anchor="middle" fill="#2F2585">a source standard &#8212; IEEE, NERC, a national grid code, &#8230;</text>
+
+<path class="fs" d="M360 98 V120"/>
+<text class="lbl" x="376" y="112">contains</text>
+
+<!-- ── Clause ────────────────────────────────────────────────────────── -->
+<rect x="200" y="122" width="320" height="54" rx="7" fill="#EDEBFB" stroke="#4C3FBF" stroke-width="1.4"/>
+<text class="t" x="360" y="146" text-anchor="middle" fill="#2F2585">Clause</text>
+<text class="s" x="360" y="163" text-anchor="middle" fill="#2F2585">the specific cited section within that document</text>
+
+<path class="fs" d="M360 176 V198"/>
+<text class="lbl" x="376" y="190">states</text>
+
+<!-- ── Rule ──────────────────────────────────────────────────────────── -->
+<rect x="200" y="200" width="320" height="54" rx="7" fill="#EDEBFB" stroke="#4C3FBF" stroke-width="1.4"/>
+<text class="t" x="360" y="224" text-anchor="middle" fill="#2F2585">Rule</text>
+<text class="s" x="360" y="241" text-anchor="middle" fill="#2F2585">a candidate that survived validation against its source</text>
+
+<text class="lbl" x="360" y="263" text-anchor="middle">deduped into</text>
+
+<!-- branch -->
+<path class="fs" d="M360 254 V272 L200 272 V280"/>
+<path class="fs" d="M360 254 V272 L520 272 V280"/>
+
+<!-- ── Served rule (block-capable) ──────────────────────────────────── -->
+<rect x="50" y="280" width="300" height="76" rx="7" fill="#FBEDE7" stroke="#B4451F" stroke-width="1.6"/>
+<text class="t" x="200" y="304" text-anchor="middle" fill="#8A3316">Served rule</text>
+<text class="s" x="200" y="321" text-anchor="middle" fill="#8A3316">BLOCK channel &#8212; can refuse a prediction</text>
+<text class="m" x="200" y="338" text-anchor="middle" fill="#B4451F">constraint role blocks &#183; affirmation role only supports</text>
+
+<!-- ── Explanatory rule (warn / normal only) ────────────────────────── -->
+<rect x="370" y="280" width="300" height="76" rx="7" fill="#F4F4F4" stroke="#8A8A8A" stroke-width="1.4"/>
+<text class="t" x="520" y="304" text-anchor="middle" fill="#3a3a3a">Explanatory rule</text>
+<text class="s" x="520" y="321" text-anchor="middle" fill="#4a4a4a">WARN / NORMAL channels &#8212; flags or confirms, never blocks</text>
+<text class="m" x="520" y="338" text-anchor="middle" fill="#6a6a6a">the wider layer: every rule that survived translation</text>
+
+<!-- converge -->
+<path class="fo" d="M200 356 V374 H360 V382"/>
+<path class="fg" d="M520 356 V374 H360 V382"/>
+<text class="lbl" x="376" y="367">instantiates</text>
+
+<!-- ── Predicate ─────────────────────────────────────────────────────── -->
+<rect x="170" y="384" width="380" height="54" rx="7" fill="#EDEBFB" stroke="#4C3FBF" stroke-width="1.4"/>
+<text class="t" x="360" y="408" text-anchor="middle" fill="#2F2585">Predicate</text>
+<text class="s" x="360" y="425" text-anchor="middle" fill="#2F2585">the underlying physical check, normalised across inconsistent entity labels</text>
+
+<path class="fs" d="M360 438 V460"/>
+<text class="lbl" x="378" y="452">reads</text>
+
+<!-- ── Variable ──────────────────────────────────────────────────────── -->
+<rect x="220" y="462" width="280" height="54" rx="7" fill="#EDEBFB" stroke="#4C3FBF" stroke-width="1.4"/>
+<text class="t" x="360" y="486" text-anchor="middle" fill="#2F2585">Variable</text>
+<text class="s" x="360" y="503" text-anchor="middle" fill="#2F2585">the specific grid measurement the predicate evaluates</text>
+
+<!-- ── legend + closing line ─────────────────────────────────────────── -->
+<rect x="256" y="534" width="10" height="10" rx="2.5" fill="#B4451F"/>
+<text class="lg" x="272" y="543">block-capable</text>
+<rect x="386" y="534" width="10" height="10" rx="2.5" fill="#8A8A8A"/>
+<text class="lg" x="402" y="543">explanation-only</text>
+
+<text class="footb" x="360" y="570" text-anchor="middle">No bus or line numbers are stored anywhere in the graph, so the same graph serves every grid unmodified.</text>
+
+</svg>

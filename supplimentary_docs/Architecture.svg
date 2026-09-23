@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="100%" viewBox="0 0 720 606" xmlns="http://www.w3.org/2000/svg">
+<svg width="100%" viewBox="0 0 720 530" xmlns="http://www.w3.org/2000/svg">
 <defs>
   <marker id="a-n" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
     <path d="M2 1L8 5L2 9" fill="none" stroke="#0E7A5F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -21,11 +21,10 @@
     .fn { stroke: #0E7A5F; stroke-width: 1.5; fill: none; marker-end: url(#a-n); }
     .fs { stroke: #4C3FBF; stroke-width: 1.5; fill: none; marker-end: url(#a-s); }
     .fg { stroke: #8A8A8A; stroke-width: 1.5; fill: none; marker-end: url(#a-g); }
-    .fgp{ stroke: #8A8A8A; stroke-width: 1.5; fill: none; }
   </style>
 </defs>
 
-<rect x="0" y="0" width="720" height="606" fill="#ffffff"/>
+<rect x="0" y="0" width="720" height="530" fill="#ffffff"/>
 
 <text class="kicker" x="50" y="26" fill="#0E7A5F">NEURAL TRACK</text>
 <text class="kicker" x="670" y="26" text-anchor="end" fill="#4C3FBF">SYMBOLIC TRACK</text>
@@ -36,7 +35,7 @@
 <text class="s" x="190" y="87" text-anchor="middle" fill="#0A5C47">three grids &#183; one label per line</text>
 
 <rect x="390" y="46" width="280" height="54" rx="7" fill="#EDEBFB" stroke="#4C3FBF" stroke-width="1.4"/>
-<text class="t" x="530" y="70" text-anchor="middle" fill="#2F2585">16 standards documents</text>
+<text class="t" x="530" y="70" text-anchor="middle" fill="#2F2585">Standards documents</text>
 <text class="s" x="530" y="87" text-anchor="middle" fill="#2F2585">IEEE &#183; NERC &#183; national grid codes</text>
 
 <path class="fn" d="M190 100 V122"/>
@@ -51,7 +50,7 @@
 <rect x="390" y="124" width="280" height="70" rx="7" fill="#EDEBFB" stroke="#4C3FBF" stroke-width="1.4"/>
 <text class="t" x="530" y="148" text-anchor="middle" fill="#2F2585">B &#8212; rule extraction</text>
 <text class="s" x="530" y="165" text-anchor="middle" fill="#2F2585">extract &#183; translate &#183; guard &#183; validate</text>
-<text class="m" x="530" y="181" text-anchor="middle" fill="#6A61C9">two models, four passes &#8212; 2,463 candidates down to 4 rules</text>
+<text class="m" x="530" y="181" text-anchor="middle" fill="#6A61C9">produces both block-capable rules and explain-only rules</text>
 
 <path class="fn" d="M190 194 V216"/>
 <path class="fs" d="M530 194 V216"/>
@@ -72,7 +71,7 @@
 <rect x="110" y="302" width="500" height="62" rx="7" fill="#FBEDE7" stroke="#B4451F" stroke-width="1.8"/>
 <text class="t" x="360" y="326" text-anchor="middle" fill="#8A3316">D &#8212; the shield</text>
 <text class="s" x="360" y="343" text-anchor="middle" fill="#8A3316">every prediction passes through it &#8212; there is no bypass</text>
-<text class="m" x="360" y="357" text-anchor="middle" fill="#B4451F">it can overrule a &#8220;safe&#8221; call, and can never overrule a cautious one</text>
+<text class="m" x="360" y="357" text-anchor="middle" fill="#B4451F">it can overrule a &#8220;secure&#8221; call, and can never overrule a cautious one</text>
 
 <path class="fg" d="M360 364 V392"/>
 
@@ -81,35 +80,14 @@
 <text class="t" x="360" y="418" text-anchor="middle" fill="#2a2a2a">A verdict, with its citation</text>
 <text class="s" x="360" y="435" text-anchor="middle" fill="#4a4a4a">which rule fired, from which clause, of which standard</text>
 
-<path class="fgp" d="M360 448 V462 M145 462 H575"/>
-<path class="fg" d="M145 462 V478"/>
-<path class="fg" d="M360 462 V478"/>
-<path class="fg" d="M575 462 V478"/>
-
-<!-- ── measured ──────────────────────────────────────────────────────── -->
-<rect x="50"  y="480" width="190" height="60" rx="7" fill="#FAFAFA" stroke="#C8C8C8" stroke-width="1.2"/>
-<text class="t" x="145" y="502" text-anchor="middle" fill="#2a2a2a">36-bus &#8212; trained on</text>
-<text class="s" x="145" y="518" text-anchor="middle" fill="#4a4a4a">F1 +0.008</text>
-<text class="m" x="145" y="532" text-anchor="middle" fill="#1B6B33">the gate was right 94% of the time</text>
-
-<rect x="265" y="480" width="190" height="60" rx="7" fill="#FAFAFA" stroke="#C8C8C8" stroke-width="1.2"/>
-<text class="t" x="360" y="502" text-anchor="middle" fill="#2a2a2a">14-bus &#8212; never seen</text>
-<text class="s" x="360" y="518" text-anchor="middle" fill="#4a4a4a">F1 +0.002</text>
-<text class="m" x="360" y="532" text-anchor="middle" fill="#1B6B33">the gate was right 92% of the time</text>
-
-<rect x="480" y="480" width="190" height="60" rx="7" fill="#FAFAFA" stroke="#C8C8C8" stroke-width="1.2"/>
-<text class="t" x="575" y="502" text-anchor="middle" fill="#2a2a2a">118-bus &#8212; never seen</text>
-<text class="s" x="575" y="518" text-anchor="middle" fill="#4a4a4a">F1 +0.068</text>
-<text class="m" x="575" y="532" text-anchor="middle" fill="#1B6B33">the gate was right 93% of the time</text>
-
 <!-- ── legend + closing line ─────────────────────────────────────────── -->
-<rect x="196" y="562" width="10" height="10" rx="2.5" fill="#0E7A5F"/>
-<text class="lg" x="212" y="571">neural track</text>
-<rect x="296" y="562" width="10" height="10" rx="2.5" fill="#4C3FBF"/>
-<text class="lg" x="312" y="571">symbolic track</text>
-<rect x="406" y="562" width="10" height="10" rx="2.5" fill="#B4451F"/>
-<text class="lg" x="422" y="571">the gate</text>
+<rect x="230" y="472" width="10" height="10" rx="2.5" fill="#0E7A5F"/>
+<text class="lg" x="246" y="481">neural track</text>
+<rect x="326" y="472" width="10" height="10" rx="2.5" fill="#4C3FBF"/>
+<text class="lg" x="342" y="481">symbolic track</text>
+<rect x="436" y="472" width="10" height="10" rx="2.5" fill="#B4451F"/>
+<text class="lg" x="452" y="481">the gate</text>
 
-<text class="footb" x="360" y="596" text-anchor="middle">The model gets worse on a grid it has never seen. The gate does not.</text>
+<text class="footb" x="360" y="508" text-anchor="middle">Two tracks that never see each other's internals, joined only through the shield.</text>
 
 </svg>

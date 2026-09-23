@@ -70,8 +70,8 @@ def frame_rows(record: dict, meta: GridEnvMetadata) -> tuple[np.ndarray, np.ndar
     """One frame -> (X, y, rho) with one row per in-service line.
 
     `build_edges` and `build_line_targets` are the DataLoader's own functions, so
-    the rows are aligned to the labels by construction — the same guarantee the
-    LODF arm relies on (thesis_findings.md §25.2).
+    the rows are aligned to the labels by construction — the same guarantee every
+    comparison arm relies on.
     """
     nodes = build_node_features(record, meta)
     _edge_index, edge_attr = build_edges(record, meta)
